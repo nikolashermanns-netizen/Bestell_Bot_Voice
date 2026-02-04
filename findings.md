@@ -203,42 +203,69 @@ def _on_incoming_call(self, call):
         self._handle_call_audio(call)  # Audio-Loop hier starten
 ```
 
-### 19. G.711 u-law Audio-Dekodierung
-**Problem:** Audio an API gesendet aber keine Sprache erkannt.
-**Ursache:** pyVoIP liefert **8kHz 8-bit G.711 u-law** (nicht raw PCM!).
+### 19. pyVoIP Audio-Format (KRITISCH - viel Zeit verloren!)
+**Problem:** Audio war extrem verzerrt und schnell.
 
-**Die Konvertierung muss sein:**
-1. G.711 u-law (8kHz 8-bit) → PCM16 (8kHz 16-bit) dekodieren
-2. 8kHz → 16kHz resampling
-3. An AudioBridge als "L16" (nicht "PCMU"!) übergeben
+**Falsche Annahmen die wir gemacht haben:**
+1. ❌ pyVoIP liefert G.711 u-law → FALSCH
+2. ❌ pyVoIP liefert 16-bit PCM → FALSCH
 
+**Tatsächliches Format (durch Analyse ermittelt):**
+- pyVoIP `read_audio()` liefert **8-bit unsigned PCM** @ 8kHz
+- Wertebereich: 0-255
+- Stille: 128 (Mittelwert)
+- pyVoIP `write_audio()` erwartet ebenfalls 8-bit unsigned PCM
+
+**Korrekte Konvertierung:**
 ```python
-def _convert_8k_ulaw_to_16k_pcm(self, ulaw_data: bytes) -> bytes:
-    """Konvertiert 8kHz u-law zu 16kHz 16-bit PCM."""
-    # Schritt 1: u-law dekodieren
-    ulaw_table = self._get_ulaw_decode_table()
-    samples_8k = np.array([ulaw_table[b] for b in ulaw_data], dtype=np.int16)
+def _upsample_8k_to_16k(self, data: bytes) -> bytes:
+    """Konvertiert 8kHz 8-bit unsigned PCM zu 16kHz 16-bit signed PCM."""
+    # Interpretiere als 8-bit unsigned
+    samples_8bit = np.frombuffer(data, dtype=np.uint8)
     
-    # Schritt 2: 8kHz → 16kHz resamplen (Faktor 2)
-    samples_16k = np.repeat(samples_8k, 2)  # Einfaches Upsampling
+    # Konvertiere 8-bit unsigned (0-255, center 128) zu 16-bit signed
+    samples_16bit = (samples_8bit.astype(np.int16) - 128) * 256
     
-    return samples_16k.tobytes()
-
-@staticmethod
-def _get_ulaw_decode_table() -> list[int]:
-    """G.711 u-law Dekodierungstabelle."""
-    table = []
-    for i in range(256):
-        val = ~i
-        sign = (val & 0x80)
-        exponent = (val >> 4) & 0x07
-        mantissa = val & 0x0F
-        sample = (mantissa << 3) + 0x84
-        sample <<= (exponent - 1) if exponent > 1 else 0
-        sample = -sample if sign else sample
-        table.append(sample)
-    return table
+    # Upsample 8kHz -> 16kHz mit linearer Interpolation
+    new_length = len(samples_16bit) * 2
+    indices = np.linspace(0, len(samples_16bit) - 1, new_length)
+    upsampled = np.interp(indices, np.arange(len(samples_16bit)), samples_16bit)
+    
+    return upsampled.astype(np.int16).tobytes()
 ```
+
+**Wie wir das Format ermittelt haben:**
+```powershell
+# Audio-Datei analysieren
+$bytes = [System.IO.File]::ReadAllBytes("recordings/sip_audio_raw.pcm")
+# Min: 0, Max: 149, Stille bei 128 → 8-bit unsigned PCM
+```
+
+### 19b. Audio Output (AI → Caller) Konvertierung
+**Problem:** AI-Antworten waren verzerrt für den Anrufer.
+**Ursache:** 
+1. AI sendet **24kHz** 16-bit PCM
+2. pyVoIP erwartet **8kHz** 8-bit (PCM oder u-law)
+
+**Lösung:** Korrekte Downsampling-Kette:
+```python
+def _convert_24k_to_8k(self, data: bytes) -> bytes:
+    # 16-bit samples lesen
+    samples = np.frombuffer(data, dtype=np.int16)
+    
+    # Downsample 24kHz -> 8kHz (Faktor 3) mit Interpolation
+    target_len = len(samples) // 3
+    indices = np.linspace(0, len(samples) - 1, target_len)
+    downsampled = np.interp(indices, np.arange(len(samples)), samples)
+    
+    # Konvertiere zu 8-bit oder u-law je nach Codec
+    return self._encode_output(downsampled.astype(np.int16))
+```
+
+**Wichtig:** Der richtige Output-Codec muss getestet werden:
+- `pcm8`: 8-bit unsigned PCM (Wert 128 = Stille)
+- `ulaw`: G.711 μ-law (Wert 0xFF = Stille)
+- `alaw`: G.711 A-law
 
 ### 20. Codec-Parameter bei AudioBridge
 **Problem:** Audio im AudioBridge war beschädigt.
@@ -254,6 +281,31 @@ self._audio_bridge.receive_from_sip(pcm_data, codec="PCMU")  # NEIN!
 ```python
 # Wenn SIP Client bereits zu PCM16 konvertiert hat:
 self._audio_bridge.receive_from_sip(pcm_data, codec="L16")  # Linear PCM
+```
+
+### 20b. NAT/RTP Keepalive Problem
+**Problem:** RTP-Daten kommen nur am Anfang, dann stoppt der Stream.
+**Ursache:** NAT-Eintrag expired weil keine Pakete zurückgesendet werden.
+
+**Lösung:** Kontinuierlich Audio (auch Stille) an den Server senden:
+```python
+# Im Audio-Loop: Stille senden um NAT aktiv zu halten
+silence = b'\x80' * 160  # 8-bit unsigned PCM Stille
+call.write_audio(silence)
+```
+
+**Außerdem wichtig:** Lokale IP explizit setzen statt 0.0.0.0:
+```python
+def _get_local_ip(self) -> str:
+    """Ermittelt die lokale IP für RTP."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.connect((sip_server, 80))  # Verbinde zu SIP Server
+    local_ip = s.getsockname()[0]
+    s.close()
+    return local_ip
+
+# Bei VoIPPhone:
+phone = VoIPPhone(..., myIP=local_ip, ...)
 ```
 
 ### 21. Sipgate-spezifische Konfiguration
@@ -327,3 +379,138 @@ python main.py
 - [ ] **call.answer() DIREKT im pyVoIP Callback**
 - [ ] **Codec-Parameter "L16" wenn Audio bereits konvertiert**
 - [ ] **Alte Python-Prozesse vor Neustart beenden**
+
+---
+
+## SDP/Codec-Analyse (2026-02-04)
+
+### 25. SDP-Codec aus pyVoIP auslesen
+
+**Problem:** Welcher Codec wird für die Telefonverbindung verwendet?
+
+**Lösung:** Die SDP-Information ist in pyVoIP verfügbar:
+
+```python
+# Nach call.answer():
+for rtp in call.RTPClients:
+    # Zeigt den bevorzugten Codec
+    print(f"Preference: {rtp.preference}")  # z.B. <PayloadType.PCMA: 8>
+    print(f"Assoc: {rtp.assoc}")  # Alle verfügbaren Codecs
+
+# Oder aus dem SIP Request Body:
+if hasattr(call, 'request') and call.request:
+    sdp = call.request.body
+    # sdp['m'][0]['attributes'] enthält rtpmap mit Codec-Details
+```
+
+### 26. Sipgate verwendet A-law (PCMA), nicht PCM!
+
+**Wichtige Erkenntnis aus SDP-Logs:**
+
+```
+'preference': <PayloadType.PCMA: 8>
+'assoc': {8: <PayloadType.PCMA: 8>, 0: <PayloadType.PCMU: 0>, ...}
+
+SDP rtpmap:
+'8': {'name': 'PCMA', 'frequency': '8000'}
+'0': {'name': 'PCMU', 'frequency': '8000'}
+```
+
+**Bedeutung:**
+- pyVoIP wählt **A-law (G.711 PCMA)** als bevorzugten Codec
+- Sample Rate ist **8000 Hz** (8kHz)
+- pyVoIP dekodiert eingehend A-law → 8-bit unsigned PCM
+- **Ausgehend müssen wir A-law encodieren, nicht raw PCM!**
+
+**Korrekte Output-Konvertierung:**
+
+```python
+def _convert_ai_to_sip(self, data: bytes) -> bytes:
+    """Konvertiert 24kHz 16-bit AI Audio zu 8kHz A-law für SIP."""
+    samples = np.frombuffer(data, dtype=np.int16)
+    
+    # Resample 24kHz → 8kHz
+    ratio = 24000 / 8000  # = 3
+    target_len = int(len(samples) / ratio)
+    indices = np.linspace(0, len(samples) - 1, target_len)
+    samples_8k = np.interp(indices, np.arange(len(samples)), samples).astype(np.int16)
+    
+    # Encode zu A-law
+    return self._encode_alaw(samples_8k)
+
+def _encode_alaw(self, samples: np.ndarray) -> bytes:
+    """G.711 A-law Encoding."""
+    result = []
+    for s in samples:
+        s = max(-32768, min(32767, int(s)))
+        sign = 0x00 if s >= 0 else 0x80
+        s = abs(s)
+        
+        if s < 256:
+            exp, mant = 0, s >> 4
+        elif s < 512:
+            exp, mant = 1, (s >> 5) & 0x0F
+        # ... (vollständige Tabelle im Code)
+        
+        result.append((sign | (exp << 4) | mant) ^ 0x55)
+    return bytes(result)
+```
+
+### 27. OpenAI Realtime API Audio-Format
+
+**Input (zum AI):** 16kHz, 16-bit signed PCM, mono
+**Output (vom AI):** 24kHz, 16-bit signed PCM, mono
+
+**Konvertierungskette:**
+```
+Telefon (8kHz A-law) 
+  → pyVoIP dekodiert → 8kHz 8-bit unsigned PCM
+  → Upsample + Convert → 16kHz 16-bit signed PCM 
+  → OpenAI API
+
+OpenAI API → 24kHz 16-bit signed PCM
+  → Downsample → 8kHz 16-bit signed PCM
+  → A-law encode → 8kHz A-law
+  → pyVoIP → Telefon
+```
+
+### 28. Frame-Größe für pyVoIP
+
+**KRITISCH:** pyVoIP erwartet exakt **160-byte Frames** (20ms @ 8kHz, 8-bit).
+
+Die AI sendet größere Blöcke (z.B. 2400 samples @ 24kHz = 100ms).
+Nach Konvertierung zu 8kHz 8-bit: 800 bytes pro Block.
+
+**Lösung:** AI-Audio in 160-byte Chunks aufteilen:
+
+```python
+FRAME_SIZE = 160  # 20ms @ 8kHz, 8-bit
+
+for i in range(0, len(converted), FRAME_SIZE):
+    chunk = converted[i:i + FRAME_SIZE]
+    if len(chunk) < FRAME_SIZE:
+        chunk = chunk + b'\x80' * (FRAME_SIZE - len(chunk))  # Padding mit Stille
+    call.write_audio(chunk)
+```
+
+### 29. pyVoIP Opus Codec
+
+**pyVoIP unterstützt KEIN Opus** - nur PCMA und PCMU (G.711).
+
+Logs zeigen: "RTP Payload type opus not found"
+
+### 30. Audioop für zuverlässige Konvertierung
+
+Python's `audioop` Modul (oder `audioop-lts` für Python 3.13+) ist zuverlässiger als manuelle Konvertierung:
+
+```python
+import audioop
+
+# Resample 24kHz → 8kHz
+resampled, _ = audioop.ratecv(data, 2, 1, 24000, 8000, None)
+
+# 16-bit signed → 8-bit unsigned
+pcm_8bit = audioop.lin2lin(resampled, 2, 1)
+```
+
+**Wichtig:** `audioop.lin2lin` mit width 1 gibt 8-bit **unsigned** PCM zurück - genau was pyVoIP erwartet!

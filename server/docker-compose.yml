@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  bestell-bot:
+    build: .
+    container_name: bestell-bot-voice
+    restart: unless-stopped
+    # Host-Netzwerk um NAT-Probleme bei SIP zu vermeiden
+    network_mode: host
+    # Volle Netzwerk-Capabilities für SIP/RTP
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - SIP_USER=${SIP_USER}
+      - SIP_PASSWORD=${SIP_PASSWORD}
+      - SIP_SERVER=${SIP_SERVER:-sipconnect.sipgate.de}
+      - SIP_PORT=${SIP_PORT:-5060}
+      - API_HOST=0.0.0.0
+      - API_PORT=8085
+    volumes:
+      # Recordings speichern
+      - ./recordings:/app/recordings
+    env_file:
+      - .env

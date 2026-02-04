@@ -163,6 +163,7 @@ class CallController:
         self._signals.action_reject_call.connect(self.reject_call)
         self._signals.action_hangup.connect(self.hangup)
         self._signals.action_mute_ai.connect(self.set_ai_muted)
+        self._signals.action_change_model.connect(self.set_ai_model)
 
         # SIP Events
         self._signals.call_state_changed.connect(self._on_call_state_changed)
@@ -521,6 +522,31 @@ class CallController:
 
         self._signals.ai_mute_changed.emit(muted)
         logger.info(f"AI {'stummgeschaltet' if muted else 'aktiviert'}")
+
+    def set_ai_model(self, model: str) -> None:
+        """
+        Ändert das AI-Model.
+        
+        HINWEIS: Kann nur geändert werden wenn kein Anruf aktiv ist.
+        Bei aktivem Anruf wird die Änderung ignoriert.
+        
+        Args:
+            model: Model-Name (z.B. "gpt-4o-realtime-preview-2024-12-17" oder "gpt-realtime")
+        """
+        if self._state.call_state == CallState.ACTIVE:
+            logger.warning("Model kann nicht während eines aktiven Anrufs geändert werden")
+            self._signals.error_occurred.emit("Model-Änderung während Anruf nicht möglich")
+            return
+        
+        if self._realtime_client:
+            self._realtime_client.set_model(model)
+            logger.info(f"AI-Model geändert zu: {model}")
+
+    def get_ai_model(self) -> str:
+        """Gibt das aktuelle AI-Model zurück."""
+        if self._realtime_client:
+            return self._realtime_client.get_model()
+        return self._config.openai.model
 
     def _start_audio_processing(self) -> None:
         """Startet alle Audio-bezogenen Komponenten."""

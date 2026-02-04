@@ -2,6 +2,9 @@
 Hauptfenster der Bestell Bot Voice Anwendung.
 """
 
+import json
+import logging
+from pathlib import Path
 from typing import Optional
 
 from PySide6.QtWidgets import (
@@ -25,6 +28,11 @@ from ui.debug_panel import DebugPanel
 from ui.audio_test_panel import AudioTestPanel
 from ui.order_panel import OrderPanel
 from ui.instructions_panel import InstructionsPanel
+
+logger = logging.getLogger(__name__)
+
+# Pfad für persistierte Instructions
+INSTRUCTIONS_FILE = Path(__file__).parent.parent / "instructions.json"
 
 
 class MainWindow(QMainWindow):
@@ -62,6 +70,10 @@ class MainWindow(QMainWindow):
         # Auto-Accept Status anzeigen
         self._call_panel.set_auto_accept_enabled(config.auto_accept_calls)
         
+        # Aktuelles AI-Model setzen
+        if self._controller:
+            self._call_panel.set_current_model(self._controller.get_ai_model())
+        
         # AI-Instruktionen laden
         self._load_instructions()
 
@@ -96,7 +108,9 @@ class MainWindow(QMainWindow):
             on_start_local_test=self._on_start_local_test,
         )
         self._call_panel.setMinimumHeight(180)
-        self._call_panel.setMaximumHeight(280)
+        self._call_panel.setMaximumHeight(350)  # Erhöht für Codec-Buttons + Replay
+        self._call_panel.set_codec_callback(self._on_codec_changed)
+        self._call_panel.set_replay_callback(self._on_replay_audio)
         splitter.addWidget(self._call_panel)
 
         # Horizontaler Splitter für Transcript und Order
@@ -231,6 +245,21 @@ class MainWindow(QMainWindow):
         status = "AI stummgeschaltet" if muted else "AI aktiv"
         self._status_bar.showMessage(status)
 
+    def _on_codec_changed(self, codec: str, sample_rate: int = 8000, bit_depth: int = 8) -> None:
+        """Handler für Output-Einstellungen Änderung."""
+        if self._controller and hasattr(self._controller, '_sip_client'):
+            self._controller._sip_client.set_output_settings(codec, sample_rate, bit_depth)
+            # Im Test-Modus: Audio neu vorbereiten mit neuen Einstellungen
+            if self._controller._sip_client._test_mode:
+                self._controller._sip_client.restart_test_audio()
+            self._status_bar.showMessage(f"Output: {codec}, {sample_rate//1000}kHz, {bit_depth}-bit")
+    
+    def _on_replay_audio(self) -> None:
+        """Handler für Replay-Button - startet Test-Audio von vorne."""
+        if self._controller and hasattr(self._controller, '_sip_client'):
+            self._controller._sip_client.restart_test_audio()
+            self._status_bar.showMessage("Test-Audio wird neu gestartet...")
+
     def _on_start_local_test(self) -> None:
         """Handler für Test-Anruf starten."""
         if self._controller and self._controller.local_audio_available:
@@ -257,22 +286,49 @@ class MainWindow(QMainWindow):
             self._call_panel.set_local_test_available(False)
 
     def _load_instructions(self) -> None:
-        """Lädt die aktuellen AI-Instruktionen ins Panel."""
-        if self._controller:
+        """Lädt die AI-Instruktionen aus der Datei oder vom Controller."""
+        instructions = None
+        
+        # Zuerst versuchen, aus Datei zu laden
+        if INSTRUCTIONS_FILE.exists():
+            try:
+                with open(INSTRUCTIONS_FILE, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    instructions = data.get("instructions", "")
+                    logger.info(f"Instructions aus {INSTRUCTIONS_FILE} geladen")
+            except Exception as e:
+                logger.warning(f"Fehler beim Laden der Instructions: {e}")
+        
+        # Falls keine gespeicherten Instructions, vom Controller holen (Default)
+        if not instructions and self._controller:
             instructions = self._controller.get_ai_instructions()
-            self._instructions_panel.set_instructions(instructions)
-        else:
-            self._instructions_panel.set_instructions(
-                "Kein Controller verfügbar - Instruktionen können nicht geladen werden."
-            )
+        elif not instructions:
+            instructions = "Kein Controller verfügbar - Instruktionen können nicht geladen werden."
+        
+        # Instructions im Panel setzen
+        self._instructions_panel.set_instructions(instructions)
+        
+        # Falls aus Datei geladen, auch an Controller/API senden
+        if self._controller and INSTRUCTIONS_FILE.exists():
+            if hasattr(self._controller, '_realtime_client'):
+                self._controller._realtime_client.set_instructions(instructions)
 
     def _on_save_instructions(self, text: str) -> None:
-        """Speichert geänderte AI-Instruktionen."""
-        if self._controller and hasattr(self._controller, '_realtime_client'):
-            self._controller._realtime_client.set_instructions(text)
-            self._status_bar.showMessage("AI-Instruktionen aktualisiert")
-        else:
-            self._status_bar.showMessage("Fehler: Controller nicht verfügbar")
+        """Speichert geänderte AI-Instruktionen in Datei und an API."""
+        try:
+            # In Datei speichern für Persistenz
+            with open(INSTRUCTIONS_FILE, "w", encoding="utf-8") as f:
+                json.dump({"instructions": text}, f, ensure_ascii=False, indent=2)
+            logger.info(f"Instructions in {INSTRUCTIONS_FILE} gespeichert")
+            
+            # An API senden (falls verbunden)
+            if self._controller and hasattr(self._controller, '_realtime_client'):
+                self._controller._realtime_client.set_instructions(text)
+            
+            self._status_bar.showMessage("AI-Instruktionen gespeichert")
+        except Exception as e:
+            logger.error(f"Fehler beim Speichern der Instructions: {e}")
+            self._status_bar.showMessage(f"Fehler beim Speichern: {e}")
 
     def _on_call_state_changed(self, state: CallState) -> None:
         """Handler für Call State Änderungen."""

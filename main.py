@@ -130,6 +130,15 @@ def main() -> int:
 
     # Controller starten (SIP Registrierung)
     _controller.start()
+    
+    # Test-Modus: Audio-Datei abspielen statt AI
+    # Aktivieren mit: python main.py --test-audio recordings/debug_8bit_to_16bit_8khz.wav
+    if len(sys.argv) > 2 and sys.argv[1] == "--test-audio":
+        test_file = sys.argv[2]
+        if _controller._sip_client.enable_test_mode(test_file):
+            logger.info(f"TEST-MODUS: Spiele {test_file} bei Anrufen ab")
+        else:
+            logger.error(f"Konnte Test-Audio nicht laden: {test_file}")
 
     logger.info("Anwendung bereit")
 

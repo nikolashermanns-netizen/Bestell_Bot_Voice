@@ -12,6 +12,8 @@ import time
 from typing import Callable, Optional, Any
 from dataclasses import dataclass
 import numpy as np
+from scipy import signal as scipy_signal
+import audioop
 
 from config import SIPConfig, AudioConfig
 from core.state import CallState, RegistrationState
@@ -103,6 +105,11 @@ class SIPClient:
         # Audio Thread
         self._audio_thread: Optional[threading.Thread] = None
         self._audio_running = False
+        
+        # Test-Modus: Audio-Datei abspielen statt AI
+        self._test_mode = False
+        self._test_audio_file: Optional[str] = None
+        self._test_audio_data: Optional[bytes] = None
 
         if not PYVOIP_AVAILABLE:
             raise RuntimeError(
@@ -117,6 +124,10 @@ class SIPClient:
         self._set_registration_state(RegistrationState.REGISTERING)
 
         try:
+            # Ermittle lokale IP für RTP
+            local_ip = self._get_local_ip()
+            logger.info(f"Verwende lokale IP für RTP: {local_ip}")
+            
             # pyVoIP Phone erstellen
             self._phone = VoIPPhone(
                 server=self._sip_config.server,
@@ -124,6 +135,7 @@ class SIPClient:
                 username=self._sip_config.username,
                 password=self._sip_config.password,
                 callCallback=self._on_incoming_call_pyvoip,
+                myIP=local_ip,  # Explizit setzen für NAT
                 sipPort=5060,  # Lokaler SIP Port
                 rtpPortLow=10000,
                 rtpPortHigh=20000,
@@ -234,6 +246,9 @@ class SIPClient:
                     call.answer()
                     logger.info("Anruf angenommen!")
                     
+                    # Automatische Codec-Erkennung aus SDP
+                    self._detect_and_set_codec(call)
+                    
                     with self._lock:
                         if self._current_call:
                             self._current_call.state = CallState.ACTIVE
@@ -317,36 +332,91 @@ class SIPClient:
 
                 # Audio vom Anrufer lesen
                 try:
-                    # pyVoIP read_audio: length in bytes, returns bytes or None
-                    audio_data = call.read_audio(length=160, blocking=False)  # 20ms @ 8kHz
+                    # pyVoIP read_audio: liefert 8-bit unsigned PCM @ 8kHz
+                    # 20ms @ 8kHz = 160 samples = 160 bytes (8-bit)
+                    # blocking=False returns b"\x80"*length when no data available
+                    audio_data = call.read_audio(length=160, blocking=False)  # 20ms @ 8kHz, 8-bit
                     
                     if audio_data and len(audio_data) > 0:
-                        frames_read += 1
+                        # Prüfe ob es echte Daten sind oder nur Stille-Placeholder
+                        # pyVoIP gibt b"\x80"*length zurück wenn keine Daten verfügbar
+                        # Bei 16-bit wäre das 0x8080 = -32640 für jedes Sample
+                        is_silence_placeholder = all(b == 0x80 for b in audio_data)
                         
-                        # Debug: Raw Audio speichern
-                        if debug_audio_file:
-                            debug_audio_file.write(audio_data)
-                        
-                        if self._on_audio_frame:
-                            # pyVoIP liefert 8kHz 8-bit ulaw - konvertiere zu 16kHz 16-bit PCM
-                            converted = self._convert_8k_to_16k(audio_data)
-                            self._on_audio_frame(converted)
+                        if not is_silence_placeholder:
+                            frames_read += 1
+                            
+                            # Debug: Raw Audio speichern
+                            if debug_audio_file:
+                                debug_audio_file.write(audio_data)
+                            
+                            if self._on_audio_frame:
+                                # WICHTIG: pyVoIP read_audio liefert BEREITS dekodiertes 
+                                # lineares 8kHz 16-bit PCM (nicht u-law!)
+                                # Wir müssen nur upsamplen von 8kHz zu 16kHz
+                                converted = self._upsample_8k_to_16k(audio_data)
+                                self._on_audio_frame(converted)
                         
                         # Log alle 2 Sekunden
                         now = time.time()
                         if now - last_log_time >= 2.0:
-                            logger.info(f"Audio: {frames_read} Frames gelesen, {len(audio_data)} bytes/frame")
+                            if is_silence_placeholder:
+                                logger.warning(f"Audio: Keine RTP-Daten empfangen! (nur 0x80 placeholder)")
+                            else:
+                                logger.info(f"Audio: {frames_read} echte Frames gelesen")
                             last_log_time = now
                             
                 except Exception as e:
                     error_str = str(e).lower()
-                    if "not answered" not in error_str and "call not" not in error_str:
-                        logger.debug(f"Audio lesen Fehler: {e}")
+                    # Prüfe auf Fehler die einen beendeten Call anzeigen
+                    if "invalidstateerror" in error_str or "not answered" in error_str or "ended" in error_str:
+                        logger.info("Call wurde beendet (erkannt bei read_audio)")
+                        break
+                    logger.debug(f"Audio lesen Fehler: {e}")
 
-                # Audio an Anrufer senden (von AI)
-                # TODO: Output Buffer lesen und an call.write_audio() senden
+                # Audio an Anrufer senden
+                try:
+                    if self._test_mode and self._test_audio_data:
+                        # TEST-MODUS: Audio-Datei abspielen
+                        # Initialisiere oder re-initialisiere wenn nötig
+                        if not hasattr(self, '_test_audio_converted') or self._test_audio_converted is None:
+                            self._test_audio_converted = self._prepare_test_audio()
+                            self._test_audio_pos = 0
+                            logger.info(f"Test-Audio vorbereitet: {len(self._test_audio_converted)} bytes")
+                        
+                        if not hasattr(self, '_test_audio_pos'):
+                            self._test_audio_pos = 0
+                        
+                        # 160 bytes pro Frame (20ms @ 8kHz, 8-bit)
+                        chunk_size = 160
+                        pos = self._test_audio_pos
+                        
+                        if self._test_audio_converted and pos < len(self._test_audio_converted):
+                            chunk = self._test_audio_converted[pos:pos + chunk_size]
+                            if len(chunk) < chunk_size:
+                                chunk = chunk + b'\x80' * (chunk_size - len(chunk))
+                            call.write_audio(chunk)
+                            self._test_audio_pos += chunk_size
+                            frames_sent += 1
+                            
+                            if frames_sent % 50 == 0:  # Log alle 1 Sekunde
+                                logger.info(f"Test-Audio: {pos}/{len(self._test_audio_converted)} bytes gesendet")
+                        else:
+                            # Audio fertig, Stille senden
+                            call.write_audio(b'\x80' * 160)
+                    else:
+                        # Normal: Stille für NAT keepalive
+                        silence = b'\x80' * 160
+                        call.write_audio(silence)
+                    frames_sent += 1
+                except Exception as e:
+                    error_str = str(e).lower()
+                    if "invalidstateerror" in error_str or "not answered" in error_str or "ended" in error_str:
+                        logger.info("Call wurde beendet (erkannt bei write_audio)")
+                        break
+                    logger.debug(f"Audio senden Fehler: {e}")
                 
-                time.sleep(0.01)  # 10ms Sleep
+                time.sleep(0.015)  # 15ms Sleep (ca. 20ms Frame Rate)
                 
         except Exception as e:
             logger.error(f"Audio-Verarbeitung Fehler: {e}", exc_info=True)
@@ -356,29 +426,38 @@ class SIPClient:
                 debug_audio_file.close()
                 logger.info("Debug Audio-Datei gespeichert")
             logger.info(f"Audio-Verarbeitung beendet - {frames_read} Frames gelesen")
+            
+            # Wichtig: Anruf beenden wenn Audio-Loop endet
+            self._end_call("call_ended")
 
-    def _convert_8k_to_16k(self, data: bytes) -> bytes:
+    def _upsample_8k_to_16k(self, data: bytes) -> bytes:
         """
-        Konvertiert 8kHz G.711 u-law Audio zu 16kHz 16-bit PCM.
+        Konvertiert 8kHz 8-bit unsigned PCM zu 16kHz 16-bit signed PCM.
         
-        pyVoIP liefert G.711 u-law encoded Audio.
-        Wir müssen erst dekodieren, dann upsamplen.
+        pyVoIP read_audio liefert 8-bit unsigned PCM:
+        - Wertebereich: 0-255
+        - Stille: 128
+        - Wir müssen zu 16-bit signed konvertieren und upsamplen.
         """
-        # G.711 u-law Dekodierungstabelle
-        ulaw_table = self._get_ulaw_decode_table()
+        # Interpretiere als 8-bit unsigned
+        samples_8bit = np.frombuffer(data, dtype=np.uint8)
         
-        # u-law zu 16-bit signed konvertieren
-        samples_16bit = [ulaw_table[b] for b in data]
-        
-        # Numpy array für besseres Upsampling
-        samples = np.array(samples_16bit, dtype=np.int16)
+        # Konvertiere 8-bit unsigned (0-255, center 128) zu 16-bit signed (-32768 to 32767)
+        samples_16bit = (samples_8bit.astype(np.int16) - 128) * 256
         
         # Upsample 8kHz -> 16kHz mit linearer Interpolation
-        new_length = len(samples) * 2
-        indices = np.linspace(0, len(samples) - 1, new_length)
-        upsampled = np.interp(indices, np.arange(len(samples)), samples)
+        new_length = len(samples_16bit) * 2
+        indices = np.linspace(0, len(samples_16bit) - 1, new_length)
+        upsampled = np.interp(indices, np.arange(len(samples_16bit)), samples_16bit)
         
         return upsampled.astype(np.int16).tobytes()
+    
+    def _convert_8k_to_16k(self, data: bytes) -> bytes:
+        """
+        VERALTET - pyVoIP liefert bereits lineares PCM!
+        Verwende _upsample_8k_to_16k stattdessen.
+        """
+        return self._upsample_8k_to_16k(data)
     
     @staticmethod
     def _get_ulaw_decode_table() -> list:
@@ -406,26 +485,308 @@ class SIPClient:
 
     def _convert_16k_to_8k(self, data: bytes) -> bytes:
         """
-        Konvertiert 16kHz 16-bit Audio zu 8kHz 8-bit.
+        Konvertiert 24kHz 16-bit Audio zu 8kHz 8-bit unsigned PCM für pyVoIP.
         
-        Einfaches Downsampling.
+        WICHTIG: pyVoIP erwartet RAW 8-bit unsigned PCM, NICHT A-law!
+        pyVoIP encodiert selbst zu A-law/u-law basierend auf SDP-Aushandlung.
+        
+        Die AI sendet 24kHz 16-bit signed PCM.
         """
-        import struct
-        
         if len(data) == 0:
             return b''
+        
+        try:
+            source_rate = 24000
+            target_rate = 8000
             
-        # 16-bit signed samples lesen
-        num_samples = len(data) // 2
-        samples = struct.unpack(f'<{num_samples}h', data)
+            # 1. Resample 24kHz -> 8kHz mit audioop
+            resampled, _ = audioop.ratecv(data, 2, 1, source_rate, target_rate, None)
+            
+            # 2. Konvertiere 16-bit signed zu 8-bit unsigned
+            # audioop.lin2lin(fragment, width_in, width_out)
+            # Das konvertiert von 16-bit zu 8-bit (signed zu unsigned automatisch)
+            pcm_8bit = audioop.lin2lin(resampled, 2, 1)
+            
+            return pcm_8bit
+                
+        except Exception as e:
+            logger.warning(f"Audio-Konvertierung Fehler: {e}")
+            return b''
+    
+    def _encode_output(self, samples: np.ndarray) -> bytes:
+        """Enkodiert 16-bit samples im konfigurierten Output-Format."""
+        # Default: A-law weil SDP 'preference': <PayloadType.PCMA: 8> zeigt
+        codec = getattr(self, '_output_codec', 'alaw')
+        bit_depth = getattr(self, '_output_bit_depth', 8)
         
-        # Downsample 16kHz -> 8kHz (jeden zweiten Sample)
-        downsampled = samples[::2]
+        try:
+            if codec == 'ulaw':
+                return self._encode_ulaw(samples)
+            elif codec == 'alaw':
+                return self._encode_alaw(samples)
+            elif bit_depth == 16:
+                # 16-bit signed PCM
+                return samples.astype(np.int16).tobytes()
+            else:
+                # 8-bit unsigned PCM (default)
+                return bytes([max(0, min(255, (int(s) >> 8) + 128)) for s in samples])
+        except Exception as e:
+            logger.debug(f"Encoding Fehler: {e}")
+            return b''
+    
+    def _encode_ulaw(self, samples: np.ndarray) -> bytes:
+        """Enkodiert 16-bit PCM zu G.711 u-law."""
+        BIAS = 0x84
+        CLIP = 32635
         
-        # 16-bit signed -> 8-bit unsigned
-        samples_8bit = bytes([max(0, min(255, (s // 256) + 128)) for s in downsampled])
+        result = []
+        for sample in samples:
+            sample = int(sample)
+            sign = 0
+            if sample < 0:
+                sign = 0x80
+                sample = -sample
+            
+            if sample > CLIP:
+                sample = CLIP
+            
+            sample += BIAS
+            
+            # Finde Exponent
+            exponent = 7
+            for exp in range(8):
+                if sample < (1 << (exp + 8)):
+                    exponent = exp
+                    break
+            
+            mantissa = (sample >> (exponent + 3)) & 0x0F
+            ulaw_byte = ~(sign | (exponent << 4) | mantissa) & 0xFF
+            result.append(ulaw_byte)
         
-        return samples_8bit
+        return bytes(result)
+    
+    def _encode_alaw(self, samples: np.ndarray) -> bytes:
+        """Enkodiert 16-bit PCM zu G.711 a-law."""
+        result = []
+        for sample in samples:
+            sample = int(sample)
+            sign = 0
+            if sample < 0:
+                sign = 0x80
+                sample = -sample
+            
+            if sample > 32767:
+                sample = 32767
+            
+            # Finde Exponent und Mantissa
+            if sample < 256:
+                exponent = 0
+                mantissa = sample >> 4
+            else:
+                exponent = 1
+                while sample >= (256 << exponent) and exponent < 7:
+                    exponent += 1
+                mantissa = (sample >> (exponent + 3)) & 0x0F
+            
+            alaw_byte = (sign | (exponent << 4) | mantissa) ^ 0x55
+            result.append(alaw_byte)
+        
+        return bytes(result)
+    
+    def _detect_and_set_codec(self, call: Any) -> None:
+        """
+        Erkennt automatisch den Codec und Sample Rate aus der SDP-Nachricht
+        und konfiguriert die Output-Einstellungen entsprechend.
+        """
+        try:
+            codec_name = "alaw"  # Default
+            sample_rate = 8000   # Default für G.711
+            
+            # Versuche Codec aus RTP preference zu lesen
+            if hasattr(call, 'RTPClients') and call.RTPClients:
+                rtp = call.RTPClients[0]
+                
+                # Log RTP Info
+                logger.info(f"RTP: inIP={getattr(rtp, 'inIP', 'N/A')}, "
+                           f"outIP={getattr(rtp, 'outIP', 'N/A')}, "
+                           f"outPort={getattr(rtp, 'outPort', 'N/A')}")
+                
+                # Preference auslesen (z.B. <PayloadType.PCMA: 8>)
+                if hasattr(rtp, 'preference'):
+                    pref = rtp.preference
+                    pref_str = str(pref).upper()
+                    
+                    if 'PCMA' in pref_str:
+                        codec_name = "alaw"
+                        logger.info("SDP: Erkannter Codec = A-law (PCMA)")
+                    elif 'PCMU' in pref_str:
+                        codec_name = "ulaw"
+                        logger.info("SDP: Erkannter Codec = μ-law (PCMU)")
+                    elif 'OPUS' in pref_str:
+                        codec_name = "opus"
+                        sample_rate = 48000
+                        logger.info("SDP: Erkannter Codec = Opus (48kHz)")
+                    elif 'G722' in pref_str:
+                        codec_name = "g722"
+                        sample_rate = 16000
+                        logger.info("SDP: Erkannter Codec = G.722 (16kHz)")
+                    else:
+                        logger.info(f"SDP: Unbekannter Codec '{pref}', verwende A-law")
+            
+            # Versuche Sample Rate aus SDP Body zu lesen
+            if hasattr(call, 'request') and call.request:
+                body = getattr(call.request, 'body', None)
+                if body and isinstance(body, dict):
+                    media = body.get('m', [])
+                    if media and len(media) > 0:
+                        attrs = media[0].get('attributes', {})
+                        # Suche nach dem aktiven Codec
+                        for pt_id, pt_info in attrs.items():
+                            rtpmap = pt_info.get('rtpmap', {})
+                            name = rtpmap.get('name', '').upper()
+                            freq = rtpmap.get('frequency')
+                            
+                            if codec_name == "alaw" and name == "PCMA":
+                                if freq:
+                                    sample_rate = int(freq)
+                                    logger.info(f"SDP: PCMA Sample Rate = {sample_rate}Hz")
+                                break
+                            elif codec_name == "ulaw" and name == "PCMU":
+                                if freq:
+                                    sample_rate = int(freq)
+                                    logger.info(f"SDP: PCMU Sample Rate = {sample_rate}Hz")
+                                break
+            
+            # Setze die erkannten Einstellungen
+            self._output_codec = codec_name
+            self._output_sample_rate = sample_rate
+            self._output_bit_depth = 8  # G.711 ist immer 8-bit encoded
+            
+            logger.info(f"=== AUTO-CONFIG: Codec={codec_name}, Rate={sample_rate}Hz ===")
+            
+            # Signal für UI (falls vorhanden)
+            if hasattr(self._signals, 'codec_detected'):
+                self._signals.codec_detected.emit(codec_name, sample_rate)
+                
+        except Exception as e:
+            logger.warning(f"Codec-Erkennung fehlgeschlagen: {e}, verwende Default (A-law, 8kHz)")
+            self._output_codec = "alaw"
+            self._output_sample_rate = 8000
+            self._output_bit_depth = 8
+
+    def set_output_codec(self, codec: str) -> None:
+        """Setzt den Output-Codec: 'pcm8', 'ulaw', 'alaw'"""
+        self._output_codec = codec
+        logger.info(f"Output-Codec gesetzt: {codec}")
+    
+    def set_output_settings(self, codec: str, sample_rate: int, bit_depth: int) -> None:
+        """Setzt alle Output-Einstellungen."""
+        self._output_codec = codec
+        self._output_sample_rate = sample_rate
+        self._output_bit_depth = bit_depth
+        logger.info(f"Output-Einstellungen: {codec}, {sample_rate}Hz, {bit_depth}-bit")
+
+    def enable_test_mode(self, audio_file: str, max_seconds: float = 10.0) -> bool:
+        """
+        Aktiviert Test-Modus: Spielt eine Audio-Datei ab statt AI zu verwenden.
+        
+        Args:
+            audio_file: Pfad zur WAV-Datei (sollte 8kHz oder 24kHz sein)
+            max_seconds: Maximale Länge in Sekunden (default: 10)
+        
+        Returns:
+            True wenn erfolgreich geladen
+        """
+        import wave
+        try:
+            with wave.open(audio_file, 'rb') as wf:
+                channels = wf.getnchannels()
+                sample_width = wf.getsampwidth()
+                framerate = wf.getframerate()
+                n_frames = wf.getnframes()
+                
+                # Nur die ersten max_seconds laden
+                max_frames = int(framerate * max_seconds)
+                frames_to_read = min(n_frames, max_frames)
+                frames = wf.readframes(frames_to_read)
+                
+            duration = frames_to_read / framerate
+            logger.info(f"Test-Audio geladen: {audio_file}")
+            logger.info(f"  Format: {framerate}Hz, {sample_width*8}-bit, {channels}ch")
+            logger.info(f"  Länge: {duration:.1f}s ({len(frames)} bytes)")
+            
+            # Konvertiere zu Mono falls Stereo
+            if channels == 2:
+                samples = np.frombuffer(frames, dtype=np.int16)
+                samples = samples[::2]  # Nur linken Kanal
+                frames = samples.tobytes()
+            
+            self._test_audio_file = audio_file
+            self._test_audio_data = frames
+            self._test_audio_rate = framerate
+            self._test_audio_width = sample_width
+            self._test_mode = True
+            
+            logger.info(f"=== TEST-MODUS AKTIVIERT: {duration:.1f}s Audio ===")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Fehler beim Laden der Test-Audio: {e}")
+            return False
+    
+    def restart_test_audio(self) -> None:
+        """Startet Test-Audio von vorne."""
+        self._test_audio_pos = 0
+        self._test_audio_converted = None  # Wird beim nächsten Frame neu erstellt
+        logger.info("Test-Audio zurückgesetzt - wird mit aktuellen Einstellungen neu vorbereitet")
+    
+    def disable_test_mode(self) -> None:
+        """Deaktiviert Test-Modus."""
+        self._test_mode = False
+        self._test_audio_data = None
+        if hasattr(self, '_test_audio_pos'):
+            del self._test_audio_pos
+        if hasattr(self, '_test_audio_converted'):
+            del self._test_audio_converted
+        logger.info("Test-Modus deaktiviert")
+    
+    def _prepare_test_audio(self) -> bytes:
+        """
+        Bereitet Test-Audio für SIP-Ausgabe vor.
+        Konvertiert zu 8kHz 8-bit unsigned PCM für pyVoIP.
+        
+        WICHTIG: pyVoIP erwartet RAW 8-bit unsigned PCM, NICHT A-law!
+        """
+        if not self._test_audio_data:
+            return b''
+        
+        try:
+            sample_width = getattr(self, '_test_audio_width', 2)
+            source_rate = getattr(self, '_test_audio_rate', 8000)
+            target_rate = 8000
+            
+            # Audio-Daten als bytes
+            audio_data = self._test_audio_data
+            
+            # Falls 8-bit unsigned, zu 16-bit signed konvertieren
+            if sample_width == 1:
+                audio_data = audioop.lin2lin(audio_data, 1, 2)
+                sample_width = 2
+            
+            # Resample falls nötig mit audioop
+            if source_rate != target_rate:
+                audio_data, _ = audioop.ratecv(audio_data, sample_width, 1, source_rate, target_rate, None)
+                logger.info(f"Test-Audio resampled: {source_rate}Hz -> {target_rate}Hz")
+            
+            # 16-bit signed zu 8-bit unsigned konvertieren (wie für AI Audio)
+            pcm_8bit = audioop.lin2lin(audio_data, 2, 1)
+            
+            logger.info(f"Test-Audio vorbereitet: {len(pcm_8bit)} bytes (8kHz 8-bit unsigned)")
+            return pcm_8bit
+            
+        except Exception as e:
+            logger.error(f"Fehler bei Test-Audio Vorbereitung: {e}")
+            return b''
 
     def accept_call(self) -> bool:
         """
@@ -508,7 +869,10 @@ class SIPClient:
         Sendet Audio-Daten zum Remote-Teilnehmer.
 
         Args:
-            pcm_data: PCM Audio-Daten (16kHz, mono, 16-bit)
+            pcm_data: PCM Audio-Daten (24kHz, mono, 16-bit) von OpenAI API
+        
+        WICHTIG: pyVoIP braucht 160-byte Frames (20ms @ 8kHz, 8-bit).
+        Die AI sendet aber größere Blöcke, die wir aufteilen müssen.
         """
         if not self._current_call or self._current_call.state != CallState.ACTIVE:
             return
@@ -517,9 +881,25 @@ class SIPClient:
             return
 
         try:
-            # 16kHz 16-bit -> 8kHz 8-bit für pyVoIP
+            # 24kHz 16-bit -> 8kHz 8-bit unsigned PCM für pyVoIP
             converted = self._convert_16k_to_8k(pcm_data)
-            self._current_voip_call.write_audio(converted)
+            
+            if not converted:
+                return
+            
+            # WICHTIG: In 160-byte Chunks aufteilen (20ms @ 8kHz, 8-bit)
+            # pyVoIP erwartet exakte Frame-Größen!
+            FRAME_SIZE = 160  # 20ms @ 8kHz, 8-bit
+            
+            for i in range(0, len(converted), FRAME_SIZE):
+                chunk = converted[i:i + FRAME_SIZE]
+                
+                # Padding falls letzter Chunk zu klein
+                if len(chunk) < FRAME_SIZE:
+                    chunk = chunk + b'\x80' * (FRAME_SIZE - len(chunk))
+                
+                self._current_voip_call.write_audio(chunk)
+                
         except Exception as e:
             logger.debug(f"Audio senden: {e}")
 
@@ -573,6 +953,32 @@ class SIPClient:
             self._schedule_reconnect()
         elif state == RegistrationState.REGISTERED:
             self._reset_reconnect_delay()
+
+    def _get_local_ip(self) -> str:
+        """
+        Ermittelt die lokale IP-Adresse für RTP.
+        
+        Versucht die beste nicht-lokale IP zu finden.
+        """
+        import socket
+        
+        try:
+            # Verbinde zu externem Server um die richtige Interface-IP zu bekommen
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.settimeout(1)
+            # Verbinde zu einem externen Server (muss nicht erreichbar sein)
+            s.connect((self._sip_config.server, 80))
+            local_ip = s.getsockname()[0]
+            s.close()
+            return local_ip
+        except Exception as e:
+            logger.warning(f"Konnte lokale IP nicht ermitteln: {e}")
+            # Fallback
+            try:
+                hostname = socket.gethostname()
+                return socket.gethostbyname(hostname)
+            except:
+                return "0.0.0.0"
 
     def _emit_call_state_changed(self, state: CallState) -> None:
         """Emittiert Call State Change Signal."""

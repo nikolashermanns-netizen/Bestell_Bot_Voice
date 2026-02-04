@@ -68,6 +68,9 @@ class AppSignals(QObject):
     # AI stumm schalten (muted)
     action_mute_ai = Signal(bool)
 
+    # AI Model ändern (model_name)
+    action_change_model = Signal(str)
+
 
 # Globale Signal-Instanz
 # Wird in main.py erstellt und an alle Komponenten weitergegeben

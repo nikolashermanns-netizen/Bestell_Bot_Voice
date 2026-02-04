@@ -157,16 +157,15 @@ class AudioBridge:
                 continue
 
             try:
-                # PCM zu SIP Codec konvertieren
-                encoded = self._encode_audio(frame.data, "PCMU")
-
-                # An SIP senden
+                # WICHTIG: Audio kommt bereits als 24kHz 16-bit PCM von der API
+                # SIP Client macht die Konvertierung zu 8kHz A-law
+                # Hier NICHT encodieren - direkt durchreichen!
                 if self._on_send_to_sip:
-                    self._on_send_to_sip(encoded)
+                    self._on_send_to_sip(frame.data)
 
                 with self._lock:
                     self._stats.frames_sent += 1
-                    self._stats.bytes_sent += len(encoded)
+                    self._stats.bytes_sent += len(frame.data)
 
             except Exception as e:
                 logger.error(f"Fehler beim Audio-Senden: {e}")

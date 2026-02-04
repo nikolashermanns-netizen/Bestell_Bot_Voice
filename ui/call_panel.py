@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QPushButton,
     QFrame,
+    QComboBox,
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
@@ -160,6 +161,114 @@ class CallPanel(QWidget):
         active_btn_layout.addWidget(self._mute_btn)
 
         active_layout.addLayout(active_btn_layout)
+        
+        # === Output Audio Einstellungen (AI → Caller) ===
+        output_frame = QFrame()
+        output_frame.setStyleSheet("background-color: #e9ecef; border-radius: 3px;")
+        output_layout = QVBoxLayout(output_frame)
+        output_layout.setContentsMargins(5, 5, 5, 5)
+        output_layout.setSpacing(3)
+        
+        output_title = QLabel("🔊 Output (AI → Telefon)")
+        output_title.setStyleSheet("font-size: 11px; font-weight: bold; color: #333;")
+        output_layout.addWidget(output_title)
+        
+        # Zeile 1: Codec
+        codec_row = QHBoxLayout()
+        codec_label = QLabel("Codec:")
+        codec_label.setStyleSheet("font-size: 10px; color: #333; min-width: 50px;")
+        codec_row.addWidget(codec_label)
+        
+        self._codec_pcm8_btn = QPushButton("PCM8")
+        self._codec_pcm8_btn.setCheckable(True)
+        self._codec_pcm8_btn.setStyleSheet(self._codec_btn_style())
+        self._codec_pcm8_btn.clicked.connect(lambda: self._on_codec_clicked("pcm8"))
+        codec_row.addWidget(self._codec_pcm8_btn)
+        
+        self._codec_ulaw_btn = QPushButton("μ-law")
+        self._codec_ulaw_btn.setCheckable(True)
+        self._codec_ulaw_btn.setStyleSheet(self._codec_btn_style())
+        self._codec_ulaw_btn.clicked.connect(lambda: self._on_codec_clicked("ulaw"))
+        codec_row.addWidget(self._codec_ulaw_btn)
+        
+        # A-law ist der Default (von SDP: preference=PCMA)
+        self._codec_alaw_btn = QPushButton("A-law ✓")
+        self._codec_alaw_btn.setCheckable(True)
+        self._codec_alaw_btn.setChecked(True)
+        self._codec_alaw_btn.setStyleSheet(self._codec_btn_style())
+        self._codec_alaw_btn.clicked.connect(lambda: self._on_codec_clicked("alaw"))
+        codec_row.addWidget(self._codec_alaw_btn)
+        
+        codec_row.addStretch()
+        output_layout.addLayout(codec_row)
+        
+        # Zeile 2: Sample Rate
+        rate_row = QHBoxLayout()
+        rate_label = QLabel("Rate:")
+        rate_label.setStyleSheet("font-size: 10px; color: #333; min-width: 50px;")
+        rate_row.addWidget(rate_label)
+        
+        self._rate_8k_btn = QPushButton("8kHz")
+        self._rate_8k_btn.setCheckable(True)
+        self._rate_8k_btn.setChecked(True)
+        self._rate_8k_btn.setStyleSheet(self._codec_btn_style())
+        self._rate_8k_btn.clicked.connect(lambda: self._on_rate_clicked(8000))
+        rate_row.addWidget(self._rate_8k_btn)
+        
+        self._rate_16k_btn = QPushButton("16kHz")
+        self._rate_16k_btn.setCheckable(True)
+        self._rate_16k_btn.setStyleSheet(self._codec_btn_style())
+        self._rate_16k_btn.clicked.connect(lambda: self._on_rate_clicked(16000))
+        rate_row.addWidget(self._rate_16k_btn)
+        
+        self._rate_24k_btn = QPushButton("24kHz")
+        self._rate_24k_btn.setCheckable(True)
+        self._rate_24k_btn.setStyleSheet(self._codec_btn_style())
+        self._rate_24k_btn.clicked.connect(lambda: self._on_rate_clicked(24000))
+        rate_row.addWidget(self._rate_24k_btn)
+        
+        rate_row.addStretch()
+        output_layout.addLayout(rate_row)
+        
+        # Zeile 3: Bit Depth
+        bits_row = QHBoxLayout()
+        bits_label = QLabel("Bits:")
+        bits_label.setStyleSheet("font-size: 10px; color: #333; min-width: 50px;")
+        bits_row.addWidget(bits_label)
+        
+        self._bits_8_btn = QPushButton("8-bit")
+        self._bits_8_btn.setCheckable(True)
+        self._bits_8_btn.setChecked(True)
+        self._bits_8_btn.setStyleSheet(self._codec_btn_style())
+        self._bits_8_btn.clicked.connect(lambda: self._on_bits_clicked(8))
+        bits_row.addWidget(self._bits_8_btn)
+        
+        self._bits_16_btn = QPushButton("16-bit")
+        self._bits_16_btn.setCheckable(True)
+        self._bits_16_btn.setStyleSheet(self._codec_btn_style())
+        self._bits_16_btn.clicked.connect(lambda: self._on_bits_clicked(16))
+        bits_row.addWidget(self._bits_16_btn)
+        
+        bits_row.addStretch()
+        output_layout.addLayout(bits_row)
+        
+        # Status Label (A-law 8kHz ist Standard für Sipgate)
+        self._output_status = QLabel("Aktuell: A-law, 8kHz (SDP)")
+        self._output_status.setStyleSheet("font-size: 9px; color: #666;")
+        output_layout.addWidget(self._output_status)
+        
+        # Replay Button für Test-Modus
+        self._replay_btn = QPushButton("🔄 Audio neu abspielen")
+        self._replay_btn.setStyleSheet(
+            "QPushButton { background-color: #17a2b8; color: white; "
+            "padding: 5px 10px; font-size: 10px; border-radius: 3px; }"
+            "QPushButton:hover { background-color: #138496; }"
+        )
+        self._replay_btn.clicked.connect(self._on_replay_clicked)
+        output_layout.addWidget(self._replay_btn)
+        
+        active_layout.addWidget(output_frame)
+        
         layout.addWidget(self._active_frame)
         self._active_frame.hide()
 
@@ -171,6 +280,31 @@ class CallPanel(QWidget):
         self._idle_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._idle_label.setStyleSheet("color: gray; font-size: 14px;")
         idle_layout.addWidget(self._idle_label)
+
+        # === AI Model Auswahl ===
+        model_frame = QFrame()
+        model_frame.setStyleSheet("background-color: #e9ecef; border-radius: 5px; padding: 5px;")
+        model_layout = QHBoxLayout(model_frame)
+        model_layout.setContentsMargins(10, 5, 10, 5)
+
+        model_label = QLabel("AI Model:")
+        model_label.setStyleSheet("font-size: 12px; font-weight: bold; color: #333;")
+        model_layout.addWidget(model_label)
+
+        self._model_combo = QComboBox()
+        self._model_combo.addItem("gpt-realtime", "gpt-realtime")
+        self._model_combo.addItem("gpt-4o-realtime-preview", "gpt-4o-realtime-preview-2024-12-17")
+        self._model_combo.setStyleSheet(
+            "QComboBox { padding: 5px; font-size: 11px; min-width: 180px; "
+            "background-color: white; color: #333; border: 1px solid #ccc; border-radius: 3px; }"
+            "QComboBox:drop-down { border: none; }"
+            "QComboBox QAbstractItemView { background-color: white; color: #333; selection-background-color: #007bff; }"
+        )
+        self._model_combo.currentIndexChanged.connect(self._on_model_changed)
+        model_layout.addWidget(self._model_combo)
+
+        model_layout.addStretch()
+        idle_layout.addWidget(model_frame)
 
         # Test-Anruf Button
         self._test_call_btn = QPushButton("🎤 Test-Anruf starten (Mikrofon)")
@@ -259,10 +393,77 @@ class CallPanel(QWidget):
         """Handler für Mute Button."""
         self._signals.action_mute_ai.emit(self._mute_btn.isChecked())
 
+    def _codec_btn_style(self) -> str:
+        """Style für Codec-Buttons."""
+        return (
+            "QPushButton { background-color: #6c757d; color: white; "
+            "padding: 3px 8px; font-size: 10px; border-radius: 3px; min-width: 45px; }"
+            "QPushButton:hover { background-color: #5a6268; }"
+            "QPushButton:checked { background-color: #28a745; }"
+        )
+
+    def _on_codec_clicked(self, codec: str) -> None:
+        """Handler für Codec-Button Click."""
+        # Alle anderen unchecken, diesen checken
+        self._codec_pcm8_btn.setChecked(codec == "pcm8")
+        self._codec_ulaw_btn.setChecked(codec == "ulaw")
+        self._codec_alaw_btn.setChecked(codec == "alaw")
+        self._current_codec = codec
+        self._update_output()
+    
+    def _on_rate_clicked(self, rate: int) -> None:
+        """Handler für Rate-Button Click."""
+        # Alle anderen unchecken, diesen checken
+        self._rate_8k_btn.setChecked(rate == 8000)
+        self._rate_16k_btn.setChecked(rate == 16000)
+        self._rate_24k_btn.setChecked(rate == 24000)
+        self._current_rate = rate
+        self._update_output()
+    
+    def _on_bits_clicked(self, bits: int) -> None:
+        """Handler für Bits-Button Click."""
+        # Alle anderen unchecken, diesen checken
+        self._bits_8_btn.setChecked(bits == 8)
+        self._bits_16_btn.setChecked(bits == 16)
+        self._current_bits = bits
+        self._update_output()
+    
+    def _update_output(self) -> None:
+        """Aktualisiert Output-Einstellungen und ruft Callback auf."""
+        codec = getattr(self, '_current_codec', 'alaw')
+        rate = getattr(self, '_current_rate', 8000)
+        bits = getattr(self, '_current_bits', 8)
+        
+        # Status aktualisieren
+        self._output_status.setText(f"Aktuell: {codec}, {rate//1000}kHz, {bits}-bit")
+        
+        # Callback aufrufen
+        if hasattr(self, '_on_output_callback') and self._on_output_callback:
+            self._on_output_callback(codec, rate, bits)
+
+    def set_codec_callback(self, callback) -> None:
+        """Setzt den Callback für Output-Änderungen. callback(codec, rate, bits)"""
+        self._on_output_callback = callback
+    
+    def set_replay_callback(self, callback) -> None:
+        """Setzt den Callback für Replay-Button. callback()"""
+        self._on_replay_callback = callback
+    
+    def _on_replay_clicked(self) -> None:
+        """Handler für Replay-Button."""
+        if hasattr(self, '_on_replay_callback') and self._on_replay_callback:
+            self._on_replay_callback()
+
     def _on_test_call_clicked(self) -> None:
         """Handler für Test-Anruf Button."""
         if self._on_start_local_test:
             self._on_start_local_test()
+
+    def _on_model_changed(self, index: int) -> None:
+        """Handler für Model-Auswahl Änderung."""
+        model = self._model_combo.itemData(index)
+        if model:
+            self._signals.action_change_model.emit(model)
 
     def set_local_test_available(self, available: bool) -> None:
         """Aktiviert/Deaktiviert den Test-Anruf Button."""
@@ -283,3 +484,14 @@ class CallPanel(QWidget):
             self._auto_accept_label.show()
         else:
             self._auto_accept_label.hide()
+
+    def set_current_model(self, model: str) -> None:
+        """Setzt das aktuell ausgewählte Model in der ComboBox."""
+        for i in range(self._model_combo.count()):
+            if self._model_combo.itemData(i) == model:
+                self._model_combo.setCurrentIndex(i)
+                break
+
+    def get_current_model(self) -> str:
+        """Gibt das aktuell ausgewählte Model zurück."""
+        return self._model_combo.currentData() or "gpt-realtime"

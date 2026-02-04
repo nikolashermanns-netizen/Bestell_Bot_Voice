@@ -601,6 +601,25 @@ class RealtimeClient:
                 self._loop,
             )
 
+    def set_model(self, model: str) -> None:
+        """
+        Setzt das AI-Model.
+        
+        HINWEIS: Das Model kann nur geändert werden wenn NICHT verbunden.
+        Bei aktiver Verbindung muss erst disconnect() und dann connect() 
+        aufgerufen werden.
+        
+        Args:
+            model: Model-Name (z.B. "gpt-4o-realtime-preview-2024-12-17" oder "gpt-realtime")
+        """
+        self._openai_config.model = model
+        self._session.model = model
+        logger.info(f"AI-Model gesetzt: {model}")
+
+    def get_model(self) -> str:
+        """Gibt das aktuelle Model zurück."""
+        return self._openai_config.model
+
     def disconnect(self) -> None:
         """Trennt die WebSocket-Verbindung."""
         self._running = False

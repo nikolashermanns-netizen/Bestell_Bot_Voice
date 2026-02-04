@@ -24,7 +24,7 @@ class OpenAIConfig:
     """OpenAI API Einstellungen."""
 
     api_key: str
-    model: str = "gpt-4o-realtime-preview-2024-12-17"
+    model: str = "gpt-realtime"
 
 
 @dataclass
@@ -93,7 +93,7 @@ def load_config() -> AppConfig:
 
     openai_config = OpenAIConfig(
         api_key=openai_key,
-        model=os.getenv("OPENAI_MODEL", "gpt-4o-realtime-preview-2024-12-17"),
+        model=os.getenv("OPENAI_MODEL", "gpt-realtime"),
     )
 
     # Audio Konfiguration
