@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
 from sip_client import SIPClient
-from ai_client import AIClient
+from ai_client import AIClient, AVAILABLE_MODELS
 from connection_manager import ConnectionManager
 
 # Logging Setup
@@ -50,7 +50,7 @@ async def lifespan(app: FastAPI):
     # AI Client initialisieren
     ai_client = AIClient(api_key=settings.OPENAI_API_KEY)
     
-    # Gespeicherte Instructions laden
+    # Gespeicherte Instructions und Model laden
     try:
         import json
         with open("/app/instructions.json", "r", encoding="utf-8") as f:
@@ -58,10 +58,13 @@ async def lifespan(app: FastAPI):
             if "instructions" in data:
                 ai_client.set_instructions(data["instructions"])
                 logger.info("Gespeicherte Instructions geladen")
+            if "model" in data:
+                ai_client.set_model(data["model"])
+                logger.info(f"Gespeichertes Model geladen: {data['model']}")
     except FileNotFoundError:
-        logger.info("Keine gespeicherten Instructions gefunden, verwende Default")
+        logger.info("Keine gespeicherte Konfiguration gefunden, verwende Defaults")
     except Exception as e:
-        logger.warning(f"Fehler beim Laden der Instructions: {e}")
+        logger.warning(f"Fehler beim Laden der Konfiguration: {e}")
     
     # Event Handler verbinden
     sip_client.on_incoming_call = on_incoming_call
@@ -312,6 +315,46 @@ async def set_instructions(data: dict):
             logger.warning(f"Konnte Instructions nicht speichern: {e}")
         
         return {"status": "ok", "length": len(instructions)}
+    return {"status": "error"}
+
+
+@app.get("/model")
+async def get_model():
+    """Aktuelles AI-Modell und verfügbare Modelle abrufen."""
+    if ai_client:
+        return {
+            "model": ai_client.model,
+            "available_models": AVAILABLE_MODELS
+        }
+    return {"model": "", "available_models": AVAILABLE_MODELS}
+
+
+@app.post("/model")
+async def set_model(data: dict):
+    """AI-Modell setzen (wird beim nächsten Anruf aktiv)."""
+    if ai_client:
+        model = data.get("model", "")
+        if ai_client.set_model(model):
+            # Persistieren in Datei
+            try:
+                import json
+                # Lade bestehende Config
+                config_data = {}
+                try:
+                    with open("/app/instructions.json", "r", encoding="utf-8") as f:
+                        config_data = json.load(f)
+                except FileNotFoundError:
+                    pass
+                
+                config_data["model"] = model
+                
+                with open("/app/instructions.json", "w", encoding="utf-8") as f:
+                    json.dump(config_data, f, ensure_ascii=False, indent=2)
+            except Exception as e:
+                logger.warning(f"Konnte Model nicht speichern: {e}")
+            
+            return {"status": "ok", "model": model}
+        return {"status": "error", "message": "Unbekanntes Modell"}
     return {"status": "error"}
 
 

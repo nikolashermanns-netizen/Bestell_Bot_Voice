@@ -14,7 +14,7 @@ from typing import Optional
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QTextEdit, QSplitter, QFrame, QStatusBar,
-    QGroupBox, QMessageBox
+    QGroupBox, QMessageBox, QComboBox
 )
 from PySide6.QtCore import Qt, QTimer, Signal, QObject, QThread
 from PySide6.QtGui import QFont, QTextCursor, QColor
@@ -105,6 +105,8 @@ class MainWindow(QMainWindow):
         self._transcript_text = ""
         self._current_partial = {"caller": "", "assistant": ""}
         self._original_instructions = ""
+        self._original_model = ""
+        self._available_models = []
         
         self._setup_ui()
         self._setup_timers()
@@ -222,6 +224,44 @@ class MainWindow(QMainWindow):
         right_layout = QVBoxLayout(right_widget)
         right_layout.setContentsMargins(0, 0, 0, 0)
         
+        # === Model Panel ===
+        model_group = QGroupBox("AI-Modell")
+        model_layout = QVBoxLayout(model_group)
+        
+        # Hinweis
+        model_hint = QLabel(
+            "Wähle das OpenAI-Modell aus. "
+            "Änderungen werden beim nächsten Anruf wirksam."
+        )
+        model_hint.setStyleSheet("color: #666; font-size: 11px;")
+        model_hint.setWordWrap(True)
+        model_layout.addWidget(model_hint)
+        
+        # Model Dropdown
+        model_row = QHBoxLayout()
+        self._model_combo = QComboBox()
+        self._model_combo.setMinimumWidth(200)
+        self._model_combo.currentTextChanged.connect(self._on_model_changed)
+        model_row.addWidget(self._model_combo)
+        model_row.addStretch()
+        
+        self._model_status = QLabel("")
+        self._model_status.setStyleSheet("color: #666; font-size: 11px;")
+        model_row.addWidget(self._model_status)
+        
+        self._save_model_btn = QPushButton("Speichern")
+        self._save_model_btn.setStyleSheet(
+            "QPushButton { background-color: #28a745; color: white; padding: 5px 15px; }"
+        )
+        self._save_model_btn.clicked.connect(self._on_save_model)
+        self._save_model_btn.setEnabled(False)
+        model_row.addWidget(self._save_model_btn)
+        
+        model_layout.addLayout(model_row)
+        
+        model_group.setMaximumHeight(100)
+        right_layout.addWidget(model_group)
+        
         # === Instructions Panel ===
         instructions_group = QGroupBox("AI-Instruktionen (System-Prompt)")
         instructions_layout = QVBoxLayout(instructions_group)
@@ -314,7 +354,8 @@ class MainWindow(QMainWindow):
         self._reconnect_btn.setText("Neu verbinden")
         self._status_bar.showMessage(f"Mit {self.server_url} verbunden")
         
-        # Instructions laden
+        # Model und Instructions laden
+        self._load_model()
         self._load_instructions()
         
         # Polling stoppen (WebSocket ist besser)
@@ -435,6 +476,81 @@ class MainWindow(QMainWindow):
         clipboard = QApplication.clipboard()
         clipboard.setText(self._transcript_text)
         self._status_bar.showMessage("Transkript kopiert")
+    
+    def _load_model(self):
+        """Lädt Model vom Server."""
+        import requests
+        try:
+            response = requests.get(f"{self.server_url}/model", timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                current_model = data.get("model", "")
+                available_models = data.get("available_models", [])
+                
+                self._original_model = current_model
+                self._available_models = available_models
+                
+                # Dropdown befüllen
+                self._model_combo.blockSignals(True)
+                self._model_combo.clear()
+                for model in available_models:
+                    self._model_combo.addItem(model)
+                
+                # Aktuelles Model auswählen
+                index = self._model_combo.findText(current_model)
+                if index >= 0:
+                    self._model_combo.setCurrentIndex(index)
+                
+                self._model_combo.blockSignals(False)
+                self._model_status.setText("Geladen")
+                self._model_status.setStyleSheet("color: #28a745; font-size: 11px;")
+                self._save_model_btn.setEnabled(False)
+        except Exception as e:
+            logger.error(f"Fehler beim Laden des Models: {e}")
+            self._model_status.setText("Fehler beim Laden")
+            self._model_status.setStyleSheet("color: red; font-size: 11px;")
+    
+    def _on_model_changed(self, text: str):
+        """Handler für Model-Änderungen."""
+        has_changes = text != self._original_model
+        self._save_model_btn.setEnabled(has_changes)
+        
+        if has_changes:
+            self._model_status.setText("Ungespeichert")
+            self._model_status.setStyleSheet("color: #ffc107; font-size: 11px;")
+        else:
+            self._model_status.setText("")
+            self._model_status.setStyleSheet("color: #666; font-size: 11px;")
+    
+    def _on_save_model(self):
+        """Speichert Model auf dem Server."""
+        import requests
+        
+        model = self._model_combo.currentText()
+        
+        try:
+            response = requests.post(
+                f"{self.server_url}/model",
+                json={"model": model},
+                timeout=5
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                if result.get("status") == "ok":
+                    self._original_model = model
+                    self._save_model_btn.setEnabled(False)
+                    self._model_status.setText("Gespeichert!")
+                    self._model_status.setStyleSheet("color: #28a745; font-size: 11px;")
+                    self._status_bar.showMessage(f"Modell '{model}' gespeichert")
+                else:
+                    raise Exception(result.get("message", "Unbekannter Fehler"))
+            else:
+                raise Exception(f"Server-Fehler: {response.status_code}")
+        
+        except Exception as e:
+            logger.error(f"Fehler beim Speichern des Models: {e}")
+            QMessageBox.warning(self, "Fehler", f"Konnte nicht speichern: {e}")
     
     def _load_instructions(self):
         """Lädt Instructions vom Server."""
