@@ -23,5 +23,7 @@ services:
     volumes:
       # Recordings speichern
       - ./recordings:/app/recordings
+      # Config persistent speichern (Instructions, Model)
+      - ./config:/app/config
     env_file:
       - .env

@@ -53,7 +53,7 @@ async def lifespan(app: FastAPI):
     # Gespeicherte Instructions und Model laden
     try:
         import json
-        with open("/app/instructions.json", "r", encoding="utf-8") as f:
+        with open("/app/config/config.json", "r", encoding="utf-8") as f:
             data = json.load(f)
             if "instructions" in data:
                 ai_client.set_instructions(data["instructions"])
@@ -306,11 +306,24 @@ async def set_instructions(data: dict):
         instructions = data.get("instructions", "")
         ai_client.set_instructions(instructions)
         
-        # Persistieren in Datei
+        # Persistieren in Datei (bestehende Config beibehalten)
         try:
             import json
-            with open("/app/instructions.json", "w", encoding="utf-8") as f:
-                json.dump({"instructions": instructions}, f, ensure_ascii=False, indent=2)
+            import os
+            os.makedirs("/app/config", exist_ok=True)
+            
+            # Lade bestehende Config
+            config_data = {}
+            try:
+                with open("/app/config/config.json", "r", encoding="utf-8") as f:
+                    config_data = json.load(f)
+            except FileNotFoundError:
+                pass
+            
+            config_data["instructions"] = instructions
+            
+            with open("/app/config/config.json", "w", encoding="utf-8") as f:
+                json.dump(config_data, f, ensure_ascii=False, indent=2)
         except Exception as e:
             logger.warning(f"Konnte Instructions nicht speichern: {e}")
         
@@ -338,17 +351,20 @@ async def set_model(data: dict):
             # Persistieren in Datei
             try:
                 import json
+                import os
+                os.makedirs("/app/config", exist_ok=True)
+                
                 # Lade bestehende Config
                 config_data = {}
                 try:
-                    with open("/app/instructions.json", "r", encoding="utf-8") as f:
+                    with open("/app/config/config.json", "r", encoding="utf-8") as f:
                         config_data = json.load(f)
                 except FileNotFoundError:
                     pass
                 
                 config_data["model"] = model
                 
-                with open("/app/instructions.json", "w", encoding="utf-8") as f:
+                with open("/app/config/config.json", "w", encoding="utf-8") as f:
                     json.dump(config_data, f, ensure_ascii=False, indent=2)
             except Exception as e:
                 logger.warning(f"Konnte Model nicht speichern: {e}")

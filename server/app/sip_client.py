@@ -37,7 +37,8 @@ class AudioMediaPort(pj.AudioMediaPort if PJSUA2_AVAILABLE else object):
         self.name = name
         
         # Queues für Audio-Austausch
-        self._outgoing_queue: deque = deque(maxlen=100)  # AI -> Caller
+        # 500 Frames = 10 Sekunden Audio @ 20ms/Frame
+        self._outgoing_queue: deque = deque(maxlen=500)  # AI -> Caller
         self._incoming_callback: Optional[Callable] = None  # Caller -> AI
         
         # Audio Format Info (wird beim Erstellen gesetzt)

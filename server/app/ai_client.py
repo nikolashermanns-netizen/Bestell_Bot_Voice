@@ -28,6 +28,7 @@ Sprich kurz und präzise. Vermeide lange Erklärungen."""
 AVAILABLE_MODELS = [
     "gpt-4o-realtime-preview-2024-12-17",
     "gpt-4o-mini-realtime-preview-2024-12-17",
+    "gpt-4o-realtime-preview",
 ]
 
 DEFAULT_MODEL = "gpt-4o-realtime-preview-2024-12-17"
