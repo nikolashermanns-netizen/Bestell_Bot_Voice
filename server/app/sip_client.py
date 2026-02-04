@@ -46,7 +46,10 @@ class AudioMediaPort(pj.AudioMediaPort if PJSUA2_AVAILABLE else object):
         self._samples_per_frame = 960  # 20ms @ 48kHz
         self._bits_per_sample = 16
         
-        self._frame_count = 0
+        # Statistics
+        self._rx_frame_count = 0
+        self._tx_frame_count = 0
+        self._tx_audio_count = 0  # Frames with actual audio (not silence)
     
     def createPort(self, clock_rate: int, channel_count: int, samples_per_frame: int, bits_per_sample: int):
         """Erstellt den Audio Port mit den gegebenen Parametern."""
@@ -75,18 +78,30 @@ class AudioMediaPort(pj.AudioMediaPort if PJSUA2_AVAILABLE else object):
         PJSIP ruft diese Methode auf, wenn ein Audio-Frame benötigt wird (TX zum Anrufer).
         Wir liefern Audio aus der outgoing_queue (von der AI).
         """
+        self._tx_frame_count += 1
+        
         try:
             if self._outgoing_queue:
                 audio_data = self._outgoing_queue.popleft()
                 frame.type = pj.PJMEDIA_FRAME_TYPE_AUDIO
                 frame.buf = audio_data
+                self._tx_audio_count += 1
+                
+                # Log bei erstem Audio-Frame
+                if self._tx_audio_count == 1:
+                    logger.info(f"[TX] Erstes AI-Audio Frame gesendet, size={len(audio_data)}")
             else:
                 # Stille senden wenn keine Daten verfügbar
                 silence = bytes(self._samples_per_frame * 2)  # 16-bit silence
                 frame.type = pj.PJMEDIA_FRAME_TYPE_AUDIO
                 frame.buf = silence
+            
+            # Log alle 100 TX Frames
+            if self._tx_frame_count % 100 == 0:
+                logger.info(f"[TX] Frames: {self._tx_frame_count}, Audio: {self._tx_audio_count}, Queue: {len(self._outgoing_queue)}")
+                
         except Exception as e:
-            logger.debug(f"onFrameRequested Error: {e}")
+            logger.warning(f"onFrameRequested Error: {e}")
             frame.type = pj.PJMEDIA_FRAME_TYPE_NONE
     
     def onFrameReceived(self, frame: 'pj.MediaFrame'):
@@ -96,21 +111,29 @@ class AudioMediaPort(pj.AudioMediaPort if PJSUA2_AVAILABLE else object):
         """
         try:
             if frame.type == pj.PJMEDIA_FRAME_TYPE_AUDIO:
-                self._frame_count += 1
+                self._rx_frame_count += 1
+                
+                # Log bei erstem Frame
+                if self._rx_frame_count == 1:
+                    logger.info(f"[RX] Erstes Audio-Frame empfangen, size={len(frame.buf) if frame.buf else 0}")
                 
                 # Log alle 100 Frames
-                if self._frame_count % 100 == 0:
-                    logger.debug(f"Audio RX: {self._frame_count} frames, buf_size={len(frame.buf) if frame.buf else 0}")
+                if self._rx_frame_count % 100 == 0:
+                    logger.info(f"[RX] Frames: {self._rx_frame_count}, buf_size={len(frame.buf) if frame.buf else 0}")
                 
                 if self._incoming_callback and frame.buf:
                     # Audio-Daten an Callback senden
                     self._incoming_callback(bytes(frame.buf))
         except Exception as e:
-            logger.debug(f"onFrameReceived Error: {e}")
+            logger.warning(f"onFrameReceived Error: {e}")
     
     def queue_audio(self, audio_data: bytes):
         """Audio zur Wiedergabe an den Anrufer einreihen."""
         self._outgoing_queue.append(audio_data)
+        
+        # Log wenn Queue groß wird
+        if len(self._outgoing_queue) == 50:
+            logger.warning(f"[TX] Audio Queue halb voll: {len(self._outgoing_queue)} Frames")
     
     def set_incoming_callback(self, callback: Callable):
         """Callback für eingehendes Audio (vom Anrufer) setzen."""

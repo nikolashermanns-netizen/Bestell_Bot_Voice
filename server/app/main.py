@@ -125,9 +125,23 @@ def resample_audio(audio_data: bytes, from_rate: int, to_rate: int) -> bytes:
 
 # ============== Event Handlers ==============
 
+# Audio Statistics
+_audio_stats = {
+    "caller_to_ai": 0,
+    "ai_to_caller": 0,
+    "caller_bytes": 0,
+    "ai_bytes": 0
+}
+
 async def on_incoming_call(caller_id: str):
     """Wird aufgerufen wenn ein Anruf eingeht."""
     logger.info(f"Eingehender Anruf von: {caller_id}")
+    
+    # Reset stats
+    _audio_stats["caller_to_ai"] = 0
+    _audio_stats["ai_to_caller"] = 0
+    _audio_stats["caller_bytes"] = 0
+    _audio_stats["ai_bytes"] = 0
     
     # Alle GUI Clients benachrichtigen
     await manager.broadcast({
@@ -147,24 +161,44 @@ async def on_incoming_call(caller_id: str):
 
 async def on_audio_from_caller(audio_data: bytes):
     """Audio vom Anrufer empfangen (48kHz) - an AI weiterleiten (16kHz)."""
+    _audio_stats["caller_to_ai"] += 1
+    _audio_stats["caller_bytes"] += len(audio_data)
+    
+    # Log alle 50 Pakete
+    if _audio_stats["caller_to_ai"] % 50 == 1:
+        logger.info(f"[AUDIO] Caller->AI: {_audio_stats['caller_to_ai']} Pakete, {_audio_stats['caller_bytes']} Bytes")
+    
     if ai_client and ai_client.is_connected:
         # Resample 48kHz -> 16kHz für AI Input
         try:
             resampled = resample_audio(audio_data, 48000, 16000)
             await ai_client.send_audio(resampled)
         except Exception as e:
-            logger.debug(f"Audio Resample Fehler: {e}")
+            logger.warning(f"Audio Resample Fehler (Caller->AI): {e}")
+    else:
+        if _audio_stats["caller_to_ai"] == 1:
+            logger.warning("AI nicht verbunden - Audio wird verworfen")
 
 
 async def on_audio_from_ai(audio_data: bytes):
     """Audio von AI empfangen (24kHz) - an Anrufer weiterleiten (48kHz)."""
+    _audio_stats["ai_to_caller"] += 1
+    _audio_stats["ai_bytes"] += len(audio_data)
+    
+    # Log alle 50 Pakete
+    if _audio_stats["ai_to_caller"] % 50 == 1:
+        logger.info(f"[AUDIO] AI->Caller: {_audio_stats['ai_to_caller']} Pakete, {_audio_stats['ai_bytes']} Bytes")
+    
     if sip_client and sip_client.is_in_call:
         # Resample 24kHz -> 48kHz für SIP/Opus
         try:
             resampled = resample_audio(audio_data, 24000, 48000)
             await sip_client.send_audio(resampled)
         except Exception as e:
-            logger.debug(f"Audio Resample Fehler: {e}")
+            logger.warning(f"Audio Resample Fehler (AI->Caller): {e}")
+    else:
+        if _audio_stats["ai_to_caller"] == 1:
+            logger.warning("Kein aktiver Anruf - AI Audio wird verworfen")
 
 
 async def on_transcript(role: str, text: str, is_final: bool):
