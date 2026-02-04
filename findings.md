@@ -514,3 +514,244 @@ pcm_8bit = audioop.lin2lin(resampled, 2, 1)
 ```
 
 **Wichtig:** `audioop.lin2lin` mit width 1 gibt 8-bit **unsigned** PCM zurück - genau was pyVoIP erwartet!
+
+---
+
+## PJSIP auf Linux Server (2026-02-04)
+
+### 31. pyVoIP Audioqualität unzureichend → PJSIP
+
+**Problem:** pyVoIP lieferte nur 8kHz G.711, sehr schlechte Audioqualität.
+
+**Lösung:** PJSIP auf Linux Server verwenden:
+- Unterstützt Opus @ 48kHz (deutlich besser als G.711 @ 8kHz)
+- Professionelle RTP-Timing
+- Bessere Codec-Unterstützung
+
+**Architektur:**
+```
+Telefon → Sipgate → Linux Server (PJSIP + FastAPI)
+                        ↓ WebSocket
+                    OpenAI Realtime API
+                        ↓ WebSocket
+                    Lokale Python GUI (PySide6)
+```
+
+### 32. Docker network_mode: host für SIP
+
+**Problem:** SIP-Registration schlug fehl mit NAT-Problemen.
+
+**Lösung:** `network_mode: host` in docker-compose.yml:
+```yaml
+services:
+  bestell-bot:
+    network_mode: host  # WICHTIG für SIP!
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+```
+
+**Warum:** SIP braucht direkte Netzwerk-Kontrolle für RTP-Ports.
+
+### 33. PJSIP Null Sound Device
+
+**Problem:** `Error opening sound device: Unable to find default audio device`
+
+**Ursache:** Docker Container hat keine Audio-Hardware.
+
+**Lösung:** Null Sound Device aktivieren:
+```python
+self._endpoint.audDevManager().setNullDev()
+```
+
+### 34. PJSIP Threading-Modell (KRITISCH!)
+
+**Problem:** `Assertion failed: "Calling pjlib from unknown/external thread"`
+
+**Ursache:** PJSIP muss in einem dedizierten Thread laufen.
+
+**Lösung:** Separater Thread für PJSIP mit asyncio Queue für Events:
+```python
+self._pjsip_thread = threading.Thread(target=self._run_pjsip, daemon=True)
+self._pjsip_thread.start()
+
+# Thread-safe Events via asyncio Queue
+self._loop.call_soon_threadsafe(
+    self._event_queue.put_nowait,
+    {"type": "audio_received", "data": audio_data}
+)
+```
+
+### 35. PJSIP ByteVector für Audio-Frames
+
+**Problem:** `onFrameRequested Error: in method 'MediaFrame_buf_set', argument 2 of type 'pj::ByteVector *'`
+
+**Ursache:** PJSIP Python bindings erwarten `pj.ByteVector`, nicht `bytes`.
+
+**FALSCH:**
+```python
+frame.buf = audio_data  # bytes → ERROR!
+```
+
+**RICHTIG:**
+```python
+frame.buf = pj.ByteVector(list(audio_data))  # Schnelle Konvertierung
+```
+
+### 36. Audio-Frame-Splitting (KRITISCH!)
+
+**Problem:** AI Audio kam nur in kurzen Fetzen an, dann Stille.
+
+**Ursache:** OpenAI sendet variable Chunk-Größen, aber PJSIP erwartet exakt 20ms Frames.
+
+**Lösung:** Audio in 1920-byte Frames aufteilen (960 samples @ 48kHz, 16-bit):
+```python
+def queue_audio(self, audio_data: bytes):
+    frame_size = self._samples_per_frame * 2  # 1920 bytes
+    
+    self._audio_buffer += audio_data
+    
+    while len(self._audio_buffer) >= frame_size:
+        frame = self._audio_buffer[:frame_size]
+        self._audio_buffer = self._audio_buffer[frame_size:]
+        self._outgoing_queue.append(frame)
+```
+
+### 37. Audio Queue-Größe (KRITISCH!)
+
+**Problem:** Audio hatte Lücken, dann wurde es schnell abgespielt.
+
+**Ursache:** `deque(maxlen=100)` war zu klein - bei 20ms Frames nur 2 Sekunden!
+
+**Symptom in Logs:**
+```
+[TX] Frames: 700, Audio: 301, Queue: 28  ← Queue fast voll
+[TX] Frames: 800, Audio: 329, Queue: 0   ← Queue leer, ältere Frames überschrieben!
+```
+
+**Lösung:** Queue auf 500 Frames erhöhen (10 Sekunden):
+```python
+self._outgoing_queue: deque = deque(maxlen=500)
+```
+
+### 38. Audio-Resampling Pipeline
+
+**Konvertierungskette für PJSIP mit Opus @ 48kHz:**
+```
+Telefon (48kHz Opus) 
+  → PJSIP dekodiert → 48kHz 16-bit PCM
+  → Resample → 16kHz 16-bit PCM 
+  → OpenAI Realtime API (erwartet 16kHz)
+
+OpenAI API → 24kHz 16-bit PCM
+  → Resample → 48kHz 16-bit PCM
+  → PJSIP enkodiert → 48kHz Opus
+  → Telefon
+```
+
+**Resampling mit scipy:**
+```python
+from scipy import signal as scipy_signal
+import numpy as np
+
+def resample_audio(audio_data: bytes, from_rate: int, to_rate: int) -> bytes:
+    if from_rate == to_rate:
+        return audio_data
+    
+    samples = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32)
+    num_samples = int(len(samples) * to_rate / from_rate)
+    resampled = scipy_signal.resample(samples, num_samples)
+    resampled = np.clip(resampled, -32768, 32767).astype(np.int16)
+    
+    return resampled.tobytes()
+```
+
+### 39. Firewall-Ports für SIP/RTP
+
+**Benötigte Ports:**
+- **5060 UDP** - SIP Signaling
+- **4000-4100 UDP** - RTP Media (PJSIP Default-Range)
+- **8085 TCP** - API für lokale GUI
+
+**iptables Regel:**
+```bash
+sudo iptables -I INPUT -p udp --dport 5060 -j ACCEPT
+sudo iptables -I INPUT -p udp --dport 4000:4100 -j ACCEPT
+sudo iptables -I INPUT -p tcp --dport 8085 -j ACCEPT
+```
+
+### 40. OpenAI Realtime API mit aiohttp
+
+**Problem:** `openai` SDK Realtime API änderte sich, alte Syntax funktioniert nicht mehr.
+
+**Lösung:** Direkte WebSocket-Verbindung mit aiohttp:
+```python
+import aiohttp
+
+headers = {
+    "Authorization": f"Bearer {api_key}",
+    "OpenAI-Beta": "realtime=v1"
+}
+
+session = aiohttp.ClientSession()
+ws = await session.ws_connect(
+    "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17",
+    headers=headers
+)
+
+# Session konfigurieren
+await ws.send_str(json.dumps({
+    "type": "session.update",
+    "session": {
+        "modalities": ["text", "audio"],
+        "voice": "alloy",
+        "input_audio_format": "pcm16",
+        "output_audio_format": "pcm16",
+        "turn_detection": {"type": "server_vad"}
+    }
+}))
+```
+
+---
+
+## Performance-Optimierungen (PJSIP)
+
+### 41. ByteVector Cache für Stille
+
+**Problem:** Stille-Frame bei jedem Request neu erstellen ist langsam.
+
+**Lösung:** Einmal erstellen und cachen:
+```python
+if not hasattr(self, '_silence_vector'):
+    self._silence_vector = pj.ByteVector([0] * (self._samples_per_frame * 2))
+frame.buf = self._silence_vector
+```
+
+### 42. Schnelle ByteVector-Konvertierung
+
+**LANGSAM (for-loop):**
+```python
+bv = pj.ByteVector()
+for b in audio_data:
+    bv.append(b)  # ~1920 append-Aufrufe pro Frame!
+```
+
+**SCHNELL (list constructor):**
+```python
+frame.buf = pj.ByteVector(list(audio_data))  # Einmaliger Aufruf
+```
+
+---
+
+## Checkliste für PJSIP-Server
+
+- [ ] Docker mit `network_mode: host` und `privileged: true`
+- [ ] Null Sound Device aktivieren
+- [ ] PJSIP in eigenem Thread
+- [ ] ByteVector für frame.buf verwenden
+- [ ] Audio in 20ms Frames aufteilen
+- [ ] Queue mindestens 500 Frames (10 Sekunden)
+- [ ] Resampling: 48kHz (PJSIP) ↔ 16kHz/24kHz (OpenAI)
+- [ ] Firewall-Ports öffnen (5060, 4000-4100, 8085)
+- [ ] aiohttp für OpenAI WebSocket
