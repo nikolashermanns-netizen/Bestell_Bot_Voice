@@ -85,11 +85,8 @@ class AudioMediaPort(pj.AudioMediaPort if PJSUA2_AVAILABLE else object):
                 audio_data = self._outgoing_queue.popleft()
                 frame.type = pj.PJMEDIA_FRAME_TYPE_AUDIO
                 
-                # PJSIP erwartet ByteVector, nicht bytes
-                bv = pj.ByteVector()
-                for b in audio_data:
-                    bv.append(b)
-                frame.buf = bv
+                # PJSIP erwartet ByteVector - schnelle Konvertierung via list()
+                frame.buf = pj.ByteVector(list(audio_data))
                 
                 self._tx_audio_count += 1
                 
@@ -97,12 +94,11 @@ class AudioMediaPort(pj.AudioMediaPort if PJSUA2_AVAILABLE else object):
                 if self._tx_audio_count == 1:
                     logger.info(f"[TX] Erstes AI-Audio Frame gesendet, size={len(audio_data)}")
             else:
-                # Stille senden wenn keine Daten verfügbar
+                # Stille senden wenn keine Daten verfügbar - cached silence
+                if not hasattr(self, '_silence_vector'):
+                    self._silence_vector = pj.ByteVector([0] * (self._samples_per_frame * 2))
                 frame.type = pj.PJMEDIA_FRAME_TYPE_AUDIO
-                bv = pj.ByteVector()
-                for _ in range(self._samples_per_frame * 2):  # 16-bit silence
-                    bv.append(0)
-                frame.buf = bv
+                frame.buf = self._silence_vector
             
             # Log alle 100 TX Frames
             if self._tx_frame_count % 100 == 0:
