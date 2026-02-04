@@ -1,0 +1,108 @@
+Cursor Rules (POC, Python + Qt, Aircall SIP + Live-ChatGPT)
+1) Zielbild & Scope (POC-first)
+
+Primäres Ziel: Eingehenden Anruf via SIP (Aircall) annehmen, Audio in Echtzeit an eine ChatGPT Realtime/Streaming API senden, Antwort-Audio zurück zum Anrufer streamen, parallel Live-Transkript anzeigen.
+
+POC = minimal: 1 Call gleichzeitig, keine Multi-Account-Administration, keine komplizierte Konfiguration, keine Datenbank.
+
+Nicht-Ziele (für POC): Call Recording Archiv, CRM-Integration, Rollen/Rechte, Multi-Queue, Skalierung, Cloud-Deployment.
+
+2) Architektur-Prinzipien
+
+Event-driven: SIP Events und Audio-Frames laufen in separaten Threads/Tasks; UI bleibt immer responsiv.
+
+Single responsibility: Klare Module:
+
+sip/ (Call control + RTP Audio I/O)
+
+realtime_ai/ (Streaming API Client, VAD/Turn-Handling)
+
+transcription/ (ASR-In/Out, Anzeigenormierung)
+
+ui/ (Qt Widgets, keine Business-Logik)
+
+Schmaler “happy path” zuerst: incoming call → accept → stream → answer → hangup.
+
+3) Technik-Entscheidungen (POC-friendly)
+
+SIP/RTP: Nimm eine etablierte Library (z. B. pjsua2 / baresip binding / linphone SDK binding) statt “selbst RTP bauen”.
+
+Audio pipeline: Intern ein einheitliches Format (z. B. 16kHz mono PCM) und klare Converter an den Rändern (SIP Codec ↔ PCM).
+
+Streaming: Immer Chunk-basiert (20ms Frames), mit Ringbuffer.
+
+Qt: PySide6 bevorzugt. UI-Updates nur über Qt-Signale/Slots.
+
+4) Latenz-Regeln
+
+“Fast path” gilt immer:
+
+Keine blockierenden Netzwerkcalls im UI-Thread.
+
+Keine großen Buffers (keep small, e.g. 100–300ms).
+
+Audio-Frames sofort weiterreichen (producer/consumer queues).
+
+Logging asynchron und sparsam; keine riesigen JSON dumps im hot path.
+
+5) Sicherheits- & Datenschutz-Minimum (auch im POC)
+
+Keine Secrets im Repo: API Keys via .env / OS keychain / env vars.
+
+Default: keine Speicherung von Audio/Transkripten; nur Live-Anzeige.
+
+“Kill switch”: Button/Hotkey „AI stumm“ / „Stop Streaming“.
+
+6) Konfig & Setup
+
+Eine einzige config.toml oder .env:
+
+SIP user/pass/server
+
+OpenAI API key + model
+
+Audio settings
+
+Startbar per: python main.py — ohne Installer.
+
+7) Observability (POC-nützlich, nicht overkill)
+
+Ein Debug-Panel in der UI:
+
+Call state (RINGING/ACTIVE/ENDED)
+
+RTT/Latency grob (ms)
+
+Queue sizes (Audio in/out)
+
+Last error
+
+Logs: rotierend, Level via ENV.
+
+8) Definition of Done (POC)
+
+Eingehender Call kann angenommen werden.
+
+Anrufer spricht → ChatGPT antwortet hörbar innerhalb “gefühlt” kurzer Zeit (Ziel: < 1–2s turn latency).
+
+Live-Transkript zeigt:
+
+“Caller” Text (Streaming)
+
+“Assistant” Text (Streaming)
+
+App crasht nicht beim Auflegen / erneuten Anruf.
+
+9) Coding Standards
+
+Type hints überall, ruff + black.
+
+Keine abstrakten Frameworks, keine generischen “Enterprise”-Patterns.
+
+Jede Komponente hat eine kleine Demo/Smoke-Test Funktion.
+
+10) Risiken & Fallbacks (POC pragmatisch)
+
+Wenn Full Duplex schwierig ist: zuerst Half-duplex (Push-to-talk / turn-based) als Fallback.
+
+Wenn SIP Audio schwierig: zuerst Loopback-Mic/Speaker lokal testen, dann SIP dran.
