@@ -136,8 +136,32 @@ class AudioMediaPort(pj.AudioMediaPort if PJSUA2_AVAILABLE else object):
             logger.warning(f"onFrameReceived Error: {e}")
     
     def queue_audio(self, audio_data: bytes):
-        """Audio zur Wiedergabe an den Anrufer einreihen."""
-        self._outgoing_queue.append(audio_data)
+        """
+        Audio zur Wiedergabe an den Anrufer einreihen.
+        
+        Teilt das Audio in 20ms Frames auf (960 samples @ 48kHz = 1920 bytes).
+        """
+        # Frame-Größe: 20ms @ 48kHz, 16-bit mono = 960 samples = 1920 bytes
+        frame_size = self._samples_per_frame * 2  # 1920 bytes
+        
+        # Buffered audio für unvollständige Frames
+        if not hasattr(self, '_audio_buffer'):
+            self._audio_buffer = b''
+        
+        # Audio zum Buffer hinzufügen
+        self._audio_buffer += audio_data
+        
+        # Vollständige Frames extrahieren
+        frames_queued = 0
+        while len(self._audio_buffer) >= frame_size:
+            frame = self._audio_buffer[:frame_size]
+            self._audio_buffer = self._audio_buffer[frame_size:]
+            self._outgoing_queue.append(frame)
+            frames_queued += 1
+        
+        # Log wenn viele Frames auf einmal kommen
+        if frames_queued > 10:
+            logger.debug(f"[TX] {frames_queued} Frames auf einmal eingereiht, Buffer: {len(self._audio_buffer)} bytes")
         
         # Log wenn Queue groß wird
         if len(self._outgoing_queue) == 50:
