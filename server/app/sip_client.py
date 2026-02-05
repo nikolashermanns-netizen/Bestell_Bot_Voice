@@ -37,8 +37,8 @@ class AudioMediaPort(pj.AudioMediaPort if PJSUA2_AVAILABLE else object):
         self.name = name
         
         # Queues für Audio-Austausch
-        # 500 Frames = 10 Sekunden Audio @ 20ms/Frame
-        self._outgoing_queue: deque = deque(maxlen=500)  # AI -> Caller
+        # 1000 Frames = 20 Sekunden Audio @ 20ms/Frame
+        self._outgoing_queue: deque = deque(maxlen=1000)  # AI -> Caller
         self._incoming_callback: Optional[Callable] = None  # Caller -> AI
         
         # Audio Format Info (wird beim Erstellen gesetzt)
@@ -167,6 +167,15 @@ class AudioMediaPort(pj.AudioMediaPort if PJSUA2_AVAILABLE else object):
     def set_incoming_callback(self, callback: Callable):
         """Callback für eingehendes Audio (vom Anrufer) setzen."""
         self._incoming_callback = callback
+    
+    def clear_queue(self) -> int:
+        """Leert die Audio-Queue (für Barge-In/Interruption). Gibt Anzahl verworfener Frames zurück."""
+        count = len(self._outgoing_queue)
+        self._outgoing_queue.clear()
+        # Auch den Buffer leeren
+        if hasattr(self, '_audio_buffer'):
+            self._audio_buffer = b''
+        return count
 
 
 class CallCallback(pj.Call if PJSUA2_AVAILABLE else object):
@@ -528,6 +537,12 @@ class SIPClient:
             # Audio direkt in die Queue des AudioMediaPort stellen
             # Dies wird im PJSIP Thread via onFrameRequested abgeholt
             self._audio_port.queue_audio(audio_data)
+    
+    def clear_audio_queue(self) -> int:
+        """Leert die Audio-Queue (für Barge-In/Interruption). Gibt Anzahl verworfener Frames zurück."""
+        if self._audio_port:
+            return self._audio_port.clear_queue()
+        return 0
     
     async def stop(self):
         """SIP Client stoppen."""

@@ -2,6 +2,7 @@
 OpenAI Realtime API Client für Voice Bot.
 
 Streamt Audio bidirektional zur OpenAI API via WebSocket.
+Unterstützt Function Calling für Katalog-Suche und Bestellungen.
 """
 
 import asyncio
@@ -11,27 +12,111 @@ import logging
 import os
 from typing import Callable, Optional
 
+import catalog
+from order_manager import order_manager
+
 logger = logging.getLogger(__name__)
 
-DEFAULT_INSTRUCTIONS = """Du bist ein freundlicher Bestellassistent für einen Sanitär-Großhandel.
-                
-Deine Aufgaben:
-- Begrüße Anrufer freundlich
-- Nimm Bestellungen entgegen
-- Frage nach Produktnamen, Artikelnummern und Mengen
-- Bestätige die Bestellung am Ende
+DEFAULT_INSTRUCTIONS = """Du bist ein erfahrener SHK-Fachberater und Viega-Experte bei einem Fachgrosshandel.
 
-Sprich kurz und präzise. Vermeide lange Erklärungen."""
+BEGRUESSUNG:
+Sage am Anfang IMMER: "Sie sind verbunden mit dem Automatischen Bestellservice der Firma Heinrich Schmidt, wie kann ich Ihnen helfen?"
+
+DEINE ROLLE:
+- Du nimmst telefonische Bestellungen von SHK-Profis (Installateure, Heizungsbauer) entgegen
+- Du kennst das komplette Viega-Sortiment (Temponox, Sanpress, Sanpress Inox)
+- Du hilfst bei der Produktauswahl und gibst technische Beratung
+
+WICHTIGE REGELN:
+- Sprich immer auf Deutsch
+- Halte deine Antworten kurz und professionell
+- Frage nach Menge und Groesse wenn nicht angegeben
+- Wiederhole die Bestellung zur Bestaetigung
+- Sage IMMER "Artikel Nummer" statt "Art. Nr." oder "Art.Nr"
+- Wenn du etwas nachschauen musst, sage "Moment, ich schau mal nach"
+
+KATALOG LADEN - SEHR WICHTIG:
+- Sobald du weisst welches System der Kunde braucht (Temponox, Sanpress oder Sanpress Inox), rufe SOFORT die Funktion 'lade_system_katalog' auf!
+- Danach hast du ALLE Produkte mit Artikelnummern im Kontext und kannst direkt helfen
+- Frag den Kunden welches System er braucht wenn unklar
+
+VERFUEGBARE SYSTEME:
+- temponox: Fuer Heizung
+- sanpress: Trinkwasser Kupfer/Rotguss  
+- sanpress-inox: Trinkwasser Edelstahl
+
+BESTELLFORMAT:
+Wenn der Kunde etwas bestellt, bestaetige so:
+"[MENGE]x [PRODUKTNAME] (Artikel Nummer: [KENNUNG]) - notiert!"
+
+Beispiel: "10x Temponox Bogen 90 Grad 22mm (Artikel Nummer: 102036) - notiert!"
+
+Nutze 'bestellung_hinzufuegen' nach jeder bestaetigten Position.
+Nutze 'zeige_bestellung' wenn der Kunde die Bestellung zusammenfassen will."""
 
 
 # Verfügbare OpenAI Realtime Modelle
 AVAILABLE_MODELS = [
+    "gpt-realtime",
     "gpt-4o-realtime-preview-2024-12-17",
     "gpt-4o-mini-realtime-preview-2024-12-17",
     "gpt-4o-realtime-preview",
 ]
 
-DEFAULT_MODEL = "gpt-4o-realtime-preview-2024-12-17"
+DEFAULT_MODEL = "gpt-realtime"
+
+# Function Calling Tools für Viega Katalog
+VIEGA_TOOLS = [
+    {
+        "type": "function",
+        "name": "lade_system_katalog",
+        "description": "Laedt den kompletten Katalog eines Viega-Systems in deinen Kontext. WICHTIG: Rufe diese Funktion auf sobald du weisst welches System der Kunde braucht (Temponox, Sanpress, Sanpress Inox). Danach hast du alle Produkte mit Artikelnummern und kannst dem Kunden direkt helfen.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "system": {
+                    "type": "string",
+                    "enum": ["temponox", "sanpress", "sanpress-inox"],
+                    "description": "Das Viega System das geladen werden soll"
+                }
+            },
+            "required": ["system"]
+        }
+    },
+    {
+        "type": "function",
+        "name": "bestellung_hinzufuegen",
+        "description": "Fuegt ein Produkt zur aktuellen Bestellung hinzu. Nutze diese Funktion nachdem du die Artikelnummer bestaetigt hast.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "produkt_kennung": {
+                    "type": "string",
+                    "description": "Artikelnummer des Produkts"
+                },
+                "menge": {
+                    "type": "integer",
+                    "description": "Bestellmenge"
+                },
+                "produktname": {
+                    "type": "string",
+                    "description": "Name des Produkts fuer die Bestaetigung"
+                }
+            },
+            "required": ["produkt_kennung", "menge", "produktname"]
+        }
+    },
+    {
+        "type": "function",
+        "name": "zeige_bestellung",
+        "description": "Zeigt die aktuelle Bestellung an. Nutze diese Funktion wenn der Kunde seine Bestellung sehen oder bestaetigen will.",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+        }
+    }
+]
 
 
 class AIClient:
@@ -58,6 +143,8 @@ class AIClient:
         # Event Callbacks
         self.on_audio_response: Optional[Callable[[bytes], None]] = None
         self.on_transcript: Optional[Callable[[str, str, bool], None]] = None
+        self.on_interruption: Optional[Callable[[], None]] = None  # Barge-in callback
+        self.on_debug_event: Optional[Callable[[str, dict], None]] = None  # Debug callback für GUI
     
     @property
     def model(self) -> str:
@@ -116,7 +203,7 @@ class AIClient:
             self._running = False
     
     async def _configure_session(self):
-        """Session mit Instruktionen konfigurieren."""
+        """Session mit Instruktionen und Tools konfigurieren."""
         if not self._ws:
             return
         
@@ -133,15 +220,18 @@ class AIClient:
                 },
                 "turn_detection": {
                     "type": "server_vad",
-                    "threshold": 0.5,
-                    "prefix_padding_ms": 300,
-                    "silence_duration_ms": 500
-                }
+                    "threshold": 0.4,  # Etwas sensibler für schnellere Interruption
+                    "prefix_padding_ms": 200,
+                    "silence_duration_ms": 400,
+                    "create_response": True  # Automatisch neue Antwort nach Interruption
+                },
+                "tools": VIEGA_TOOLS,
+                "tool_choice": "auto"
             }
         }
         
         await self._ws.send_str(json.dumps(config))
-        logger.info("Session konfiguriert")
+        logger.info(f"Session konfiguriert mit {len(VIEGA_TOOLS)} Tools")
     
     async def _receive_loop(self):
         """Empfängt Events von der Realtime API."""
@@ -175,9 +265,15 @@ class AIClient:
         event_type = event.get("type", "")
         
         # Log alle Events (außer audio.delta wegen Menge)
-        if event_type not in ["response.audio.delta", "input_audio_buffer.speech_started", 
-                               "input_audio_buffer.speech_stopped", "input_audio_buffer.committed"]:
+        if event_type not in ["response.audio.delta"]:
             logger.info(f"[OpenAI Event] {event_type}")
+            # Bei interessanten Events auch Details loggen
+            if "function" in event_type or "tool" in event_type:
+                logger.info(f"[OpenAI Event Details] {json.dumps(event, ensure_ascii=False)[:500]}")
+            
+            # Debug callback für GUI
+            if self.on_debug_event:
+                await self.on_debug_event(event_type, event)
         
         if event_type == "response.audio.delta":
             # Audio-Chunk empfangen
@@ -196,7 +292,10 @@ class AIClient:
                     await self.on_audio_response(audio_bytes)
         
         elif event_type == "input_audio_buffer.speech_started":
-            logger.info("[OpenAI] Sprache erkannt - VAD gestartet")
+            logger.info("[OpenAI] Sprache erkannt - VAD gestartet (Interruption)")
+            # Bei Barge-In: Audio-Queue leeren damit User nicht auf alte Antwort wartet
+            if self.on_interruption:
+                await self.on_interruption()
         
         elif event_type == "input_audio_buffer.speech_stopped":
             logger.info("[OpenAI] Sprache beendet - VAD gestoppt")
@@ -233,7 +332,145 @@ class AIClient:
         
         elif event_type == "response.done":
             logger.info("[OpenAI] AI Antwort abgeschlossen")
+        
+        elif event_type == "response.function_call_arguments.done":
+            # Function Call abgeschlossen - ausführen und Ergebnis senden
+            await self._handle_function_call(event)
     
+    async def _handle_function_call(self, event: dict):
+        """
+        Führt eine Function aus und sendet das Ergebnis zurück.
+        
+        Args:
+            event: Das function_call_arguments.done Event
+        """
+        call_id = event.get("call_id", "")
+        name = event.get("name", "")
+        arguments_str = event.get("arguments", "{}")
+        
+        logger.info(f"[OpenAI] Function Call: {name}({arguments_str})")
+        
+        try:
+            arguments = json.loads(arguments_str)
+        except json.JSONDecodeError:
+            arguments = {}
+        
+        # Function ausführen
+        result = await self._execute_function(name, arguments)
+        
+        # Ergebnis an OpenAI senden
+        await self._send_function_result(call_id, result)
+    
+    async def _execute_function(self, name: str, arguments: dict) -> str:
+        """
+        Führt eine Katalog- oder Bestellfunktion aus.
+        
+        Args:
+            name: Funktionsname
+            arguments: Funktionsargumente
+        
+        Returns:
+            Ergebnis als String für AI Context
+        """
+        try:
+            if name == "lade_system_katalog":
+                system = arguments.get("system", "")
+                
+                logger.info(f"Lade kompletten System-Katalog: {system}")
+                
+                # Alle Produkte des Systems laden
+                products = catalog.get_system_products(system)
+                
+                if not products:
+                    return f"System '{system}' nicht gefunden. Verfuegbare Systeme: temponox, sanpress, sanpress-inox"
+                
+                # Kompletten Katalog formatieren
+                lines = [f"=== KATALOG {system.upper()} - {len(products)} Produkte ===\n"]
+                
+                # Nach Größe gruppieren
+                by_size = {}
+                for p in products:
+                    size = p.get("size", "unbekannt")
+                    if size not in by_size:
+                        by_size[size] = []
+                    by_size[size].append(p)
+                
+                for size in sorted(by_size.keys()):
+                    lines.append(f"\n--- {size} ---")
+                    for p in by_size[size]:
+                        lines.append(f"- {p['name']} | Artikel Nummer: {p['kennung']}")
+                
+                lines.append(f"\n=== ENDE KATALOG ===")
+                lines.append("Du hast jetzt alle Produkte. Hilf dem Kunden das richtige zu finden und nenne immer die Artikel Nummer.")
+                
+                katalog_text = "\n".join(lines)
+                logger.info(f"Katalog geladen: {len(products)} Produkte, {len(katalog_text)} Zeichen")
+                
+                return katalog_text
+            
+            elif name == "bestellung_hinzufuegen":
+                kennung = arguments.get("produkt_kennung", "")
+                menge = arguments.get("menge", 1)
+                produktname = arguments.get("produktname", "")
+                
+                logger.info(f"Bestellung hinzufügen: {menge}x {produktname} (Artikel Nummer {kennung})")
+                
+                # Prüfen ob Produkt existiert
+                product = catalog.get_product_by_kennung(kennung)
+                if not product:
+                    return f"Artikel Nummer {kennung} nicht im Katalog gefunden. Bitte prüfe die Nummer."
+                
+                # Zur Bestellung hinzufügen
+                order_manager.add_item(kennung=kennung, menge=menge, produktname=produktname)
+                
+                return f"Bestellung notiert: {menge}x {produktname} (Artikel Nummer {kennung})"
+            
+            elif name == "zeige_bestellung":
+                logger.info("Zeige aktuelle Bestellung")
+                return order_manager.get_order_summary()
+            
+            else:
+                logger.warning(f"Unbekannte Funktion: {name}")
+                return f"Funktion '{name}' nicht verfügbar."
+        
+        except Exception as e:
+            logger.error(f"Fehler bei Funktionsausführung {name}: {e}")
+            return f"Fehler bei der Verarbeitung: {e}"
+    
+    async def _send_function_result(self, call_id: str, result: str):
+        """
+        Sendet das Ergebnis einer Function an OpenAI.
+        
+        Args:
+            call_id: ID des Function Calls
+            result: Ergebnis als String
+        """
+        if not self._ws or not self._running:
+            return
+        
+        try:
+            # Function Output senden
+            output_event = {
+                "type": "conversation.item.create",
+                "item": {
+                    "type": "function_call_output",
+                    "call_id": call_id,
+                    "output": result
+                }
+            }
+            await self._ws.send_str(json.dumps(output_event))
+            logger.info(f"[OpenAI] Function Ergebnis gesendet für call_id={call_id}")
+            
+            # AI soll antworten mit dem Ergebnis
+            response_event = {
+                "type": "response.create"
+            }
+            await self._ws.send_str(json.dumps(response_event))
+            logger.info("[OpenAI] Response angefordert nach Function Call")
+            
+        except Exception as e:
+            logger.error(f"Fehler beim Senden des Function-Ergebnisses: {e}")
+
     async def send_audio(self, audio_data: bytes):
         """
         Audio an die API senden.

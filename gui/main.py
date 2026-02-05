@@ -14,7 +14,8 @@ from typing import Optional
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QTextEdit, QSplitter, QFrame, QStatusBar,
-    QGroupBox, QMessageBox, QComboBox
+    QGroupBox, QMessageBox, QComboBox, QTableWidget, QTableWidgetItem,
+    QHeaderView
 )
 from PySide6.QtCore import Qt, QTimer, Signal, QObject, QThread
 from PySide6.QtGui import QFont, QTextCursor, QColor
@@ -87,6 +88,77 @@ class WebSocketWorker(QObject):
         self._running = False
 
 
+class DebugWindow(QWidget):
+    """Debug-Fenster für OpenAI Events."""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("OpenAI Debug Log")
+        self.setMinimumSize(600, 400)
+        self.resize(800, 500)
+        
+        layout = QVBoxLayout(self)
+        
+        # Buttons
+        btn_layout = QHBoxLayout()
+        
+        clear_btn = QPushButton("Löschen")
+        clear_btn.clicked.connect(self._on_clear)
+        btn_layout.addWidget(clear_btn)
+        
+        btn_layout.addStretch()
+        layout.addLayout(btn_layout)
+        
+        # Log-Anzeige
+        self._log_edit = QTextEdit()
+        self._log_edit.setReadOnly(True)
+        self._log_edit.setFont(QFont("Consolas", 10))
+        self._log_edit.setStyleSheet(
+            "QTextEdit { background-color: #1a1a1a; color: #00ff00; "
+            "border: 1px solid #333; padding: 5px; font-family: Consolas; }"
+        )
+        layout.addWidget(self._log_edit)
+    
+    def add_event(self, entry: dict):
+        """Fügt ein Event zum Log hinzu."""
+        time = entry.get("time", "")
+        event_type = entry.get("type", "")
+        data = entry.get("data", {})
+        
+        # Farbe basierend auf Event-Typ
+        if "error" in event_type.lower():
+            color = "#ff4444"
+        elif "function" in event_type.lower():
+            color = "#44ff44"
+        elif "transcript" in event_type.lower():
+            color = "#4444ff"
+        elif "response" in event_type.lower():
+            color = "#ffff44"
+        else:
+            color = "#00ff00"
+        
+        # Formatierte Zeile
+        data_str = ""
+        if data:
+            import json
+            data_str = json.dumps(data, ensure_ascii=False, indent=2)
+        
+        html = f'<span style="color: #888;">[{time}]</span> <span style="color: {color};">{event_type}</span>'
+        if data_str:
+            html += f'<pre style="color: #aaa; margin: 2px 0 10px 20px;">{data_str}</pre>'
+        
+        self._log_edit.append(html)
+        
+        # Scroll nach unten
+        cursor = self._log_edit.textCursor()
+        cursor.movePosition(QTextCursor.MoveOperation.End)
+        self._log_edit.setTextCursor(cursor)
+    
+    def _on_clear(self):
+        """Log löschen."""
+        self._log_edit.clear()
+
+
 class MainWindow(QMainWindow):
     """Hauptfenster der Remote-GUI."""
     
@@ -107,6 +179,9 @@ class MainWindow(QMainWindow):
         self._original_instructions = ""
         self._original_model = ""
         self._available_models = []
+        
+        self._debug_log = []  # Debug-Events speichern
+        self._debug_window = None  # Debug-Fenster
         
         self._setup_ui()
         self._setup_timers()
@@ -179,6 +254,11 @@ class MainWindow(QMainWindow):
         self._mute_btn.clicked.connect(self._on_mute_toggle)
         call_layout.addWidget(self._mute_btn)
         
+        self._debug_btn = QPushButton("Debug Log")
+        self._debug_btn.setCheckable(True)
+        self._debug_btn.clicked.connect(self._on_toggle_debug)
+        call_layout.addWidget(self._debug_btn)
+        
         status_layout.addLayout(call_layout)
         
         status_group.setMaximumHeight(150)
@@ -215,7 +295,42 @@ class MainWindow(QMainWindow):
         )
         transcript_layout.addWidget(self._transcript_edit)
         
-        left_layout.addWidget(transcript_group, stretch=1)
+        # === Orders Panel ===
+        orders_group = QGroupBox("Aktuelle Bestellung")
+        orders_layout = QVBoxLayout(orders_group)
+        
+        # Info-Zeile
+        self._order_info_label = QLabel("Keine aktive Bestellung")
+        self._order_info_label.setStyleSheet("color: #888;")
+        orders_layout.addWidget(self._order_info_label)
+        
+        # Tabelle
+        self._orders_table = QTableWidget()
+        self._orders_table.setColumnCount(4)
+        self._orders_table.setHorizontalHeaderLabels(["Menge", "Produkt", "Artikel Nr.", "Zeit"])
+        self._orders_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self._orders_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self._orders_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        self._orders_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        self._orders_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self._orders_table.setAlternatingRowColors(True)
+        self._orders_table.setStyleSheet(
+            "QTableWidget { background-color: #1e1e1e; color: #d4d4d4; "
+            "border: 1px solid #3c3c3c; }"
+            "QTableWidget::item { padding: 5px; }"
+            "QHeaderView::section { background-color: #2d2d2d; color: #d4d4d4; "
+            "border: 1px solid #3c3c3c; padding: 5px; }"
+        )
+        self._orders_table.setMinimumHeight(120)
+        orders_layout.addWidget(self._orders_table)
+        
+        # Splitter für Transkript und Orders
+        left_splitter = QSplitter(Qt.Orientation.Vertical)
+        left_splitter.addWidget(transcript_group)
+        left_splitter.addWidget(orders_group)
+        left_splitter.setSizes([400, 200])  # 2:1 Verhältnis
+        
+        left_layout.addWidget(left_splitter, stretch=1)
         
         main_layout.addWidget(left_widget, stretch=2)
         
@@ -407,6 +522,10 @@ class MainWindow(QMainWindow):
             reason = data.get("reason", "")
             self._update_status_display()
             self._status_bar.showMessage(f"Anruf beendet: {reason}")
+            # Bestellungs-Tabelle leeren
+            self._orders_table.setRowCount(0)
+            self._order_info_label.setText("Keine aktive Bestellung")
+            self._order_info_label.setStyleSheet("color: #888;")
         
         elif msg_type == "transcript":
             self._on_transcript_update(
@@ -414,6 +533,12 @@ class MainWindow(QMainWindow):
                 data.get("text", ""),
                 data.get("is_final", False)
             )
+        
+        elif msg_type == "order_update":
+            self._on_order_update(data.get("order", {}))
+        
+        elif msg_type == "debug_event":
+            self._on_debug_event(data.get("event", {}))
     
     def _update_status_display(self):
         """Aktualisiert die Status-Anzeigen."""
@@ -464,6 +589,50 @@ class MainWindow(QMainWindow):
         cursor = self._transcript_edit.textCursor()
         cursor.movePosition(QTextCursor.MoveOperation.End)
         self._transcript_edit.setTextCursor(cursor)
+    
+    def _on_order_update(self, order_data: dict):
+        """Aktualisiert die Bestellungs-Anzeige."""
+        items = order_data.get("items", [])
+        caller_id = order_data.get("caller_id", "")
+        total_qty = order_data.get("total_quantity", 0)
+        
+        # Info-Label aktualisieren
+        if items:
+            self._order_info_label.setText(
+                f"Anrufer: {caller_id} | {len(items)} Positionen, {total_qty} Stück gesamt"
+            )
+            self._order_info_label.setStyleSheet("color: #28a745; font-weight: bold;")
+        else:
+            self._order_info_label.setText("Keine Positionen")
+            self._order_info_label.setStyleSheet("color: #888;")
+        
+        # Tabelle aktualisieren
+        self._orders_table.setRowCount(len(items))
+        
+        for row, item in enumerate(items):
+            menge = QTableWidgetItem(str(item.get("menge", 0)))
+            menge.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            
+            produktname = QTableWidgetItem(item.get("produktname", ""))
+            kennung = QTableWidgetItem(item.get("kennung", ""))
+            
+            # Zeit formatieren
+            timestamp = item.get("timestamp", "")
+            if timestamp:
+                try:
+                    from datetime import datetime
+                    dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+                    time_str = dt.strftime("%H:%M:%S")
+                except:
+                    time_str = timestamp[:8] if len(timestamp) >= 8 else timestamp
+            else:
+                time_str = ""
+            zeit = QTableWidgetItem(time_str)
+            
+            self._orders_table.setItem(row, 0, menge)
+            self._orders_table.setItem(row, 1, produktname)
+            self._orders_table.setItem(row, 2, kennung)
+            self._orders_table.setItem(row, 3, zeit)
     
     def _on_clear_transcript(self):
         """Löscht das Transkript."""
@@ -645,6 +814,33 @@ class MainWindow(QMainWindow):
                 self._status_bar.showMessage("AI aktiv")
         except Exception as e:
             logger.error(f"Mute Fehler: {e}")
+    
+    def _on_toggle_debug(self):
+        """Debug-Log Fenster ein/ausblenden."""
+        if self._debug_btn.isChecked():
+            if self._debug_window is None:
+                self._debug_window = DebugWindow(self)
+            self._debug_window.show()
+            # Bestehende Logs anzeigen
+            for entry in self._debug_log[-100:]:  # Letzte 100
+                self._debug_window.add_event(entry)
+        else:
+            if self._debug_window:
+                self._debug_window.hide()
+    
+    def _on_debug_event(self, event: dict):
+        """Debug-Event von Server empfangen."""
+        from datetime import datetime
+        entry = {
+            "time": datetime.now().strftime("%H:%M:%S"),
+            "type": event.get("type", "unknown"),
+            "data": event.get("data", {})
+        }
+        self._debug_log.append(entry)
+        
+        # An Debug-Fenster senden wenn offen
+        if self._debug_window and self._debug_window.isVisible():
+            self._debug_window.add_event(entry)
     
     def _poll_status(self):
         """Pollt den Server-Status (Fallback wenn kein WebSocket)."""

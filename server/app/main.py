@@ -17,6 +17,8 @@ from config import settings
 from sip_client import SIPClient
 from ai_client import AIClient, AVAILABLE_MODELS
 from connection_manager import ConnectionManager
+from catalog import load_catalog, get_systems_overview
+from order_manager import order_manager
 
 # Logging Setup
 logging.basicConfig(
@@ -66,6 +68,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Fehler beim Laden der Konfiguration: {e}")
     
+    # Viega Katalog laden
+    if load_catalog():
+        overview = get_systems_overview()
+        logger.info(f"Viega Katalog: {overview.get('total_products', 0)} Produkte geladen")
+    else:
+        logger.warning("Viega Katalog konnte nicht geladen werden")
+    
+    # Order Manager Callback für GUI-Updates
+    order_manager.on_order_update = on_order_update
+    
     # Event Handler verbinden
     sip_client.on_incoming_call = on_incoming_call
     sip_client.on_audio_received = on_audio_from_caller
@@ -73,6 +85,8 @@ async def lifespan(app: FastAPI):
     
     ai_client.on_audio_response = on_audio_from_ai
     ai_client.on_transcript = on_transcript
+    ai_client.on_interruption = on_interruption
+    ai_client.on_debug_event = on_debug_event
     
     # SIP Client starten
     await sip_client.start()
@@ -136,6 +150,15 @@ _audio_stats = {
     "ai_bytes": 0
 }
 
+def on_order_update(order_data: dict):
+    """Callback wenn die Bestellung aktualisiert wird."""
+    # asyncio broadcast in sync context
+    asyncio.create_task(manager.broadcast({
+        "type": "order_update",
+        "order": order_data
+    }))
+
+
 async def on_incoming_call(caller_id: str):
     """Wird aufgerufen wenn ein Anruf eingeht."""
     logger.info(f"Eingehender Anruf von: {caller_id}")
@@ -145,6 +168,9 @@ async def on_incoming_call(caller_id: str):
     _audio_stats["ai_to_caller"] = 0
     _audio_stats["caller_bytes"] = 0
     _audio_stats["ai_bytes"] = 0
+    
+    # Neue Bestellung starten
+    order_manager.start_order(caller_id)
     
     # Alle GUI Clients benachrichtigen
     await manager.broadcast({
@@ -214,9 +240,52 @@ async def on_transcript(role: str, text: str, is_final: bool):
     })
 
 
+async def on_interruption():
+    """User hat die AI unterbrochen (Barge-In) - Audio-Queue leeren."""
+    if sip_client:
+        cleared = sip_client.clear_audio_queue()
+        if cleared > 0:
+            logger.info(f"[INTERRUPTION] Audio-Queue geleert: {cleared} Frames verworfen")
+
+
+async def on_debug_event(event_type: str, event_data: dict):
+    """Debug-Event von OpenAI - an GUI senden."""
+    # Nur bestimmte Events senden (nicht zu viel Traffic)
+    if event_type not in ["input_audio_buffer.speech_started", "input_audio_buffer.speech_stopped", 
+                          "input_audio_buffer.committed", "response.audio_transcript.delta"]:
+        # Event-Daten kürzen für Transport
+        debug_data = {
+            "type": event_type,
+            "data": {}
+        }
+        
+        # Wichtige Felder extrahieren
+        for key in ["name", "call_id", "arguments", "transcript", "error", "text", "output"]:
+            if key in event_data:
+                value = event_data[key]
+                if isinstance(value, str) and len(value) > 200:
+                    value = value[:200] + "..."
+                debug_data["data"][key] = value
+        
+        await manager.broadcast({
+            "type": "debug_event",
+            "event": debug_data
+        })
+
+
 async def on_call_ended(reason: str):
     """Anruf beendet."""
     logger.info(f"Anruf beendet: {reason}")
+    
+    # Bestellung Zusammenfassung loggen
+    order = order_manager.get_current_order()
+    if order.get("items"):
+        logger.info(f"Bestellung bei Anrufende: {len(order['items'])} Positionen")
+        for item in order["items"]:
+            logger.info(f"  - {item['menge']}x {item['produktname']} ({item['kennung']})")
+    
+    # Bestellung löschen (wird nur im Speicher gehalten)
+    order_manager.clear_order()
     
     await ai_client.disconnect()
     
@@ -372,6 +441,21 @@ async def set_model(data: dict):
             return {"status": "ok", "model": model}
         return {"status": "error", "message": "Unbekanntes Modell"}
     return {"status": "error"}
+
+
+# ============== Order Endpoints ==============
+
+@app.get("/order")
+async def get_current_order():
+    """Aktuelle Bestellung abrufen."""
+    return order_manager.get_current_order()
+
+
+@app.delete("/order")
+async def clear_current_order():
+    """Aktuelle Bestellung löschen."""
+    order_manager.clear_order()
+    return {"status": "cleared"}
 
 
 # ============== WebSocket für Live-Updates ==============
