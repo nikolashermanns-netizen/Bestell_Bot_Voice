@@ -2,7 +2,7 @@
 
 ## Projektübersicht
 
-Ein Voice-Bot für telefonische Bestellungen. Der Server empfängt Telefonanrufe via SIP, verarbeitet Sprache mit OpenAI Realtime API und ermöglicht Produktsuche sowie Bestellverwaltung.
+Ein Voice-Bot für telefonische Bestellungen bei Heinrich Schmidt (SHK-Fachgroßhandel). Der Server empfängt Telefonanrufe via SIP, verarbeitet Sprache mit OpenAI Realtime API und ermöglicht Produktsuche sowie Bestellverwaltung über einen Multi-Hersteller Katalog mit über 86.000 Produkten von 63 Herstellern.
 
 ## Architektur
 
@@ -22,6 +22,11 @@ Ein Voice-Bot für telefonische Bestellungen. Der Server empfängt Telefonanrufe
 │  │  │              Audio Resampling Pipeline                    │   │   │
 │  │  │   Caller (48kHz) ─resample─► AI (16kHz)                  │   │   │
 │  │  │   AI (24kHz) ─resample─► Caller (48kHz)                  │   │   │
+│  │  └──────────────────────────────────────────────────────────┘   │   │
+│  │                                                                   │   │
+│  │  ┌──────────────────────────────────────────────────────────┐   │   │
+│  │  │              Katalog System (Multi-Hersteller)            │   │   │
+│  │  │   63 Hersteller │ 86.000+ Produkte │ Dynamisches Laden   │   │   │
 │  │  └──────────────────────────────────────────────────────────┘   │   │
 │  └─────────────────────────────────────────────────────────────────┘   │
 │                                                                         │
@@ -56,22 +61,127 @@ Bestell Bot Voice/
 │   │   ├── main.py       # FastAPI Einstiegspunkt, Event-Handler
 │   │   ├── sip_client.py # PJSIP SIP-Client (eigener Thread!)
 │   │   ├── ai_client.py  # OpenAI Realtime API WebSocket Client
-│   │   ├── catalog.py    # Viega Produktkatalog
+│   │   ├── catalog.py    # Multi-Hersteller Produktkatalog
 │   │   ├── order_manager.py  # Bestellverwaltung
+│   │   ├── expert_client.py  # Expert-System für Fachfragen
 │   │   ├── connection_manager.py  # WebSocket-Verbindungen
-│   │   ├── config.py     # Pydantic Settings
-│   │   └── viega_katalog.json
+│   │   └── config.py     # Pydantic Settings
+│   ├── system_katalog/   # Hersteller-Kataloge (JSON)
+│   │   ├── _index.json   # Index aller Hersteller
+│   │   ├── grohe.json
+│   │   ├── villeroy_boch.json
+│   │   ├── viega_sanpress.json
+│   │   └── ...           # 63 Hersteller-Kataloge
 │   ├── config/
 │   │   ├── config.json   # Persistente Config (Instructions, Model)
 │   │   └── instructions_new.json
-│   ├── scraper/          # Katalog-Scraper
+│   ├── scraper/          # Katalog-Scraper für Heinrich Schmidt
 │   ├── Dockerfile
 │   ├── docker-compose.yml
 │   └── requirements.txt
 │
 └── archiv/               # Archivierter Windows-Client (nicht mehr aktiv)
-    └── windows-client/   # Alte lokale Implementierung
 ```
+
+## Katalog-System (Multi-Hersteller)
+
+### Datenstruktur
+
+Die Katalog-Dateien (`server/system_katalog/*.json`) haben folgende Struktur:
+
+```json
+{
+  "products": [
+    {
+      "Artikel": "WT+VERL80",           // Heinrich Schmidt Artikelnummer (INTERN)
+      "Werksnummer": "4A128L01",         // Hersteller-Artikelnummer
+      "Bezeichnung 1": "Smaragd Verity Line Waschtisch 80x50cm",
+      "Bezeichnung 2": "1HL, m.UeL, weiss",
+      "EK-Preis": "471,38",              // Einkaufspreis (Kundenpreis, Netto)
+      "VK-Preis": "637,00",              // Verkaufspreis (Listenpreis)
+      "EAN": "4051202573225",
+      "ME": "Stück",                     // Mengeneinheit
+      "PE": "1"                          // Packungseinheit
+    }
+  ],
+  "metadata": {
+    "total": 1981,
+    "source": "Heinrich Schmidt OnlinePro (CSV Export)"
+  }
+}
+```
+
+### Normalisierte Produktstruktur (intern)
+
+Die `catalog.py` normalisiert die Rohdaten in folgendes Format:
+
+```python
+{
+    "artikel": "WT+VERL80",              # Heinrich Schmidt Bestellnummer
+    "hersteller_nr": "4A128L01",         # Hersteller-Artikelnummer (Werksnummer)
+    "bezeichnung": "Smaragd Verity Line Waschtisch 80x50cm 1HL, m.UeL, weiss",
+    "ek_preis": 471.38,                  # Einkaufspreis (Float)
+    "vk_preis": 637.00,                  # Verkaufspreis (Float)
+    "ean": "4051202573225",
+    "einheit": "Stück",
+    "pe": "1",
+    "hersteller_key": "villeroy_boch",
+    "hersteller": "Villeroy Boch"
+}
+```
+
+### Hersteller-Index
+
+`server/system_katalog/_index.json` enthält die Übersicht aller Hersteller:
+
+```json
+{
+  "total_products": 86404,
+  "total_systems": 63,
+  "systems": [
+    {"name": "Grohe", "file": "grohe.json", "products": 1974},
+    {"name": "Villeroy Boch", "file": "villeroy_boch.json", "products": 1981},
+    ...
+  ]
+}
+```
+
+### Katalog-Funktionen (catalog.py)
+
+| Funktion | Beschreibung |
+|----------|--------------|
+| `load_index()` | Lädt Hersteller-Index beim Start |
+| `get_available_manufacturers()` | Liste aller Hersteller |
+| `get_manufacturer_key(search)` | Findet Katalog-Key für Hersteller |
+| `load_manufacturer_catalog(key)` | Lädt Katalog in Cache |
+| `activate_catalog(key)` | Aktiviert Katalog für aktuelle Session |
+| `get_catalog_for_ai(key)` | Formatiert Katalog für AI-Context |
+| `search_products(query, ...)` | Sucht in aktiven Katalogen |
+| `get_product_by_artikel(artikel)` | Findet Produkt nach HS-Artikelnummer |
+| `get_product_by_hersteller_nr(nr)` | Findet Produkt nach Werksnummer |
+| `clear_active_catalogs()` | Setzt aktive Kataloge zurück (bei Anruf-Ende) |
+
+## AI Tools (Function Calling)
+
+Die AI hat Zugriff auf folgende Funktionen:
+
+| Tool | Beschreibung |
+|------|--------------|
+| `zeige_hersteller` | Zeigt alle verfügbaren Hersteller |
+| `lade_hersteller_katalog` | Lädt Katalog eines Herstellers in AI-Context |
+| `suche_produkt` | Sucht nach Produkten in geladenen Katalogen |
+| `zeige_produkt_details` | Zeigt Details und Preise eines Produkts |
+| `bestellung_hinzufuegen` | Fügt Produkt zur Bestellung hinzu |
+| `zeige_bestellung` | Zeigt aktuelle Bestellung |
+| `frage_experten` | Fragt Experten-Modell bei Fachfragen |
+
+### AI-Workflow
+
+1. **Hersteller ermitteln** - AI fragt Kunden oder nutzt `zeige_hersteller`
+2. **Katalog laden** - AI ruft `lade_hersteller_katalog` auf
+3. **Produkte finden** - AI hat alle Produkte im Context oder nutzt `suche_produkt`
+4. **Details/Preise** - Bei Bedarf `zeige_produkt_details` für Preise
+5. **Bestellen** - `bestellung_hinzufuegen` für jede Position
 
 ## Server-Komponenten
 
@@ -83,30 +193,13 @@ Bestell Bot Voice/
 - Unterstützt **Opus Codec @ 48kHz** (viel bessere Qualität als G.711)
 - Audio wird in 20ms Frames (960 Samples @ 48kHz = 1920 Bytes) verarbeitet
 
-```python
-# WICHTIG: PJSIP muss in eigenem Thread laufen
-self._pjsip_thread = threading.Thread(target=self._run_pjsip, daemon=True)
-
-# Events via Queue an asyncio weitergeben
-self._loop.call_soon_threadsafe(
-    self._event_queue.put_nowait,
-    {"type": "audio_received", "data": audio_data}
-)
-```
-
 ### AI Client (`server/app/ai_client.py`)
 
 - **OpenAI Realtime API** via WebSocket (aiohttp)
 - Endpoint: `wss://api.openai.com/v1/realtime?model=MODEL_NAME`
 - Audio-Format: Input 16kHz PCM16, Output 24kHz PCM16
 - Server-seitige VAD (Voice Activity Detection)
-- **Function Calling** für Katalog-Suche, Bestellungen und Experten-Anfragen
-
-Verfügbare Tools:
-- `lade_system_katalog` - Lädt Produkte eines Systems
-- `bestellung_hinzufuegen` - Fügt Produkt zur Bestellung hinzu
-- `zeige_bestellung` - Zeigt aktuelle Bestellung
-- `frage_experten` - Fragt Experten-Modell bei komplexen Fragen
+- **Function Calling** für Katalog-Funktionen
 
 ### Expert Client (`server/app/expert_client.py`)
 
@@ -130,22 +223,11 @@ Für komplexe Fachfragen kann die Realtime-AI einen "Kollegen" (Experten-Modell)
 - Nur Antworten mit ≥90% Konfidenz werden an Kunden weitergegeben
 - Bei niedriger Konfidenz: "Das kann ich leider nicht sicher beantworten"
 
-**Modellauswahl nach Dringlichkeit:**
-- `schnell`: gpt-5-mini oder o4-mini
-- `normal`: o4-mini oder gpt-5
-- `gruendlich`: o3 oder o3-pro
-
 ### Order Manager (`server/app/order_manager.py`)
 
 - In-Memory Bestellverwaltung
 - Bestellung wird bei Anrufstart erstellt, bei Anrufende gelöscht
 - Callback für GUI-Updates
-
-### Catalog (`server/app/catalog.py`)
-
-- Lädt Viega Produktkatalog aus JSON
-- Produktsuche nach System, Größe, Name
-- Systeme: temponox, sanpress, sanpress-inox
 
 ## REST API Endpoints
 
@@ -230,6 +312,7 @@ services:
     volumes:
       - ./config:/app/config     # Persistente Config
       - ./recordings:/app/recordings
+      - ./system_katalog:/app/system_katalog  # Katalog-Daten
     environment:
       - SIP_SERVER=sipconnect.sipgate.de
       - SIP_USER=xxx
@@ -259,25 +342,18 @@ Assertion failed: "Calling pjlib from unknown/external thread"
 ```
 → PJSIP muss IMMER in einem dedizierten Thread laufen!
 
-### Audio-Queue Größe
+### Katalog-Caching
 
-```python
-# FALSCH: Zu klein, Audio wird abgeschnitten
-self._outgoing_queue: deque = deque(maxlen=100)  # Nur 2 Sekunden!
+- Der Katalog-Index wird beim Serverstart geladen
+- Einzelne Hersteller-Kataloge werden on-demand geladen und gecacht
+- Aktive Kataloge werden bei Anruf-Ende zurückgesetzt
+- Cache bleibt erhalten für schnelles erneutes Laden
 
-# RICHTIG: 10 Sekunden Buffer
-self._outgoing_queue: deque = deque(maxlen=500)
-```
+### Artikelnummern-Format
 
-### ByteVector für PJSIP Audio
-
-```python
-# FALSCH: bytes direkt übergeben
-frame.buf = audio_data  # ERROR!
-
-# RICHTIG: ByteVector verwenden
-frame.buf = pj.ByteVector(list(audio_data))
-```
+- **Heinrich Schmidt Artikelnummer** (intern): z.B. `WT+VERL80`, `WC+VERLSRL`
+- **Hersteller-Nummer** (Werksnummer): z.B. `4A128L01`, `4615R001`
+- Die AI verwendet immer die Heinrich Schmidt Artikelnummer für Bestellungen!
 
 ### OpenAI Response Handling
 
@@ -300,6 +376,7 @@ Häufige Probleme:
 2. **PJSIP Assertion Error** → Thread-Modell prüfen
 3. **Keine RTP-Daten** → NAT/Firewall, `network_mode: host`
 4. **AI antwortet nicht** → WebSocket-Verbindung, Session-Update prüfen
+5. **Katalog nicht gefunden** → Prüfen ob Hersteller-Key korrekt ist
 
 ## GUI (Remote Control)
 
@@ -334,6 +411,15 @@ docker-compose logs -f
 
 ## Server Deployment (WICHTIG!)
 
+### IMMER via Git deployen!
+
+**NIEMALS Dateien direkt via SCP auf den Server kopieren!**
+Der Server hat ein Git-Repository unter `~/bestell-bot-voice`.
+Deployment erfolgt IMMER über:
+1. Lokaler Commit + Push
+2. Git Pull auf dem Server
+3. Docker Rebuild
+
 ### SSH-Zugang
 
 ```bash
@@ -343,7 +429,7 @@ ssh bot  # SSH-Alias für den Produktionsserver (10.200.200.1)
 **ACHTUNG:** `ssh root@10.200.200.1` funktioniert NICHT (Port 22 blockiert).
 Nutze IMMER den SSH-Alias `bot`.
 
-### Deployment-Schritte
+### Deployment-Schritte (Standard-Workflow)
 
 1. **Änderungen committen und pushen:**
 ```bash
@@ -352,22 +438,43 @@ git commit -m "feat: Beschreibung"
 git push origin master
 ```
 
-2. **Server aktualisieren (ein Befehl):**
+2. **Auf Server pullen:**
 ```bash
-ssh bot "cd ~/bestell-bot-voice/server && git fetch origin && git reset --hard origin/master && docker-compose down && docker-compose up -d --build"
+ssh bot "cd ~/bestell-bot-voice && git pull origin master"
 ```
 
-3. **Status prüfen:**
+Falls lokale Änderungen auf dem Server existieren:
 ```bash
-ssh bot "docker ps && curl -s http://localhost:8085/"
+ssh bot "cd ~/bestell-bot-voice && git checkout -- . && git pull origin master"
+```
+
+3. **Docker Container neu bauen und starten:**
+```bash
+ssh bot "docker stop bestell-bot-voice; docker rm bestell-bot-voice; cd ~/bestell-bot-voice/server && docker build -t server_bestell-bot . && docker run -d --name bestell-bot-voice --network host --env-file .env -v /home/nikolas/bestell-bot-voice/server/config:/app/config -v /home/nikolas/bestell-bot-voice/server/system_katalog:/app/system_katalog server_bestell-bot"
+```
+
+4. **Status prüfen:**
+```bash
+ssh bot "docker logs --tail 30 bestell-bot-voice"
+ssh bot "curl -s http://localhost:8085/status"
+```
+
+### Einzeiler für komplettes Deployment
+
+```bash
+# Alles in einem Befehl (nach git push)
+ssh bot "cd ~/bestell-bot-voice && git checkout -- . && git pull origin master && docker stop bestell-bot-voice; docker rm bestell-bot-voice; cd server && docker build -t server_bestell-bot . && docker run -d --name bestell-bot-voice --network host --env-file .env -v /home/nikolas/bestell-bot-voice/server/config:/app/config -v /home/nikolas/bestell-bot-voice/server/system_katalog:/app/system_katalog server_bestell-bot"
 ```
 
 ### Server-Pfade
 
 | Pfad | Beschreibung |
 |------|--------------|
-| `~/bestell-bot-voice/server` | Server-Code auf dem Server |
+| `~/bestell-bot-voice/` | Git Repository Root auf dem Server |
+| `~/bestell-bot-voice/server/` | Server-Code |
+| `~/bestell-bot-voice/server/.env` | Environment Variables |
 | `/app/config/config.json` | Persistente Config (im Container) |
+| `/app/system_katalog/` | Katalog-Dateien (im Container, gemountet) |
 | `http://localhost:8085/` | API im Container |
 
 ### Wichtige Docker-Befehle auf dem Server
@@ -376,30 +483,35 @@ ssh bot "docker ps && curl -s http://localhost:8085/"
 # Container Status
 ssh bot "docker ps | grep bestell"
 
-# Logs anzeigen
+# Logs anzeigen (live)
 ssh bot "docker logs -f bestell-bot-voice --tail 100"
 
-# Container neu starten (ohne Rebuild)
-ssh bot "cd ~/bestell-bot-voice/server && docker-compose restart"
-
-# Container komplett neu bauen
-ssh bot "cd ~/bestell-bot-voice/server && docker-compose down && docker-compose up -d --build"
+# Container stoppen/entfernen
+ssh bot "docker stop bestell-bot-voice; docker rm bestell-bot-voice"
 
 # API Health Check
-ssh bot "curl -s http://localhost:8085/"
+ssh bot "curl -s http://localhost:8085/status"
 
-# Expert Config prüfen
-ssh bot "curl -s http://localhost:8085/expert/config"
+# Firewall Status prüfen
+ssh bot "curl -s http://localhost:8085/firewall"
 ```
 
-### Bei Git-Konflikten auf dem Server
+### SIP Firewall
 
-Wenn `git pull` fehlschlägt wegen divergierender Branches:
+Der Server hat eine IP-Whitelist für eingehende SIP-Anrufe:
+- Nur sipgate IPs (217.10.0.0/16, 212.9.32.0/19, etc.) werden akzeptiert
+- Anrufe von anderen IPs werden mit 403 Forbidden abgelehnt
+- Firewall kann via GUI oder API ein/ausgeschaltet werden:
 ```bash
-ssh bot "cd ~/bestell-bot-voice/server && git fetch origin && git reset --hard origin/master"
-```
+# Status abfragen
+ssh bot "curl -s http://localhost:8085/firewall"
 
-Dies überschreibt lokale Änderungen auf dem Server mit dem Stand von GitHub.
+# Deaktivieren (alle IPs erlauben)
+ssh bot "curl -X POST http://localhost:8085/firewall -H 'Content-Type: application/json' -d '{\"enabled\": false}'"
+
+# Aktivieren
+ssh bot "curl -X POST http://localhost:8085/firewall -H 'Content-Type: application/json' -d '{\"enabled\": true}'"
+```
 
 ## Archivierter Code
 
