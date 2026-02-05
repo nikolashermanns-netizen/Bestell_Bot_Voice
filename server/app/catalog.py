@@ -252,6 +252,9 @@ def search_keyword_index(query: str) -> str:
     all_similar = []
     all_kataloge = {}
     
+    # Wichtige Suchwoerter identifizieren (nicht generisch wie "rohr", "mm")
+    wichtige_woerter = [w for w in words if len(w) > 3 and w not in ["rohr", "rohre", "mm", "stück", "stueck"]]
+    
     for word in words:
         # Alle ähnlichen Keywords für dieses Wort finden
         similar = find_similar_keywords(word, max_distance=2, limit=15)
@@ -267,11 +270,23 @@ def search_keyword_index(query: str) -> str:
                     "kataloge": item["kataloge"]
                 })
             
-            # Kataloge sammeln
+            # Kataloge sammeln mit Gewichtung
+            # Exakte Treffer (distance=0) von wichtigen Woertern zaehlen VIEL mehr
             for katalog in item["kataloge"]:
                 if katalog not in all_kataloge:
-                    all_kataloge[katalog] = {"count": 0, "keywords": set()}
-                all_kataloge[katalog]["count"] += 1
+                    all_kataloge[katalog] = {"score": 0, "keywords": set(), "exact_matches": set()}
+                
+                # Gewichtung: exakte Treffer wichtiger als aehnliche
+                if item["distance"] == 0:
+                    # Exakter Treffer - wenn wichtiges Wort, viel mehr Punkte
+                    if word in wichtige_woerter:
+                        all_kataloge[katalog]["score"] += 100  # Wichtiges Wort exakt gefunden
+                        all_kataloge[katalog]["exact_matches"].add(word)
+                    else:
+                        all_kataloge[katalog]["score"] += 10  # Generisches Wort exakt
+                else:
+                    all_kataloge[katalog]["score"] += 1  # Aehnlicher Treffer
+                
                 all_kataloge[katalog]["keywords"].add(item["keyword"])
     
     if not all_similar:
@@ -279,16 +294,22 @@ def search_keyword_index(query: str) -> str:
     
     lines = [f"=== Keyword-Suche: '{query}' ==="]
     
-    # KATALOGE ZUERST anzeigen (wichtigste Info!)
-    sorted_kataloge = sorted(all_kataloge.items(), key=lambda x: x[1]["count"], reverse=True)
+    # KATALOGE ZUERST anzeigen - nach SCORE sortiert (exakte wichtige Treffer zuerst!)
+    sorted_kataloge = sorted(all_kataloge.items(), key=lambda x: x[1]["score"], reverse=True)
     
     lines.append("\nPASSENDE KATALOGE (lade einen davon):")
     for katalog, data in sorted_kataloge[:5]:
         info = _hersteller_index.get(katalog, {})
         name = info.get("name", katalog)
         products = info.get("products", 0)
-        keywords = ", ".join(list(data["keywords"])[:3])
-        lines.append(f"  -> {katalog}: {name} ({products} Produkte) - Match: {keywords}")
+        
+        # Zeige exakte Matches der wichtigen Woerter
+        exact = list(data.get("exact_matches", set()))
+        if exact:
+            lines.append(f"  -> {katalog}: {name} ({products} Produkte) - EXAKT: {', '.join(exact)}")
+        else:
+            keywords = ", ".join(list(data["keywords"])[:3])
+            lines.append(f"  -> {katalog}: {name} ({products} Produkte) - Match: {keywords}")
     
     # Exakte Treffer anzeigen (nur die wichtigsten)
     exact_matches = [s for s in all_similar if s["distance"] == 0]
@@ -300,7 +321,7 @@ def search_keyword_index(query: str) -> str:
     if similar_matches:
         lines.append(f"AEHNLICH: {', '.join([s['keyword'] for s in similar_matches])}")
     
-    lines.append("\nNutze 'lade_hersteller_katalog' mit dem Katalog-Key (z.B. edelstahl_press, viega).")
+    lines.append("\nNutze 'suche_im_katalog' mit dem Katalog-Key und Suchbegriff.")
     return "\n".join(lines)
 
 
