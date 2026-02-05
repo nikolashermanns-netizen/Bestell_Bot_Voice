@@ -797,7 +797,36 @@ class AIClient:
                     keyword_result = catalog.search_keyword_index(suchbegriff)
                     return f"Keine Treffer in {hersteller}.\n\n{keyword_result}"
                 
-                # Kompakte Ergebnisse formatieren
+                # Pruefen ob Suche spezifisch genug ist
+                specificity = catalog.analyze_search_specificity(suchbegriff, results)
+                
+                if not specificity["is_specific"]:
+                    # Suche zu unspezifisch - Vorschlaege statt Produktliste zurueckgeben
+                    suggestions = specificity["suggestions"]
+                    lines = [f"=== Suche '{suchbegriff}' ist noch unspezifisch ==="]
+                    lines.append(f"\nGefunden: {specificity['result_count']} Produkte in {key}")
+                    lines.append("\nBitte den Kunden fragen, um einzugrenzen:")
+                    
+                    if suggestions["typen"]:
+                        lines.append(f"  Produkttyp: {', '.join(suggestions['typen'][:5])}")
+                    if suggestions["serien"]:
+                        lines.append(f"  Serie/Modell: {', '.join(suggestions['serien'][:5])}")
+                    if suggestions["groessen"]:
+                        lines.append(f"  Groesse: {', '.join(suggestions['groessen'][:5])}")
+                    
+                    lines.append("\nFrage den Kunden nach Typ, Serie oder Groesse und suche dann erneut mit spezifischerem Begriff.")
+                    
+                    result_text = "\n".join(lines)
+                    
+                    # An GUI senden
+                    if self.on_transcript:
+                        await self.on_transcript("system", f"[Katalog-Vorschlaege]\n{result_text}", True)
+                    
+                    logger.info(f"[KATALOG-SUCHE] Unspezifische Suche '{suchbegriff}' - {len(results)} Treffer, zeige Vorschlaege")
+                    
+                    return result_text
+                
+                # Kompakte Ergebnisse formatieren (spezifische Suche)
                 lines = [f"=== {len(results)} Treffer in {key} fuer '{suchbegriff}' ===\n"]
                 
                 for p in results[:15]:  # Max 15 Ergebnisse

@@ -719,6 +719,139 @@ def search_products(
     return results[:max_results]
 
 
+def analyze_search_specificity(query: str, results: List[Dict]) -> dict:
+    """
+    Analysiert ob die Suche spezifisch genug ist.
+    Bei unspezifischen Suchen werden Vorschlaege zur Eingrenzung extrahiert.
+    
+    Args:
+        query: Der Suchbegriff
+        results: Liste der gefundenen Produkte
+    
+    Returns:
+        {
+            "is_specific": bool,
+            "suggestions": {
+                "serien": ["Starck 3", "D-Code", ...],
+                "groessen": ["45x34cm", "50x25cm", ...],
+                "typen": ["Handwaschbecken", "Eck-Handwaschbecken", ...]
+            }
+        }
+    """
+    import re
+    
+    # Generische Begriffe die alleine nicht spezifisch genug sind
+    GENERISCHE_BEGRIFFE = {
+        'waschbecken', 'handwaschbecken', 'waschtisch', 'wc', 'urinal',
+        'armatur', 'batterie', 'brause', 'dusche', 'wanne', 'badewanne',
+        'heizkörper', 'heizkoerper', 'thermostat', 'ventil', 'rohr',
+        'bogen', 'muffe', 'fitting', 'verschraubung', 'adapter',
+        'pumpe', 'kessel', 'speicher', 'boiler'
+    }
+    
+    # Bekannte Serien/Modellreihen verschiedener Hersteller
+    BEKANNTE_SERIEN = {
+        # Duravit
+        'starck', 'starck 1', 'starck 2', 'starck 3', 'd-code', 'dcode',
+        'me by starck', 'happy d', 'happy d.2', 'vero', 'architec', '1930',
+        'durastyle', 'p3 comforts', 'nd 25', 'nd25',
+        # Grohe
+        'eurosmart', 'eurodisc', 'essence', 'concetto', 'bauedge', 'bauloop',
+        'grohtherm', 'tempesta', 'rainshower',
+        # Hansgrohe
+        'talis', 'metris', 'focus', 'logis', 'croma', 'raindance',
+        # Villeroy & Boch
+        'subway', 'o.novo', 'onovo', 'architectura', 'memento', 'avento',
+        # Ideal Standard
+        'connect', 'tesi', 'strada', 'eurovit',
+        # Geberit
+        'sigma', 'delta', 'omega', 'kappa',
+        # Viega
+        'profipress', 'sanpress', 'megapress', 'prestabo', 'temponox'
+    }
+    
+    query_lower = query.lower().strip()
+    words = query_lower.split()
+    
+    # Pruefen ob Query spezifisch ist
+    has_dimension = bool(re.search(r'\d+', query_lower))  # Enthaelt Zahlen
+    has_series = any(serie in query_lower for serie in BEKANNTE_SERIEN)
+    is_generic_only = all(w in GENERISCHE_BEGRIFFE or len(w) <= 2 for w in words)
+    
+    # Spezifisch wenn: Dimension vorhanden ODER Serie vorhanden ODER nicht nur generische Begriffe
+    is_specific = has_dimension or has_series or not is_generic_only
+    
+    # Auch spezifisch wenn wenige Treffer (<=5) - dann braucht man keine Eingrenzung
+    if len(results) <= 5:
+        is_specific = True
+    
+    # Vorschlaege aus den Ergebnissen extrahieren
+    typen = set()
+    serien = set()
+    groessen = set()
+    
+    # Regex fuer Groessen: z.B. "45x34cm", "59,5x45cm"
+    groesse_pattern = re.compile(r'(\d+[,.]?\d*)\s*x\s*(\d+[,.]?\d*)\s*cm', re.IGNORECASE)
+    
+    for product in results:
+        bezeichnung = product.get("bezeichnung", "")
+        
+        # Groesse extrahieren
+        groesse_match = groesse_pattern.search(bezeichnung)
+        if groesse_match:
+            groesse = f"{groesse_match.group(1)}x{groesse_match.group(2)}cm"
+            groessen.add(groesse)
+        
+        # Typ extrahieren (erstes Wort oder zusammengesetztes Wort mit Bindestrich)
+        words_bez = bezeichnung.split()
+        if words_bez:
+            # Erstes Wort als Typ, inkl. Bindestrich-Woerter wie "Eck-Handwaschbecken"
+            typ = words_bez[0]
+            typen.add(typ)
+        
+        # Serie extrahieren - suche nach bekannten Serien im Produktnamen
+        bezeichnung_lower = bezeichnung.lower()
+        for serie in BEKANNTE_SERIEN:
+            if serie in bezeichnung_lower:
+                # Finde die Original-Schreibweise im Produktnamen
+                idx = bezeichnung_lower.find(serie)
+                if idx >= 0:
+                    # Extrahiere Serie mit Originalschreibweise
+                    serie_original = bezeichnung[idx:idx+len(serie)]
+                    # Ggf. auch nachfolgende Zeichen fuer "Starck 3", "Happy D.2" etc.
+                    rest = bezeichnung[idx+len(serie):idx+len(serie)+5]
+                    extra_match = re.match(r'^[\s.]?(\d+|[.]?\d+)', rest)
+                    if extra_match:
+                        serie_original += extra_match.group(0).strip()
+                    serien.add(serie_original.strip())
+                    break
+    
+    # Wenn keine bekannte Serie gefunden, versuche aus Produktnamen zu extrahieren
+    # Heuristik: Wort(e) nach dem Typ und vor der Groesse
+    if not serien:
+        for product in results[:10]:  # Nur erste 10 pruefen
+            bezeichnung = product.get("bezeichnung", "")
+            words_bez = bezeichnung.split()
+            if len(words_bez) >= 2:
+                # Ueberspringe erstes Wort (Typ) und Zahlen/Groessen
+                for i, word in enumerate(words_bez[1:], 1):
+                    if not re.match(r'^[\d,.\-x]+', word) and len(word) > 2:
+                        # Potenzielle Serie
+                        if word.lower() not in GENERISCHE_BEGRIFFE:
+                            serien.add(word)
+                            break
+    
+    return {
+        "is_specific": is_specific,
+        "suggestions": {
+            "typen": sorted(list(typen))[:8],
+            "serien": sorted(list(serien))[:8],
+            "groessen": sorted(list(groessen))[:8]
+        },
+        "result_count": len(results)
+    }
+
+
 def get_product_by_artikel(artikel: str) -> Optional[Dict]:
     """
     Findet ein Produkt anhand der Heinrich Schmidt Artikelnummer.
