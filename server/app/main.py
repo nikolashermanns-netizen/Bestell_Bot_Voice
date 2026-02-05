@@ -20,6 +20,7 @@ from expert_client import ExpertClient, EXPERT_MODELS
 from connection_manager import ConnectionManager
 from catalog import load_catalog, get_systems_overview
 from order_manager import order_manager
+import ipaddress
 
 # Logging Setup
 logging.basicConfig(
@@ -34,6 +35,33 @@ sip_client: SIPClient = None
 ai_client: AIClient = None
 expert_client: ExpertClient = None
 manager = ConnectionManager()
+
+# ============== IP Whitelist für SIP ==============
+# Sipgate (netzquadrat GmbH) IP-Ranges
+# Nur Anrufe von diesen IPs werden akzeptiert
+ALLOWED_SIP_NETWORKS = [
+    ipaddress.ip_network("217.10.0.0/16"),      # Sipgate Hauptnetz (netzquadrat)
+    ipaddress.ip_network("212.9.32.0/19"),      # Sipgate Infrastruktur
+    ipaddress.ip_network("95.174.128.0/20"),    # Sipgate zusätzlich
+    ipaddress.ip_network("2001:ab7::/32"),      # Sipgate IPv6
+]
+
+
+def is_ip_allowed(ip_str: str) -> bool:
+    """Prüft ob eine IP-Adresse von einem erlaubten SIP-Provider stammt."""
+    if not ip_str:
+        logger.warning("Keine Remote-IP verfügbar - Anruf wird abgelehnt")
+        return False
+    
+    try:
+        ip = ipaddress.ip_address(ip_str)
+        for network in ALLOWED_SIP_NETWORKS:
+            if ip in network:
+                return True
+        return False
+    except ValueError as e:
+        logger.warning(f"Ungültige IP-Adresse '{ip_str}': {e}")
+        return False
 
 
 @asynccontextmanager
@@ -196,9 +224,23 @@ async def on_expert_done(result: dict):
     })
 
 
-async def on_incoming_call(caller_id: str):
+async def on_incoming_call(caller_id: str, remote_ip: str = None):
     """Wird aufgerufen wenn ein Anruf eingeht."""
-    logger.info(f"Eingehender Anruf von: {caller_id}")
+    logger.info(f"Eingehender Anruf von: {caller_id} (Remote-IP: {remote_ip})")
+    
+    # IP-Whitelist prüfen
+    if not is_ip_allowed(remote_ip):
+        logger.warning(f"ABGELEHNT: Anruf von nicht autorisierter IP {remote_ip} ({caller_id})")
+        await sip_client.reject_call(403)  # 403 Forbidden
+        await manager.broadcast({
+            "type": "call_rejected",
+            "caller_id": caller_id,
+            "remote_ip": remote_ip,
+            "reason": "IP nicht auf Whitelist"
+        })
+        return
+    
+    logger.info(f"IP {remote_ip} ist autorisiert (Sipgate)")
     
     # Reset stats
     _audio_stats["caller_to_ai"] = 0
@@ -595,6 +637,46 @@ async def get_expert_stats():
     if expert_client:
         return expert_client.stats
     return {"error": "Expert Client nicht verfügbar"}
+
+
+@app.get("/expert/instructions")
+async def get_expert_instructions():
+    """Experten-Instruktionen abrufen."""
+    if expert_client:
+        return {"instructions": expert_client.instructions}
+    return {"instructions": ""}
+
+
+@app.post("/expert/instructions")
+async def set_expert_instructions(data: dict):
+    """Experten-Instruktionen setzen."""
+    if expert_client:
+        instructions = data.get("instructions", "")
+        if expert_client.set_instructions(instructions):
+            # Persistieren
+            try:
+                import json
+                import os
+                os.makedirs("/app/config", exist_ok=True)
+                
+                config_data = {}
+                try:
+                    with open("/app/config/config.json", "r", encoding="utf-8") as f:
+                        config_data = json.load(f)
+                except FileNotFoundError:
+                    pass
+                
+                config_data["expert_config"] = expert_client.get_config()
+                
+                with open("/app/config/config.json", "w", encoding="utf-8") as f:
+                    json.dump(config_data, f, ensure_ascii=False, indent=2)
+                    
+            except Exception as e:
+                logger.warning(f"Konnte Expert-Instructions nicht speichern: {e}")
+            
+            return {"status": "ok", "length": len(instructions)}
+        return {"status": "error", "message": "Instruktionen zu kurz"}
+    return {"status": "error"}
 
 
 # ============== WebSocket für Live-Updates ==============

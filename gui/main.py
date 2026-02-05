@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QTextEdit, QSplitter, QFrame, QStatusBar,
     QGroupBox, QMessageBox, QComboBox, QTableWidget, QTableWidgetItem,
-    QHeaderView, QCheckBox, QSlider, QScrollArea
+    QHeaderView, QCheckBox, QSlider, QScrollArea, QTabWidget
 )
 from PySide6.QtCore import Qt, QTimer, Signal, QObject, QThread
 from PySide6.QtGui import QFont, QTextCursor, QColor
@@ -177,6 +177,7 @@ class MainWindow(QMainWindow):
         self._transcript_text = ""
         self._current_partial = {"caller": "", "assistant": ""}
         self._original_instructions = ""
+        self._original_expert_instructions = ""
         self._original_model = ""
         self._available_models = []
         
@@ -481,39 +482,56 @@ class MainWindow(QMainWindow):
         expert_group.setMaximumHeight(280)
         right_layout.addWidget(expert_group)
         
-        # === Instructions Panel ===
-        instructions_group = QGroupBox("AI-Instruktionen (System-Prompt)")
-        instructions_layout = QVBoxLayout(instructions_group)
+        # === Kontext Panel mit Tabs ===
+        context_group = QGroupBox("Kontext / System-Prompts")
+        context_layout = QVBoxLayout(context_group)
         
-        # Hinweis
-        hint = QLabel(
-            "Hier kannst du den Kontext/System-Prompt bearbeiten. "
+        # Tab Widget
+        self._context_tabs = QTabWidget()
+        self._context_tabs.setStyleSheet("""
+            QTabWidget::pane { border: 1px solid #3c3c3c; }
+            QTabBar::tab { 
+                background-color: #2d2d2d; 
+                color: #aaa; 
+                padding: 8px 15px; 
+                border: 1px solid #3c3c3c;
+                border-bottom: none;
+            }
+            QTabBar::tab:selected { 
+                background-color: #353535; 
+                color: white; 
+            }
+        """)
+        
+        # === Tab 1: Sprach-AI ===
+        voice_tab = QWidget()
+        voice_layout = QVBoxLayout(voice_tab)
+        voice_layout.setContentsMargins(5, 10, 5, 5)
+        
+        voice_hint = QLabel(
+            "Kontext für die Sprach-AI (Telefonassistent). "
             "Änderungen werden beim nächsten Anruf wirksam."
         )
-        hint.setStyleSheet("color: #666; font-size: 11px;")
-        hint.setWordWrap(True)
-        instructions_layout.addWidget(hint)
+        voice_hint.setStyleSheet("color: #666; font-size: 11px;")
+        voice_hint.setWordWrap(True)
+        voice_layout.addWidget(voice_hint)
         
-        # Text Editor
         self._instructions_edit = QTextEdit()
-        self._instructions_edit.setFont(QFont("Consolas", 11))
+        self._instructions_edit.setFont(QFont("Consolas", 10))
         self._instructions_edit.setPlaceholderText("Lade Instruktionen vom Server...")
         self._instructions_edit.textChanged.connect(self._on_instructions_changed)
-        instructions_layout.addWidget(self._instructions_edit, stretch=1)
+        voice_layout.addWidget(self._instructions_edit, stretch=1)
         
-        # Buttons
-        btn_layout2 = QHBoxLayout()
-        
+        voice_btn_layout = QHBoxLayout()
         self._status_instructions = QLabel("")
         self._status_instructions.setStyleSheet("color: #666; font-size: 11px;")
-        btn_layout2.addWidget(self._status_instructions)
-        
-        btn_layout2.addStretch()
+        voice_btn_layout.addWidget(self._status_instructions)
+        voice_btn_layout.addStretch()
         
         self._reset_btn = QPushButton("Zurücksetzen")
         self._reset_btn.clicked.connect(self._on_reset_instructions)
         self._reset_btn.setEnabled(False)
-        btn_layout2.addWidget(self._reset_btn)
+        voice_btn_layout.addWidget(self._reset_btn)
         
         self._save_btn = QPushButton("Speichern")
         self._save_btn.setStyleSheet(
@@ -521,11 +539,54 @@ class MainWindow(QMainWindow):
         )
         self._save_btn.clicked.connect(self._on_save_instructions)
         self._save_btn.setEnabled(False)
-        btn_layout2.addWidget(self._save_btn)
+        voice_btn_layout.addWidget(self._save_btn)
         
-        instructions_layout.addLayout(btn_layout2)
+        voice_layout.addLayout(voice_btn_layout)
+        self._context_tabs.addTab(voice_tab, "Sprach-AI")
         
-        right_layout.addWidget(instructions_group)
+        # === Tab 2: Experten-AI ===
+        expert_tab = QWidget()
+        expert_layout2 = QVBoxLayout(expert_tab)
+        expert_layout2.setContentsMargins(5, 10, 5, 5)
+        
+        expert_hint = QLabel(
+            "Kontext für den Experten-Kollegen. Dieser beantwortet komplexe Fachfragen. "
+            "WICHTIG: Antwort-Format muss JSON bleiben!"
+        )
+        expert_hint.setStyleSheet("color: #666; font-size: 11px;")
+        expert_hint.setWordWrap(True)
+        expert_layout2.addWidget(expert_hint)
+        
+        self._expert_instructions_edit = QTextEdit()
+        self._expert_instructions_edit.setFont(QFont("Consolas", 10))
+        self._expert_instructions_edit.setPlaceholderText("Lade Experten-Instruktionen vom Server...")
+        self._expert_instructions_edit.textChanged.connect(self._on_expert_instructions_changed)
+        expert_layout2.addWidget(self._expert_instructions_edit, stretch=1)
+        
+        expert_btn_layout = QHBoxLayout()
+        self._status_expert_instructions = QLabel("")
+        self._status_expert_instructions.setStyleSheet("color: #666; font-size: 11px;")
+        expert_btn_layout.addWidget(self._status_expert_instructions)
+        expert_btn_layout.addStretch()
+        
+        self._reset_expert_btn = QPushButton("Zurücksetzen")
+        self._reset_expert_btn.clicked.connect(self._on_reset_expert_instructions)
+        self._reset_expert_btn.setEnabled(False)
+        expert_btn_layout.addWidget(self._reset_expert_btn)
+        
+        self._save_expert_instructions_btn = QPushButton("Speichern")
+        self._save_expert_instructions_btn.setStyleSheet(
+            "QPushButton { background-color: #28a745; color: white; padding: 5px 15px; }"
+        )
+        self._save_expert_instructions_btn.clicked.connect(self._on_save_expert_instructions)
+        self._save_expert_instructions_btn.setEnabled(False)
+        expert_btn_layout.addWidget(self._save_expert_instructions_btn)
+        
+        expert_layout2.addLayout(expert_btn_layout)
+        self._context_tabs.addTab(expert_tab, "Experten-AI")
+        
+        context_layout.addWidget(self._context_tabs)
+        right_layout.addWidget(context_group)
         
         # Rechte Seite zum Splitter hinzufügen
         right_widget.setMinimumWidth(300)
@@ -582,6 +643,7 @@ class MainWindow(QMainWindow):
         # Model, Instructions und Expert-Config laden
         self._load_model()
         self._load_instructions()
+        self._load_expert_instructions()
         self._load_expert_config()
         
         # Polling stoppen (WebSocket ist besser)
@@ -909,6 +971,68 @@ class MainWindow(QMainWindow):
         
         except Exception as e:
             logger.error(f"Fehler beim Speichern: {e}")
+            QMessageBox.warning(self, "Fehler", f"Konnte nicht speichern: {e}")
+    
+    def _load_expert_instructions(self):
+        """Lädt Experten-Instruktionen vom Server."""
+        import requests
+        try:
+            response = requests.get(f"{self.server_url}/expert/instructions", timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                instructions = data.get("instructions", "")
+                self._original_expert_instructions = instructions
+                self._expert_instructions_edit.setPlainText(instructions)
+                self._status_expert_instructions.setText(f"{len(instructions)} Zeichen")
+                self._save_expert_instructions_btn.setEnabled(False)
+                self._reset_expert_btn.setEnabled(False)
+        except Exception as e:
+            logger.error(f"Fehler beim Laden der Experten-Instructions: {e}")
+    
+    def _on_expert_instructions_changed(self):
+        """Handler für Textänderungen bei Experten-Instruktionen."""
+        current = self._expert_instructions_edit.toPlainText()
+        has_changes = current != self._original_expert_instructions
+        
+        self._save_expert_instructions_btn.setEnabled(has_changes)
+        self._reset_expert_btn.setEnabled(has_changes)
+        
+        if has_changes:
+            self._status_expert_instructions.setText("Ungespeicherte Änderungen")
+            self._status_expert_instructions.setStyleSheet("color: #ffc107; font-size: 11px;")
+        else:
+            self._status_expert_instructions.setText(f"{len(current)} Zeichen")
+            self._status_expert_instructions.setStyleSheet("color: #666; font-size: 11px;")
+    
+    def _on_reset_expert_instructions(self):
+        """Setzt Experten-Instructions zurück."""
+        self._expert_instructions_edit.setPlainText(self._original_expert_instructions)
+    
+    def _on_save_expert_instructions(self):
+        """Speichert Experten-Instructions auf dem Server."""
+        import requests
+        
+        instructions = self._expert_instructions_edit.toPlainText()
+        
+        try:
+            response = requests.post(
+                f"{self.server_url}/expert/instructions",
+                json={"instructions": instructions},
+                timeout=5
+            )
+            
+            if response.status_code == 200:
+                self._original_expert_instructions = instructions
+                self._save_expert_instructions_btn.setEnabled(False)
+                self._reset_expert_btn.setEnabled(False)
+                self._status_expert_instructions.setText("Gespeichert!")
+                self._status_expert_instructions.setStyleSheet("color: #28a745; font-size: 11px;")
+                self._status_bar.showMessage("Experten-Instruktionen gespeichert")
+            else:
+                raise Exception(f"Server-Fehler: {response.status_code}")
+        
+        except Exception as e:
+            logger.error(f"Fehler beim Speichern der Experten-Instructions: {e}")
             QMessageBox.warning(self, "Fehler", f"Konnte nicht speichern: {e}")
     
     def _on_hangup(self):

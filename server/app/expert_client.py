@@ -33,8 +33,8 @@ EXPERT_MODELS = {
 DEFAULT_MODEL = "o4-mini"
 DEFAULT_MIN_CONFIDENCE = 0.9
 
-# System-Prompt für Experten-Anfragen
-EXPERT_SYSTEM_PROMPT = """Du bist ein erfahrener SHK-Fachexperte (Sanitaer, Heizung, Klima) mit tiefgehendem Wissen ueber Viega-Produkte und Installationstechnik.
+# Default System-Prompt für Experten-Anfragen
+DEFAULT_EXPERT_INSTRUCTIONS = """Du bist ein erfahrener SHK-Fachexperte (Sanitaer, Heizung, Klima) mit tiefgehendem Wissen ueber Viega-Produkte und Installationstechnik.
 
 DEINE AUFGABE:
 - Beantworte technische Fachfragen praezise und korrekt
@@ -155,6 +155,7 @@ class ExpertClient:
         self._enabled_models = list(EXPERT_MODELS.keys())
         self._min_confidence = DEFAULT_MIN_CONFIDENCE
         self._default_model = DEFAULT_MODEL
+        self._instructions = DEFAULT_EXPERT_INSTRUCTIONS
         
         # Callbacks
         self.on_expert_start: Optional[Callable[[str, str], None]] = None  # (frage, model)
@@ -188,6 +189,19 @@ class ExpertClient:
     def stats(self) -> dict:
         """Statistiken."""
         return self._stats.copy()
+    
+    @property
+    def instructions(self) -> str:
+        """Aktuelle Experten-Instruktionen."""
+        return self._instructions
+    
+    def set_instructions(self, instructions: str) -> bool:
+        """Setzt die Experten-Instruktionen."""
+        if instructions and len(instructions) > 10:
+            self._instructions = instructions
+            logger.info(f"Experten-Instruktionen aktualisiert ({len(instructions)} Zeichen)")
+            return True
+        return False
     
     def set_enabled_models(self, models: list) -> bool:
         """Setzt die aktivierten Modelle."""
@@ -286,7 +300,7 @@ class ExpertClient:
         try:
             # Nachrichten aufbauen
             messages = [
-                {"role": "system", "content": EXPERT_SYSTEM_PROMPT}
+                {"role": "system", "content": self._instructions}
             ]
             
             if context:
@@ -498,6 +512,7 @@ class ExpertClient:
             "enabled_models": self._enabled_models,
             "default_model": self._default_model,
             "min_confidence": self._min_confidence,
+            "instructions": self._instructions,
             "available_models": {
                 name: {
                     "base": info["base"],
@@ -524,6 +539,10 @@ class ExpertClient:
         
         if "min_confidence" in config:
             if self.set_min_confidence(config["min_confidence"]):
+                changed = True
+        
+        if "instructions" in config:
+            if self.set_instructions(config["instructions"]):
                 changed = True
         
         return changed
