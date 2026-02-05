@@ -1,4 +1,5 @@
 {
+  "hersteller": "Geberit Mapress",
   "products": [
     {
       "Artikel": "ME+UST1615MP",
@@ -33970,6 +33971,6 @@
   "metadata": {
     "total": 1998,
     "source": "Heinrich Schmidt OnlinePro (CSV Export)",
-    "exported_at": "2026-02-05 06:42:15"
+    "exported_at": "2026-02-05 09:41:36"
   }
 }

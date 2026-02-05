@@ -1,4 +1,5 @@
 {
+  "hersteller": "Kermi",
   "products": [
     {
       "Artikel": "HB+OP20EZ",
@@ -33953,6 +33954,6 @@
   "metadata": {
     "total": 1997,
     "source": "Heinrich Schmidt OnlinePro (CSV Export)",
-    "exported_at": "2026-02-05 06:45:10"
+    "exported_at": "2026-02-05 09:43:51"
   }
 }

@@ -1,4 +1,5 @@
 {
+  "hersteller": "Clage",
   "products": [
     {
       "Artikel": "CLA+S5U",
@@ -1483,6 +1484,6 @@
   "metadata": {
     "total": 87,
     "source": "Heinrich Schmidt OnlinePro (CSV Export)",
-    "exported_at": "2026-02-05 06:48:56"
+    "exported_at": "2026-02-05 09:49:06"
   }
 }

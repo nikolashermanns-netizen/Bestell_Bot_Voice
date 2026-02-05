@@ -1,4 +1,5 @@
 {
+  "hersteller": "AEG",
   "products": [
     {
       "Artikel": "GAV+OP15SRVRB",
@@ -3481,23 +3482,6 @@
       "VK-Preis": "220,00",
       "EK-Preis (gesamt)": "127,60",
       "VK-Preis (gesamt)": "220,00",
-      "Eigene Artikel-Nr": "",
-      "Kommentar": "",
-      "": ""
-    },
-    {
-      "Artikel": "C-GSA18VLICSO",
-      "Menge": "1",
-      "Bezeichnung 1": "Bosch Akku Saebelsaege GSA 18 V-Li C",
-      "Bezeichnung 2": "solo L-Boxx 06016A5001",
-      "Werksnummer": "06016A5001",
-      "EAN": "3165140830256",
-      "ME": "Stück",
-      "PE": "1",
-      "EK-Preis": "164,68",
-      "VK-Preis": "179,00",
-      "EK-Preis (gesamt)": "164,68",
-      "VK-Preis (gesamt)": "179,00",
       "Eigene Artikel-Nr": "",
       "Kommentar": "",
       "": ""
@@ -33169,8 +33153,8 @@
     }
   ],
   "metadata": {
-    "total": 1951,
+    "total": 1950,
     "source": "Heinrich Schmidt OnlinePro (CSV Export)",
-    "exported_at": "2026-02-05 06:48:54"
+    "exported_at": "2026-02-05 09:49:04"
   }
 }

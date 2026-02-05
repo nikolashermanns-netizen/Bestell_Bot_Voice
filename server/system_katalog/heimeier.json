@@ -1,4 +1,5 @@
 {
+  "hersteller": "Heimeier",
   "products": [
     {
       "Artikel": "ETA+E60846",
@@ -23379,6 +23380,6 @@
   "metadata": {
     "total": 1375,
     "source": "Heinrich Schmidt OnlinePro (CSV Export)",
-    "exported_at": "2026-02-05 06:49:20"
+    "exported_at": "2026-02-05 09:45:24"
   }
 }

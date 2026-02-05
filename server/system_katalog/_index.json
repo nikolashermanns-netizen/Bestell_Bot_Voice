@@ -1,6 +1,6 @@
 {
-  "total_products": 87985,
-  "total_systems": 63,
+  "total_products": 157520,
+  "total_systems": 109,
   "systems": [
     {
       "name": "CU-Press",
@@ -155,7 +155,7 @@
     {
       "name": "Helios",
       "file": "helios.json",
-      "products": 2862
+      "products": 2000
     },
     {
       "name": "Maico",
@@ -175,7 +175,7 @@
     {
       "name": "Ridgid",
       "file": "ridgid.json",
-      "products": 2027
+      "products": 2000
     },
     {
       "name": "Knipex",
@@ -235,7 +235,7 @@
     {
       "name": "AEG",
       "file": "aeg.json",
-      "products": 1951
+      "products": 1950
     },
     {
       "name": "Clage",
@@ -316,6 +316,236 @@
       "name": "Rockwool",
       "file": "rockwool.json",
       "products": 469
+    },
+    {
+      "name": "Sanitär (Komplett)",
+      "file": "sanitaer_komplett.json",
+      "products": 10375
+    },
+    {
+      "name": "Heizung (Komplett)",
+      "file": "heizung_komplett.json",
+      "products": 14886
+    },
+    {
+      "name": "Laufen",
+      "file": "laufen.json",
+      "products": 1996
+    },
+    {
+      "name": "Kaldewei",
+      "file": "kaldewei.json",
+      "products": 1998
+    },
+    {
+      "name": "Bette",
+      "file": "bette.json",
+      "products": 2000
+    },
+    {
+      "name": "Hoesch",
+      "file": "hoesch.json",
+      "products": 22
+    },
+    {
+      "name": "Koralle",
+      "file": "koralle.json",
+      "products": 198
+    },
+    {
+      "name": "Hansa",
+      "file": "hansa.json",
+      "products": 1996
+    },
+    {
+      "name": "Kludi",
+      "file": "kludi.json",
+      "products": 984
+    },
+    {
+      "name": "Dornbracht",
+      "file": "dornbracht.json",
+      "products": 1987
+    },
+    {
+      "name": "Keuco",
+      "file": "keuco.json",
+      "products": 1999
+    },
+    {
+      "name": "Franke",
+      "file": "franke.json",
+      "products": 476
+    },
+    {
+      "name": "Blanco",
+      "file": "blanco.json",
+      "products": 1113
+    },
+    {
+      "name": "Viega",
+      "file": "viega.json",
+      "products": 1998
+    },
+    {
+      "name": "Sanit",
+      "file": "sanit.json",
+      "products": 1975
+    },
+    {
+      "name": "Friatec",
+      "file": "friatec.json",
+      "products": 205
+    },
+    {
+      "name": "Mepa",
+      "file": "mepa.json",
+      "products": 196
+    },
+    {
+      "name": "Schwab",
+      "file": "schwab.json",
+      "products": 50
+    },
+    {
+      "name": "Wisa",
+      "file": "wisa.json",
+      "products": 73
+    },
+    {
+      "name": "Uponor",
+      "file": "uponor.json",
+      "products": 1365
+    },
+    {
+      "name": "Rehau",
+      "file": "rehau.json",
+      "products": 53
+    },
+    {
+      "name": "Wavin",
+      "file": "wavin.json",
+      "products": 16
+    },
+    {
+      "name": "Aquatherm",
+      "file": "aquatherm.json",
+      "products": 556
+    },
+    {
+      "name": "Comap",
+      "file": "comap.json",
+      "products": 14
+    },
+    {
+      "name": "Wolf",
+      "file": "wolf.json",
+      "products": 1958
+    },
+    {
+      "name": "Rotex",
+      "file": "rotex.json",
+      "products": 758
+    },
+    {
+      "name": "Bosch",
+      "file": "bosch.json",
+      "products": 1914
+    },
+    {
+      "name": "Daikin",
+      "file": "daikin.json",
+      "products": 1988
+    },
+    {
+      "name": "Mitsubishi",
+      "file": "mitsubishi.json",
+      "products": 13
+    },
+    {
+      "name": "Panasonic",
+      "file": "panasonic.json",
+      "products": 6
+    },
+    {
+      "name": "LG",
+      "file": "lg.json",
+      "products": 1933
+    },
+    {
+      "name": "Arbonia",
+      "file": "arbonia.json",
+      "products": 32
+    },
+    {
+      "name": "Schulte",
+      "file": "schulte.json",
+      "products": 160
+    },
+    {
+      "name": "HSK",
+      "file": "hsk.json",
+      "products": 1978
+    },
+    {
+      "name": "Bemm",
+      "file": "bemm.json",
+      "products": 1992
+    },
+    {
+      "name": "Cosmo",
+      "file": "cosmo.json",
+      "products": 1992
+    },
+    {
+      "name": "DAB",
+      "file": "dab.json",
+      "products": 1985
+    },
+    {
+      "name": "Lowara",
+      "file": "lowara.json",
+      "products": 9
+    },
+    {
+      "name": "Perma",
+      "file": "perma.json",
+      "products": 135
+    },
+    {
+      "name": "Systemair",
+      "file": "systemair.json",
+      "products": 1999
+    },
+    {
+      "name": "Pluggit",
+      "file": "pluggit.json",
+      "products": 631
+    },
+    {
+      "name": "Isover",
+      "file": "isover.json",
+      "products": 10
+    },
+    {
+      "name": "Siemens",
+      "file": "siemens.json",
+      "products": 1976
+    },
+    {
+      "name": "Esbe",
+      "file": "esbe.json",
+      "products": 421
+    },
+    {
+      "name": "Meibes",
+      "file": "meibes.json",
+      "products": 4
+    },
+    {
+      "name": "PAW",
+      "file": "paw.json",
+      "products": 2000
     }
   ]
 }

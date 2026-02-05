@@ -1,0 +1,1856 @@
+{
+  "meta": {
+    "source": "Heinrich Schmidt OnlinePro",
+    "url": "https://onlineprohs.schmidt-mg.de",
+    "exported_at": "2026-02-05 10:23:05",
+    "statistics": {
+      "sortimente": 9,
+      "obergruppen": 130,
+      "produktgruppen": 252
+    }
+  },
+  "sortimente": {
+    "S": {
+      "code": "S",
+      "name": "Sanitär",
+      "obergruppen": {
+        "S0080": {
+          "code": "S0080",
+          "name": "Badkeramik",
+          "produktgruppen": {
+            "S00800130": {
+              "code": "S00800130",
+              "name": "Waschtische"
+            },
+            "S00800120": {
+              "code": "S00800120",
+              "name": "WCs"
+            }
+          }
+        },
+        "S0020": {
+          "code": "S0020",
+          "name": "Armaturen",
+          "produktgruppen": {
+            "S00200130": {
+              "code": "S00200130",
+              "name": "Waschtischarmaturen"
+            },
+            "S00200020": {
+              "code": "S00200020",
+              "name": "Brausearmaturen"
+            }
+          }
+        },
+        "S0050": {
+          "code": "S0050",
+          "name": "Brauseprogramme",
+          "produktgruppen": {
+            "S00500020": {
+              "code": "S00500020",
+              "name": "Brausegarnituren"
+            },
+            "S00500060": {
+              "code": "S00500060",
+              "name": "Handbrausen"
+            }
+          }
+        },
+        "S0130": {
+          "code": "S0130",
+          "name": "WC-, WT- & Urinal-Zubehör",
+          "produktgruppen": {
+            "S01300010": {
+              "code": "S01300010",
+              "name": "Betätigungsplatten für WC"
+            },
+            "S01300020": {
+              "code": "S01300020",
+              "name": "Betätigungsplatten für Urinale"
+            }
+          }
+        },
+        "S0090": {
+          "code": "S0090",
+          "name": "Armaturenanschlusszubehör",
+          "produktgruppen": {
+            "S00900030": {
+              "code": "S00900030",
+              "name": "Eckventile"
+            },
+            "S00900050": {
+              "code": "S00900050",
+              "name": "Geräteanschlussventile"
+            }
+          }
+        },
+        "S0140": {
+          "code": "S0140",
+          "name": "Dusch- & Badewannen",
+          "produktgruppen": {
+            "S01400030": {
+              "code": "S01400030",
+              "name": "Badewannen"
+            },
+            "S01400080": {
+              "code": "S01400080",
+              "name": "Duschwannen"
+            }
+          }
+        },
+        "S0150": {
+          "code": "S0150",
+          "name": "Duschrinnen, -boards",
+          "produktgruppen": {
+            "S01500010": {
+              "code": "S01500010",
+              "name": "Duschrinnen"
+            },
+            "S01500020": {
+              "code": "S01500020",
+              "name": "Duschboards"
+            }
+          }
+        },
+        "S0010": {
+          "code": "S0010",
+          "name": "Ablaufprogramme",
+          "produktgruppen": {
+            "S00100010": {
+              "code": "S00100010",
+              "name": "Ablaufprogramm für Wannen & Duschen"
+            },
+            "S00100040": {
+              "code": "S00100040",
+              "name": "Ablaufprogramm für Waschtisch & Bidet"
+            }
+          }
+        },
+        "S0060": {
+          "code": "S0060",
+          "name": "Duschabtrennungen",
+          "produktgruppen": {
+            "S00600030": {
+              "code": "S00600030",
+              "name": "Duschabtrennungen"
+            },
+            "S00600290": {
+              "code": "S00600290",
+              "name": "Walk-In"
+            }
+          }
+        },
+        "S0100": {
+          "code": "S0100",
+          "name": "Wellness",
+          "produktgruppen": {
+            "S01000010": {
+              "code": "S01000010",
+              "name": "Infrarotkabinen"
+            },
+            "S01000030": {
+              "code": "S01000030",
+              "name": "Dampfduschen"
+            }
+          }
+        },
+        "S0160": {
+          "code": "S0160",
+          "name": "Rückwandverkleidungen",
+          "produktgruppen": {
+            "S01600010": {
+              "code": "S01600010",
+              "name": "Rückwandverkleidungen"
+            }
+          }
+        },
+        "S0040": {
+          "code": "S0040",
+          "name": "Badmöbel",
+          "produktgruppen": {
+            "S00400020": {
+              "code": "S00400020",
+              "name": "Badmöbel"
+            },
+            "S00400010": {
+              "code": "S00400010",
+              "name": "Badmöbelsets"
+            }
+          }
+        },
+        "S0110": {
+          "code": "S0110",
+          "name": "Spiegel, Spiegelschränke & Zubehör",
+          "produktgruppen": {
+            "S01100020": {
+              "code": "S01100020",
+              "name": "Spiegel"
+            },
+            "S01100030": {
+              "code": "S01100030",
+              "name": "Lichtspiegel"
+            }
+          }
+        },
+        "S0030": {
+          "code": "S0030",
+          "name": "Badaccessoires",
+          "produktgruppen": {
+            "S003000018": {
+              "code": "S003000018",
+              "name": "Papierhalter & Reservepapierhalter"
+            },
+            "S003000019": {
+              "code": "S003000019",
+              "name": "WC-Bürstengarnituren & Ersatzteile"
+            }
+          }
+        },
+        "S0032": {
+          "code": "S0032",
+          "name": "Spendersysteme & Händetrockner",
+          "produktgruppen": {
+            "S00300152": {
+              "code": "S00300152",
+              "name": "Handtuchspender"
+            },
+            "S00320020": {
+              "code": "S00320020",
+              "name": "Seifen- & Desinfektionsmittelspender"
+            }
+          }
+        },
+        "S0031": {
+          "code": "S0031",
+          "name": "Barrierefreie Einrichtungen",
+          "produktgruppen": {
+            "S003000020": {
+              "code": "S003000020",
+              "name": "Duschsitze, Hocker & Zubehör"
+            },
+            "S00310030": {
+              "code": "S00310030",
+              "name": "Haltegriffe & Winkelgriffe"
+            }
+          }
+        },
+        "S0170": {
+          "code": "S0170",
+          "name": "Einbaumodule",
+          "produktgruppen": {
+            "S01700010": {
+              "code": "S01700010",
+              "name": "Einbaumodule"
+            }
+          }
+        },
+        "S0070": {
+          "code": "S0070",
+          "name": "Elektrische Warmwasserbereitung",
+          "produktgruppen": {
+            "S00700010": {
+              "code": "S00700010",
+              "name": "Armaturen für Warmwasserbereiter"
+            },
+            "S00700020": {
+              "code": "S00700020",
+              "name": "Durchlauferhitzer"
+            }
+          }
+        },
+        "S0120": {
+          "code": "S0120",
+          "name": "Spülen & Ausgüsse",
+          "produktgruppen": {
+            "S01200040": {
+              "code": "S01200040",
+              "name": "Küchenspülen & Spülsteine"
+            },
+            "S01200010": {
+              "code": "S01200010",
+              "name": "Ausgussbecken"
+            }
+          }
+        },
+        "00016": {
+          "code": "00016",
+          "name": "Sanitär Sets",
+          "produktgruppen": {
+            "000000075": {
+              "code": "000000075",
+              "name": "WC Sets"
+            },
+            "000000076": {
+              "code": "000000076",
+              "name": "Waschtisch Sets"
+            }
+          }
+        },
+        "S0180": {
+          "code": "S0180",
+          "name": "Sanitärersatzteile",
+          "produktgruppen": {
+            "S01800010": {
+              "code": "S01800010",
+              "name": "Ersatzteile Sanitär"
+            }
+          }
+        }
+      }
+    },
+    "H": {
+      "code": "H",
+      "name": "Heizung",
+      "obergruppen": {
+        "H0140": {
+          "code": "H0140",
+          "name": "Wärmeerzeuger",
+          "produktgruppen": {
+            "H01400010": {
+              "code": "H01400010",
+              "name": "Wärmeerzeuger Gas"
+            },
+            "H01400070": {
+              "code": "H01400070",
+              "name": "Wärmepumpen"
+            }
+          }
+        },
+        "H0210": {
+          "code": "H0210",
+          "name": "Gasdurchlauferhitzer",
+          "produktgruppen": {
+            "H02100010": {
+              "code": "H02100010",
+              "name": "Gasdurchlauferhitzer"
+            }
+          }
+        },
+        "H0030": {
+          "code": "H0030",
+          "name": "Speicher & Trinkwassererwärmung",
+          "produktgruppen": {
+            "H00300020": {
+              "code": "H00300020",
+              "name": "Solarspeicher & Wärmepumpenspeicher"
+            },
+            "H00300030": {
+              "code": "H00300030",
+              "name": "Pufferspeicher"
+            }
+          }
+        },
+        "H0010": {
+          "code": "H0010",
+          "name": "Abgassysteme",
+          "produktgruppen": {
+            "H00100020": {
+              "code": "H00100020",
+              "name": "Abgassysteme"
+            },
+            "H00100010": {
+              "code": "H00100010",
+              "name": "ALU-Abgasmaterial"
+            }
+          }
+        },
+        "H0080": {
+          "code": "H0080",
+          "name": "Heizkörper",
+          "produktgruppen": {
+            "H00800140": {
+              "code": "H00800140",
+              "name": "Ventilheizkörper"
+            },
+            "H00800160": {
+              "code": "H00800160",
+              "name": "Wärmepumpenheizkörper"
+            }
+          }
+        },
+        "H0240": {
+          "code": "H0240",
+          "name": "Heizkörperzubehör",
+          "produktgruppen": {
+            "H024000020": {
+              "code": "H024000020",
+              "name": "Bad- & Designheizkörper Zubehör"
+            },
+            "H02400010": {
+              "code": "H02400010",
+              "name": "Ventile & Rücklaufverschraubungen"
+            }
+          }
+        },
+        "H0130": {
+          "code": "H0130",
+          "name": "Lufterhitzer & Sonderanwendungen",
+          "produktgruppen": {
+            "H01300010": {
+              "code": "H01300010",
+              "name": "Lufterhitzer"
+            },
+            "H01300030": {
+              "code": "H01300030",
+              "name": "Bodenkanalheizung"
+            }
+          }
+        },
+        "H0070": {
+          "code": "H0070",
+          "name": "Flächenheizung",
+          "produktgruppen": {
+            "H00700010": {
+              "code": "H00700010",
+              "name": "Grundelemente für Flächenheizung"
+            },
+            "H00700020": {
+              "code": "H00700020",
+              "name": "Rohre für Flächenheizung"
+            }
+          }
+        },
+        "H0160": {
+          "code": "H0160",
+          "name": "Elektrische Heizsysteme",
+          "produktgruppen": {
+            "H01600020": {
+              "code": "H01600020",
+              "name": "elektrische Heizkörper"
+            },
+            "H01600040": {
+              "code": "H01600040",
+              "name": "Infrarotheizsysteme"
+            }
+          }
+        },
+        "H0090": {
+          "code": "H0090",
+          "name": "Heizungsarmaturen",
+          "produktgruppen": {
+            "H00900050": {
+              "code": "H00900050",
+              "name": "Regelungsarmaturen"
+            },
+            "H00900070": {
+              "code": "H00900070",
+              "name": "Sicherheitsarmaturen"
+            },
+            "H022000010": {
+              "code": "H022000010",
+              "name": "Rohrleitungsarmaturen Heizung"
+            }
+          }
+        },
+        "H0230": {
+          "code": "H0230",
+          "name": "Pumpengruppen",
+          "produktgruppen": {
+            "H02300010": {
+              "code": "H02300010",
+              "name": "Pumpengruppen"
+            }
+          }
+        },
+        "H0060": {
+          "code": "H0060",
+          "name": "Fernwärme",
+          "produktgruppen": {
+            "H00600020": {
+              "code": "H00600020",
+              "name": "Erdverlegte Leitungen"
+            },
+            "H00600030": {
+              "code": "H00600030",
+              "name": "Regelungen"
+            }
+          }
+        },
+        "H0020": {
+          "code": "H0020",
+          "name": "Druckhaltung & Abscheider",
+          "produktgruppen": {
+            "H00200010": {
+              "code": "H00200010",
+              "name": "Ausdehnungsgefäße"
+            },
+            "H00200020": {
+              "code": "H00200020",
+              "name": "Luft- u. Schlammabscheider"
+            }
+          }
+        },
+        "H0110": {
+          "code": "H0110",
+          "name": "Pumpen",
+          "produktgruppen": {
+            "H01100010": {
+              "code": "H01100010",
+              "name": "Kondensatpumpen"
+            },
+            "H01100020": {
+              "code": "H01100020",
+              "name": "Heizungspumpen"
+            }
+          }
+        },
+        "H0170": {
+          "code": "H0170",
+          "name": "Messen, Anzeigen, Erfassen",
+          "produktgruppen": {
+            "H01700010": {
+              "code": "H01700010",
+              "name": "Thermometer"
+            },
+            "H01700020": {
+              "code": "H01700020",
+              "name": "Manometer"
+            },
+            "H01700030": {
+              "code": "H01700030",
+              "name": "Wärmemengenerfassung"
+            }
+          }
+        },
+        "H0040": {
+          "code": "H0040",
+          "name": "Brennstofflagerung",
+          "produktgruppen": {
+            "H00400010": {
+              "code": "H00400010",
+              "name": "Öltanks"
+            },
+            "H00400020": {
+              "code": "H00400020",
+              "name": "Pellettanks"
+            },
+            "H00400030": {
+              "code": "H00400030",
+              "name": "Ölfeuerungsarmaturen & Leitungen"
+            }
+          }
+        },
+        "H0180": {
+          "code": "H0180",
+          "name": "Brenner",
+          "produktgruppen": {
+            "H01800010": {
+              "code": "H01800010",
+              "name": "Gebläsebrenner & Zubehör"
+            },
+            "H01800020": {
+              "code": "H01800020",
+              "name": "Öldüsen"
+            }
+          }
+        },
+        "H0190": {
+          "code": "H0190",
+          "name": "Heizungswasserbehandlung",
+          "produktgruppen": {
+            "H01900010": {
+              "code": "H01900010",
+              "name": "Heizungsbefüllung"
+            },
+            "H01900020": {
+              "code": "H01900020",
+              "name": "Inhibitoren"
+            }
+          }
+        },
+        "H0200": {
+          "code": "H0200",
+          "name": "Reinigen, Pflegen, Warten",
+          "produktgruppen": {
+            "H02000010": {
+              "code": "H02000010",
+              "name": "Reinigen, Pflegen, Warten"
+            }
+          }
+        },
+        "H0050": {
+          "code": "H0050",
+          "name": "Heizungsersatzteile",
+          "produktgruppen": {
+            "H00500010": {
+              "code": "H00500010",
+              "name": "Heizungsersatzteile"
+            }
+          }
+        },
+        "H0220": {
+          "code": "H0220",
+          "name": "Verteiler & Weichen",
+          "produktgruppen": {
+            "H02200010": {
+              "code": "H02200010",
+              "name": "Verteiler & Weichen"
+            }
+          }
+        },
+        "H0250": {
+          "code": "H0250",
+          "name": "Regelungen",
+          "produktgruppen": {
+            "H02500010": {
+              "code": "H02500010",
+              "name": "Regelungen"
+            }
+          }
+        }
+      }
+    },
+    "I": {
+      "code": "I",
+      "name": "Installation",
+      "obergruppen": {
+        "I0100": {
+          "code": "I0100",
+          "name": "Rohrsysteme",
+          "produktgruppen": {
+            "I01000010": {
+              "code": "I01000010",
+              "name": "CU-Press"
+            },
+            "I01000020": {
+              "code": "I01000020",
+              "name": "Edelstahl-Press"
+            }
+          }
+        },
+        "I0070": {
+          "code": "I0070",
+          "name": "Flansche",
+          "produktgruppen": {
+            "I00700010": {
+              "code": "I00700010",
+              "name": "Flansche"
+            },
+            "I00700020": {
+              "code": "I00700020",
+              "name": "Flanschdichtungen"
+            },
+            "I00700030": {
+              "code": "I00700030",
+              "name": "Maschinenschrauben"
+            }
+          }
+        },
+        "I0020": {
+          "code": "I0020",
+          "name": "Abflussrohre",
+          "produktgruppen": {
+            "I00200020": {
+              "code": "I00200020",
+              "name": "SML-Abflussrohre"
+            },
+            "I00200030": {
+              "code": "I00200030",
+              "name": "Guss-Abflussrohre beschichtet"
+            }
+          }
+        },
+        "I0030": {
+          "code": "I0030",
+          "name": "Montage- & Installationssysteme",
+          "produktgruppen": {
+            "I00300010": {
+              "code": "I00300010",
+              "name": "Montageelemente Nassbau"
+            },
+            "I00300020": {
+              "code": "I00300020",
+              "name": "Montageelemente Trockenbau"
+            }
+          }
+        },
+        "I0110": {
+          "code": "I0110",
+          "name": "Rohrleitungsarmaturen",
+          "produktgruppen": {
+            "I01100030": {
+              "code": "I01100030",
+              "name": "Rohrleitungsarmaturen Gas"
+            },
+            "I01100040": {
+              "code": "I01100040",
+              "name": "Rohrleitungsarmaturen Wasser"
+            }
+          }
+        },
+        "I0150": {
+          "code": "I0150",
+          "name": "Tränkebecken",
+          "produktgruppen": {
+            "I01500010": {
+              "code": "I01500010",
+              "name": "Tränkebecken & Zubehör"
+            }
+          }
+        },
+        "I0140": {
+          "code": "I0140",
+          "name": "Trinkwasserhygiene",
+          "produktgruppen": {
+            "I01400010": {
+              "code": "I01400010",
+              "name": "Trinkwasserhygiene"
+            }
+          }
+        },
+        "I0010": {
+          "code": "I0010",
+          "name": "Entwässerungspumpen & Hebeanlagen",
+          "produktgruppen": {
+            "I00100010": {
+              "code": "I00100010",
+              "name": "Tauchpumpen"
+            },
+            "I00100020": {
+              "code": "I00100020",
+              "name": "Hebeanlagen"
+            }
+          }
+        },
+        "I0130": {
+          "code": "I0130",
+          "name": "Wasserversorgung",
+          "produktgruppen": {
+            "I01300090": {
+              "code": "I01300090",
+              "name": "Brauchwasserpumpen"
+            },
+            "I01300010": {
+              "code": "I01300010",
+              "name": "Druckerhöhungsanlagen"
+            }
+          }
+        },
+        "I0050": {
+          "code": "I0050",
+          "name": "Gebäudeentwässerung",
+          "produktgruppen": {
+            "I00500010": {
+              "code": "I00500010",
+              "name": "Abscheider"
+            },
+            "I00500020": {
+              "code": "I00500020",
+              "name": "Bodenabläufe"
+            }
+          }
+        },
+        "I0120": {
+          "code": "I0120",
+          "name": "Wasseraufbereitung",
+          "produktgruppen": {
+            "I01200020": {
+              "code": "I01200020",
+              "name": "Filtern"
+            },
+            "I01200050": {
+              "code": "I01200050",
+              "name": "Enthärten"
+            }
+          }
+        },
+        "I0040": {
+          "code": "I0040",
+          "name": "Befestigungen",
+          "produktgruppen": {
+            "I00400070": {
+              "code": "I00400070",
+              "name": "Montageschienen & Zubehör"
+            },
+            "I00400090": {
+              "code": "I00400090",
+              "name": "Montagezubehör"
+            }
+          }
+        },
+        "I0090": {
+          "code": "I0090",
+          "name": "Montagematerial",
+          "produktgruppen": {
+            "I00900010": {
+              "code": "I00900010",
+              "name": "Artikel des täglichen Bedarfs"
+            },
+            "I00900020": {
+              "code": "I00900020",
+              "name": "Baustopfen"
+            }
+          }
+        },
+        "I0080": {
+          "code": "I0080",
+          "name": "Isolierung",
+          "produktgruppen": {
+            "I00800010": {
+              "code": "I00800010",
+              "name": "Dämmschalen für Armaturen"
+            },
+            "I00800020": {
+              "code": "I00800020",
+              "name": "Rohrleitungsisolierung"
+            },
+            "I00800040": {
+              "code": "I00800040",
+              "name": "Zubehör für Isolierung"
+            }
+          }
+        },
+        "I0060": {
+          "code": "I0060",
+          "name": "Brandschutz - Installation",
+          "produktgruppen": {
+            "I00600010": {
+              "code": "I00600010",
+              "name": "Brandschutzschalen"
+            },
+            "I00600020": {
+              "code": "I00600020",
+              "name": "Brandschutzmanschetten, -bänder"
+            }
+          }
+        },
+        "I0160": {
+          "code": "I0160",
+          "name": "Werkzeug",
+          "produktgruppen": {
+            "I01600010": {
+              "code": "I01600010",
+              "name": "Werkzeug"
+            },
+            "I01600011": {
+              "code": "I01600011",
+              "name": "Pressen & Zubehör"
+            }
+          }
+        }
+      }
+    },
+    "L": {
+      "code": "L",
+      "name": "Klima/Lüftung",
+      "obergruppen": {
+        "L0010": {
+          "code": "L0010",
+          "name": "Brandschutz - Klima & Lüftung",
+          "produktgruppen": {
+            "L001000070": {
+              "code": "L001000070",
+              "name": "Revisionsenddeckel"
+            },
+            "L00100010": {
+              "code": "L00100010",
+              "name": "Brandschutzklappen"
+            }
+          }
+        },
+        "L0020": {
+          "code": "L0020",
+          "name": "Allgemeines Zubehör",
+          "produktgruppen": {
+            "L00200010": {
+              "code": "L00200010",
+              "name": "Montage- & Befestigungsmaterial"
+            },
+            "L00200020": {
+              "code": "L00200020",
+              "name": "Dichtstoffe, Klebebänder"
+            }
+          }
+        },
+        "L0030": {
+          "code": "L0030",
+          "name": "Wärmetauscher",
+          "produktgruppen": {
+            "000000005": {
+              "code": "000000005",
+              "name": "ohne integriertes Heizregister"
+            },
+            "L00300010": {
+              "code": "L00300010",
+              "name": "Elektro- Heizregister"
+            }
+          }
+        },
+        "L0040": {
+          "code": "L0040",
+          "name": "Luftfilter",
+          "produktgruppen": {
+            "L00400010": {
+              "code": "L00400010",
+              "name": "Taschenfilter"
+            },
+            "L00400020": {
+              "code": "L00400020",
+              "name": "Filterboxen"
+            }
+          }
+        },
+        "L0050": {
+          "code": "L0050",
+          "name": "Gitter & Luftauslässe",
+          "produktgruppen": {
+            "L00500010": {
+              "code": "L00500010",
+              "name": "Tellerventile"
+            },
+            "L00500020": {
+              "code": "L00500020",
+              "name": "Gitter"
+            }
+          }
+        },
+        "L0060": {
+          "code": "L0060",
+          "name": "Kontrollierte Wohnungslüftung",
+          "produktgruppen": {
+            "L00600010": {
+              "code": "L00600010",
+              "name": "Dezentrale KWL Geräte"
+            },
+            "L00600020": {
+              "code": "L00600020",
+              "name": "Zentrale KWL Geräte"
+            }
+          }
+        },
+        "L0070": {
+          "code": "L0070",
+          "name": "Klimageräte & Zubehör",
+          "produktgruppen": {
+            "L00700010": {
+              "code": "L00700010",
+              "name": "Mobile Klimageräte"
+            },
+            "L00700020": {
+              "code": "L00700020",
+              "name": "Splitgeräte"
+            }
+          }
+        },
+        "L0080": {
+          "code": "L0080",
+          "name": "Lüftungsgeräte",
+          "produktgruppen": {
+            "L00800010": {
+              "code": "L00800010",
+              "name": "Zuluftgeräte"
+            },
+            "L00800020": {
+              "code": "L00800020",
+              "name": "kombinierte Zu- & Abluftgeräte"
+            }
+          }
+        },
+        "L0100": {
+          "code": "L0100",
+          "name": "Regelungen & Steuerung",
+          "produktgruppen": {
+            "L01000010": {
+              "code": "L01000010",
+              "name": "Ventilatorsteuerung"
+            },
+            "L01000020": {
+              "code": "L01000020",
+              "name": "Klappenstellantriebe"
+            }
+          }
+        },
+        "L0110": {
+          "code": "L0110",
+          "name": "Schalldämpfer",
+          "produktgruppen": {
+            "L01100010": {
+              "code": "L01100010",
+              "name": "Telefonieschalldämpfer"
+            },
+            "L01100020": {
+              "code": "L01100020",
+              "name": "Rohrschalldämpfer"
+            },
+            "L01100030": {
+              "code": "L01100030",
+              "name": "Sonstige Schalldämpfer"
+            }
+          }
+        },
+        "L0130": {
+          "code": "L0130",
+          "name": "Isolierung",
+          "produktgruppen": {
+            "L01300030": {
+              "code": "L01300030",
+              "name": "Rohrträger"
+            }
+          }
+        },
+        "L0140": {
+          "code": "L0140",
+          "name": "Ventilatoren",
+          "produktgruppen": {
+            "L01400010": {
+              "code": "L01400010",
+              "name": "Dachventilatoren"
+            },
+            "L01400020": {
+              "code": "L01400020",
+              "name": "Einrohrlüftung Ventilatoren"
+            }
+          }
+        },
+        "L0150": {
+          "code": "L0150",
+          "name": "Volumenstromregler",
+          "produktgruppen": {
+            "L01500010": {
+              "code": "L01500010",
+              "name": "Volumenstrombegrenzer"
+            },
+            "L01500020": {
+              "code": "L01500020",
+              "name": "Volumenstromregler"
+            }
+          }
+        },
+        "L0160": {
+          "code": "L0160",
+          "name": "Luftleitungen",
+          "produktgruppen": {
+            "L01600010": {
+              "code": "L01600010",
+              "name": "Kunststoffrohre & Formteile"
+            },
+            "L01600020": {
+              "code": "L01600020",
+              "name": "Wickelfalzrohr & Formteile"
+            }
+          }
+        },
+        "L0180": {
+          "code": "L0180",
+          "name": "Dachkomponenten",
+          "produktgruppen": {
+            "L01800030": {
+              "code": "L01800030",
+              "name": "Dachhauben"
+            },
+            "L01800040": {
+              "code": "L01800040",
+              "name": "Dachdurchführungen"
+            }
+          }
+        },
+        "L0190": {
+          "code": "L0190",
+          "name": "Außenwandabschluss",
+          "produktgruppen": {
+            "L01900010": {
+              "code": "L01900010",
+              "name": "Außenverschlussklappen"
+            },
+            "L01900020": {
+              "code": "L01900020",
+              "name": "Wetterschutzgitter"
+            }
+          }
+        }
+      }
+    },
+    "E": {
+      "code": "E",
+      "name": "Elektro",
+      "obergruppen": {
+        "E_E01": {
+          "code": "E_E01",
+          "name": "Installationsmaterial Haus",
+          "produktgruppen": {
+            "E_E01A": {
+              "code": "E_E01A",
+              "name": "Schalterprogramm"
+            },
+            "E_E01B": {
+              "code": "E_E01B",
+              "name": "Verteiler und Zubehoer"
+            }
+          }
+        },
+        "E_E02": {
+          "code": "E_E02",
+          "name": "Kabel und Leitungen",
+          "produktgruppen": {
+            "E_E02A": {
+              "code": "E_E02A",
+              "name": "Starkstromkabel 1 bis 30 KV"
+            },
+            "E_E02B": {
+              "code": "E_E02B",
+              "name": "Installationsleitungen"
+            }
+          }
+        },
+        "E_E03": {
+          "code": "E_E03",
+          "name": "Domotik / Elektronik / Bussysteme / Ante",
+          "produktgruppen": {
+            "E_E03A": {
+              "code": "E_E03A",
+              "name": "Bussysteme"
+            },
+            "E_E03B": {
+              "code": "E_E03B",
+              "name": "Fernmeldetechnik/Rufanlagen"
+            }
+          }
+        },
+        "E_E04": {
+          "code": "E_E04",
+          "name": "Installationsmaterial Industrie",
+          "produktgruppen": {
+            "E_E041": {
+              "code": "E_E041",
+              "name": "E041"
+            },
+            "E_E04A": {
+              "code": "E_E04A",
+              "name": "Verteiler-Schalt-Netzwerkschraenke"
+            }
+          }
+        },
+        "E_E05": {
+          "code": "E_E05",
+          "name": "Leuchten und Zubehör",
+          "produktgruppen": {
+            "E_E05A": {
+              "code": "E_E05A",
+              "name": "Dekorative Beleuchtung"
+            },
+            "E_E05B": {
+              "code": "E_E05B",
+              "name": "Technische Beleuchtung"
+            }
+          }
+        },
+        "E_E06": {
+          "code": "E_E06",
+          "name": "Leuchtmittel",
+          "produktgruppen": {
+            "E_E06A": {
+              "code": "E_E06A",
+              "name": "LED Leuchtmittel"
+            },
+            "E_E06B": {
+              "code": "E_E06B",
+              "name": "Leuchtstofflampen"
+            }
+          }
+        },
+        "E_E07": {
+          "code": "E_E07",
+          "name": "Elektro-Heizung und Zubehör",
+          "produktgruppen": {
+            "E_E07A": {
+              "code": "E_E07A",
+              "name": "Elektroheizung und Zubehoer"
+            }
+          }
+        },
+        "E_E08": {
+          "code": "E_E08",
+          "name": "EDV / Computermaterial / Netzwerk",
+          "produktgruppen": {
+            "E_E08A": {
+              "code": "E_E08A",
+              "name": "Datennetzwerk Kupferkomponenten,Zubehoer"
+            },
+            "E_E08B": {
+              "code": "E_E08B",
+              "name": "Datennetzwerk LWL Komponenten,Zubehoer"
+            }
+          }
+        },
+        "E_E09": {
+          "code": "E_E09",
+          "name": "Audo-Video-TV",
+          "produktgruppen": {
+            "E_E09A": {
+              "code": "E_E09A",
+              "name": "Lautsprecher und Radio"
+            },
+            "E_E09B": {
+              "code": "E_E09B",
+              "name": "Telefon-und Faxgeraete"
+            },
+            "E_E09C": {
+              "code": "E_E09C",
+              "name": "Unterhaltungselektronik"
+            }
+          }
+        },
+        "E_E10": {
+          "code": "E_E10",
+          "name": "Erneuerbare Energien (PV)",
+          "produktgruppen": {
+            "E_E10A": {
+              "code": "E_E10A",
+              "name": "Photovoltaik (PV)"
+            }
+          }
+        },
+        "E_E11": {
+          "code": "E_E11",
+          "name": "Sonstiges",
+          "produktgruppen": {
+            "E_E11A": {
+              "code": "E_E11A",
+              "name": "E11A"
+            }
+          }
+        },
+        "E_P01": {
+          "code": "E_P01",
+          "name": "P01",
+          "produktgruppen": {
+            "E_P01A": {
+              "code": "E_P01A",
+              "name": "Solarmodule"
+            }
+          }
+        },
+        "E_P03": {
+          "code": "E_P03",
+          "name": "P03",
+          "produktgruppen": {
+            "E_P03B": {
+              "code": "E_P03B",
+              "name": "Montagesysteme Flachdach"
+            }
+          }
+        },
+        "E_VK2": {
+          "code": "E_VK2",
+          "name": "VK2",
+          "produktgruppen": {
+            "E_VK2": {
+              "code": "E_VK2",
+              "name": "VK2"
+            }
+          }
+        }
+      }
+    },
+    "C": {
+      "code": "C",
+      "name": "Werkzeug",
+      "obergruppen": {
+        "C_W01": {
+          "code": "C_W01",
+          "name": "Bohr-, Zerspanwerkzeuge",
+          "produktgruppen": {
+            "C_W01A": {
+              "code": "C_W01A",
+              "name": "Bohrer"
+            },
+            "C_W01E": {
+              "code": "C_W01E",
+              "name": "Sägeblätter"
+            }
+          }
+        },
+        "C_W02": {
+          "code": "C_W02",
+          "name": "Messtechnik",
+          "produktgruppen": {
+            "C_W02F": {
+              "code": "C_W02F",
+              "name": "Maßstäbe, Lehren, Bandmaße"
+            },
+            "C_W02I": {
+              "code": "C_W02I",
+              "name": "Wasserwaagen"
+            }
+          }
+        },
+        "C_W03": {
+          "code": "C_W03",
+          "name": "Oberflächenbearbeitung",
+          "produktgruppen": {
+            "C_W03C": {
+              "code": "C_W03C",
+              "name": "Schleif-, Polierwerkzeuge"
+            },
+            "C_W03B": {
+              "code": "C_W03B",
+              "name": "Trenn-, Schruppscheiben"
+            }
+          }
+        },
+        "C_W04": {
+          "code": "C_W04",
+          "name": "Schraubwerkzeuge",
+          "produktgruppen": {
+            "C_W04E": {
+              "code": "C_W04E",
+              "name": "Schraubendreher"
+            },
+            "C_W04B": {
+              "code": "C_W04B",
+              "name": "Steckschlüssel"
+            }
+          }
+        },
+        "C_W05": {
+          "code": "C_W05",
+          "name": "Allgemeine Handwerkzeuge",
+          "produktgruppen": {
+            "C_W05A": {
+              "code": "C_W05A",
+              "name": "Zangen"
+            },
+            "C_W05D": {
+              "code": "C_W05D",
+              "name": "Hämmer, Schlag-, Stanzwerkzeuge"
+            }
+          }
+        },
+        "C_W06": {
+          "code": "C_W06",
+          "name": "Sanitärwerkzeuge",
+          "produktgruppen": {
+            "C_W06A": {
+              "code": "C_W06A",
+              "name": "Biegen"
+            },
+            "C_W06AZ": {
+              "code": "C_W06AZ",
+              "name": "Zubehör Biegen"
+            }
+          }
+        },
+        "C_W07": {
+          "code": "C_W07",
+          "name": "Löten & Schweißen",
+          "produktgruppen": {
+            "C_W07C": {
+              "code": "C_W07C",
+              "name": "Propantechnik"
+            },
+            "C_W07B": {
+              "code": "C_W07B",
+              "name": "Autogentechnik"
+            }
+          }
+        },
+        "C_W08": {
+          "code": "C_W08",
+          "name": "Werkstattbedarf, Betriebseinrichtungen",
+          "produktgruppen": {
+            "C_W08A": {
+              "code": "C_W08A",
+              "name": "Werkzeug Aufbewahrung"
+            },
+            "C_W08J": {
+              "code": "C_W08J",
+              "name": "Steigtechnik"
+            }
+          }
+        },
+        "C_W09": {
+          "code": "C_W09",
+          "name": "Arbeitsschutz",
+          "produktgruppen": {
+            "C_W09A": {
+              "code": "C_W09A",
+              "name": "Handschutz"
+            },
+            "C_W09B": {
+              "code": "C_W09B",
+              "name": "Kopf-, Augen-, Atem-, Gehörschutz"
+            }
+          }
+        },
+        "C_W10": {
+          "code": "C_W10",
+          "name": "Chemische, technische Produkte",
+          "produktgruppen": {
+            "C_W10A": {
+              "code": "C_W10A",
+              "name": "Klebe- & Dichttechnik"
+            },
+            "C_W10B": {
+              "code": "C_W10B",
+              "name": "Reinigungstechnik"
+            }
+          }
+        },
+        "C_W11": {
+          "code": "C_W11",
+          "name": "Akku-, Elektro-, Druckluftwerkzeug",
+          "produktgruppen": {
+            "C_W11A": {
+              "code": "C_W11A",
+              "name": "Akku-Maschinen"
+            }
+          }
+        }
+      }
+    },
+    "P": {
+      "code": "P",
+      "name": "Photovoltaik",
+      "obergruppen": {
+        "PV0010": {
+          "code": "PV0010",
+          "name": "Solarmodule",
+          "produktgruppen": {
+            "PV001010": {
+              "code": "PV001010",
+              "name": "Module"
+            }
+          }
+        },
+        "PV0020": {
+          "code": "PV0020",
+          "name": "Wechselrichter",
+          "produktgruppen": {
+            "PV002010": {
+              "code": "PV002010",
+              "name": "Hybridwechselrichter"
+            },
+            "PV002020": {
+              "code": "PV002020",
+              "name": "Wechselrichter PV"
+            },
+            "PV002030": {
+              "code": "PV002030",
+              "name": "Mikrowechselrichter"
+            }
+          }
+        },
+        "PV0030": {
+          "code": "PV0030",
+          "name": "Montagesysteme",
+          "produktgruppen": {
+            "PV003010": {
+              "code": "PV003010",
+              "name": "Montagesysteme Schrägdach"
+            },
+            "PV003020": {
+              "code": "PV003020",
+              "name": "Montagesysteme Flachdach"
+            }
+          }
+        },
+        "PV0040": {
+          "code": "PV0040",
+          "name": "Batteriemanagement",
+          "produktgruppen": {
+            "PV004010": {
+              "code": "PV004010",
+              "name": "Batteriemodule"
+            },
+            "PV004020": {
+              "code": "PV004020",
+              "name": "Batteriemanagement"
+            },
+            "PV004030": {
+              "code": "PV004030",
+              "name": "Batteriespeicher"
+            }
+          }
+        },
+        "PV0050": {
+          "code": "PV0050",
+          "name": "Photovoltaikanlagen",
+          "produktgruppen": {
+            "PV005010": {
+              "code": "PV005010",
+              "name": "Komplettanlagen"
+            },
+            "PV005020": {
+              "code": "PV005020",
+              "name": "Balkonkraftwerke"
+            }
+          }
+        },
+        "PV0060": {
+          "code": "PV0060",
+          "name": "Energiemanagement",
+          "produktgruppen": {
+            "PV006020": {
+              "code": "PV006020",
+              "name": "Leistungsoptimierer"
+            },
+            "PV006030": {
+              "code": "PV006030",
+              "name": "Datenlogger"
+            }
+          }
+        },
+        "PV0070": {
+          "code": "PV0070",
+          "name": "PV Zubehör",
+          "produktgruppen": {
+            "PV007010": {
+              "code": "PV007010",
+              "name": "Kabel, Stecker, Buchsen"
+            },
+            "PV007020": {
+              "code": "PV007020",
+              "name": "Generatorenanschlusskästen"
+            }
+          }
+        },
+        "PV0080": {
+          "code": "PV0080",
+          "name": "Elektromobilität",
+          "produktgruppen": {
+            "PV008010": {
+              "code": "PV008010",
+              "name": "Wallboxen"
+            },
+            "PV008020": {
+              "code": "PV008020",
+              "name": "Wallbox Zubehör"
+            }
+          }
+        }
+      }
+    },
+    "G": {
+      "code": "G",
+      "name": "Hausgeräte",
+      "obergruppen": {
+        "G_DA": {
+          "code": "G_DA",
+          "name": "Dunstabzug",
+          "produktgruppen": {
+            "G_DAH": {
+              "code": "G_DAH",
+              "name": "Dunstabzugshauben"
+            },
+            "000000014": {
+              "code": "000000014",
+              "name": "Zubehör Dunstabzug"
+            }
+          }
+        },
+        "G_GS": {
+          "code": "G_GS",
+          "name": "Geschirrspüler",
+          "produktgruppen": {
+            "000000031": {
+              "code": "000000031",
+              "name": "Tisch-/Kompakt-Geschirrspüler"
+            },
+            "000000030": {
+              "code": "000000030",
+              "name": "Einbau-Geschirrspüler, teilintegriert"
+            }
+          }
+        },
+        "G_GZ": {
+          "code": "G_GZ",
+          "name": "Getränkezubereitung",
+          "produktgruppen": {
+            "G_WK0": {
+              "code": "G_WK0",
+              "name": "Wasserkocher"
+            },
+            "G_TZU": {
+              "code": "G_TZU",
+              "name": "Teezubereitung"
+            }
+          }
+        },
+        "G_GG": {
+          "code": "G_GG",
+          "name": "Grillgeräte",
+          "produktgruppen": {
+            "G_GR0": {
+              "code": "G_GR0",
+              "name": "Grill"
+            },
+            "000000077": {
+              "code": "000000077",
+              "name": "Raclette"
+            },
+            "000000025": {
+              "code": "000000025",
+              "name": "Zubehör Grillgeräte"
+            }
+          }
+        },
+        "G_HP": {
+          "code": "G_HP",
+          "name": "Hauspflege",
+          "produktgruppen": {
+            "G_SS0": {
+              "code": "G_SS0",
+              "name": "Staubsauger"
+            },
+            "G_REI": {
+              "code": "G_REI",
+              "name": "Reinigungsgeräte"
+            },
+            "000000018": {
+              "code": "000000018",
+              "name": "Zubehör Hauspflege"
+            }
+          }
+        },
+        "G_HL": {
+          "code": "G_HL",
+          "name": "Healthcare & Lifestyle",
+          "produktgruppen": {
+            "000000110": {
+              "code": "000000110",
+              "name": "Schmiegsame Wärme"
+            },
+            "G_SLS": {
+              "code": "G_SLS",
+              "name": "Lifestyleprodukte"
+            }
+          }
+        },
+        "00003": {
+          "code": "00003",
+          "name": "Kaffeezubereitung",
+          "produktgruppen": {
+            "000000023": {
+              "code": "000000023",
+              "name": "Kapselmaschinen-/ Padautomaten"
+            },
+            "000000009": {
+              "code": "000000009",
+              "name": "Filterkaffeemaschinen"
+            }
+          }
+        },
+        "G_KO": {
+          "code": "G_KO",
+          "name": "Koch-, Back-, & Gargeräte",
+          "produktgruppen": {
+            "G_KF0": {
+              "code": "G_KF0",
+              "name": "Kochfelder"
+            },
+            "000000097": {
+              "code": "000000097",
+              "name": "Kochtöpfe"
+            }
+          }
+        },
+        "G_KP": {
+          "code": "G_KP",
+          "name": "Körperpflege",
+          "produktgruppen": {
+            "G_KOS": {
+              "code": "G_KOS",
+              "name": "Kosmetikprodukte"
+            },
+            "000000083": {
+              "code": "000000083",
+              "name": "Haartrockner/ Haarstyler"
+            }
+          }
+        },
+        "G_KK": {
+          "code": "G_KK",
+          "name": "Küchenkleingeräte",
+          "produktgruppen": {
+            "000000086": {
+              "code": "000000086",
+              "name": "Zerkleinerer"
+            },
+            "G_RM0": {
+              "code": "G_RM0",
+              "name": "Rühr-/Mixgeräte"
+            }
+          }
+        },
+        "00018": {
+          "code": "00018",
+          "name": "Kühlen & Gefrieren",
+          "produktgruppen": {
+            "000000099": {
+              "code": "000000099",
+              "name": "Gefriergerät"
+            },
+            "000000104": {
+              "code": "000000104",
+              "name": "Zubehör Kühlen & Gefrieren"
+            }
+          }
+        },
+        "G_RK": {
+          "code": "G_RK",
+          "name": "Raumklima",
+          "produktgruppen": {
+            "G_LVE": {
+              "code": "G_LVE",
+              "name": "Luftveränderung"
+            },
+            "G_KG1": {
+              "code": "G_KG1",
+              "name": "Klimageräte"
+            }
+          }
+        },
+        "G_WP": {
+          "code": "G_WP",
+          "name": "Wäschepflege",
+          "produktgruppen": {
+            "G_BUE": {
+              "code": "G_BUE",
+              "name": "Bügelprodukte"
+            },
+            "000000050": {
+              "code": "000000050",
+              "name": "Zubehör Wäschepflege"
+            }
+          }
+        },
+        "00007": {
+          "code": "00007",
+          "name": "Wäschetrockner",
+          "produktgruppen": {
+            "000000053": {
+              "code": "000000053",
+              "name": "Kondenstrockner"
+            },
+            "000000052": {
+              "code": "000000052",
+              "name": "Ablufttrockner"
+            }
+          }
+        },
+        "00008": {
+          "code": "00008",
+          "name": "Waschmaschinen",
+          "produktgruppen": {
+            "000000056": {
+              "code": "000000056",
+              "name": "Frontlader"
+            },
+            "000000055": {
+              "code": "000000055",
+              "name": "Einbauwaschmaschinen"
+            }
+          }
+        },
+        "00019": {
+          "code": "00019",
+          "name": "Grossküchen Geräte",
+          "produktgruppen": {
+            "000000112": {
+              "code": "000000112",
+              "name": "Gartechnik"
+            },
+            "000000113": {
+              "code": "000000113",
+              "name": "Pizza / Pasta"
+            }
+          }
+        }
+      }
+    },
+    "M": {
+      "code": "M",
+      "name": "Befestigungstechnik",
+      "obergruppen": {
+        "M_040": {
+          "code": "M_040",
+          "name": "metrische Schrauben & Zubehör",
+          "produktgruppen": {
+            "M_0401": {
+              "code": "M_0401",
+              "name": "Maschinenschrauben"
+            },
+            "M_0402": {
+              "code": "M_0402",
+              "name": "Stahlschrauben"
+            }
+          }
+        },
+        "M_050": {
+          "code": "M_050",
+          "name": "Holzschrauben",
+          "produktgruppen": {
+            "M_0501": {
+              "code": "M_0501",
+              "name": "Schlüsselschrauben"
+            },
+            "M_0502": {
+              "code": "M_0502",
+              "name": "Spanplattenschrauben"
+            }
+          }
+        },
+        "M_061": {
+          "code": "M_061",
+          "name": "sonstige Schrauben",
+          "produktgruppen": {
+            "M_0601": {
+              "code": "M_0601",
+              "name": "Bohrschrauben, Blechschauben"
+            },
+            "M_0603": {
+              "code": "M_0603",
+              "name": "Stockschrauben, Einschlag-Stockschrauben"
+            }
+          }
+        },
+        "M0090": {
+          "code": "M0090",
+          "name": "Drahtstifte & Schlaufen",
+          "produktgruppen": {
+            "M_0901": {
+              "code": "M_0901",
+              "name": "Drahtstifte"
+            },
+            "M_0902": {
+              "code": "M_0902",
+              "name": "Schlaufen"
+            }
+          }
+        },
+        "M_070": {
+          "code": "M_070",
+          "name": "Verbindungstechnik",
+          "produktgruppen": {
+            "M_0701": {
+              "code": "M_0701",
+              "name": "Blindniettechnik"
+            },
+            "M_0702": {
+              "code": "M_0702",
+              "name": "Drahtseile & Zubehör"
+            },
+            "M_0703": {
+              "code": "M_0703",
+              "name": "Federstecker, Klappstecker"
+            }
+          }
+        },
+        "M_080": {
+          "code": "M_080",
+          "name": "Dübeltechnik",
+          "produktgruppen": {
+            "M_0801": {
+              "code": "M_0801",
+              "name": "Kunststoffdübel"
+            },
+            "M_0802": {
+              "code": "M_0802",
+              "name": "Metalldübel"
+            }
+          }
+        }
+      }
+    }
+  }
+}

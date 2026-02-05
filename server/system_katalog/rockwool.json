@@ -1,4 +1,5 @@
 {
+  "hersteller": "Rockwool",
   "products": [
     {
       "Artikel": "ETA+E38654",
@@ -7977,6 +7978,6 @@
   "metadata": {
     "total": 469,
     "source": "Heinrich Schmidt OnlinePro (CSV Export)",
-    "exported_at": "2026-02-05 06:50:12"
+    "exported_at": "2026-02-05 09:48:50"
   }
 }

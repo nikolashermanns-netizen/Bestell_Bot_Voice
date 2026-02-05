@@ -1,4 +1,5 @@
 {
+  "hersteller": "Syr",
   "products": [
     {
       "Artikel": "FIL+OPDFRP",
@@ -9609,6 +9610,6 @@
   "metadata": {
     "total": 565,
     "source": "Heinrich Schmidt OnlinePro (CSV Export)",
-    "exported_at": "2026-02-05 06:49:54"
+    "exported_at": "2026-02-05 09:46:27"
   }
 }

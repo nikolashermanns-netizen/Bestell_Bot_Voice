@@ -1,4 +1,5 @@
 {
+  "hersteller": "Junkers",
   "products": [
     {
       "Artikel": "WO+Z8600418",
@@ -31029,6 +31030,6 @@
   "metadata": {
     "total": 1825,
     "source": "Heinrich Schmidt OnlinePro (CSV Export)",
-    "exported_at": "2026-02-05 06:44:50"
+    "exported_at": "2026-02-05 09:42:42"
   }
 }

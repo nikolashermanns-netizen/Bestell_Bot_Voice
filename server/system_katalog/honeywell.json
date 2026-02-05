@@ -1,4 +1,5 @@
 {
+  "hersteller": "Honeywell",
   "products": [
     {
       "Artikel": "ABVK+2601I007",
@@ -18279,6 +18280,6 @@
   "metadata": {
     "total": 1075,
     "source": "Heinrich Schmidt OnlinePro (CSV Export)",
-    "exported_at": "2026-02-05 06:45:49"
+    "exported_at": "2026-02-05 09:45:17"
   }
 }

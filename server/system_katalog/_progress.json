@@ -1,9 +1,9 @@
 {
-  "products_collected": 10375,
+  "products_collected": 25261,
   "stats": {
-    "searches": 17,
-    "products_found": 19608,
-    "duplicates_skipped": 1457
+    "searches": 46,
+    "products_found": 53514,
+    "duplicates_skipped": 14744
   },
-  "last_update": "2026-02-05 09:25:14"
+  "last_update": "2026-02-05 09:28:55"
 }

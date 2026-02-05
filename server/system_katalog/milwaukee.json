@@ -1,4 +1,5 @@
 {
+  "hersteller": "Milwaukee",
   "products": [
     {
       "Artikel": "CMIL-4932430912",
@@ -166,6 +167,23 @@
       "VK-Preis": "112,00",
       "EK-Preis (gesamt)": "58,24",
       "VK-Preis (gesamt)": "112,00",
+      "Eigene Artikel-Nr": "",
+      "Kommentar": "",
+      "": ""
+    },
+    {
+      "Artikel": "CMIL-M12PCSSSET",
+      "Menge": "1",
+      "Bezeichnung 1": "Milwaukee Akku Edelst. Rohrschneider M12",
+      "Bezeichnung 2": "2x12V 2,0AH + Entgrater und Markierstift",
+      "Werksnummer": "4933500109",
+      "EAN": "",
+      "ME": "Stück",
+      "PE": "1",
+      "EK-Preis": "301,76",
+      "VK-Preis": "328,00",
+      "EK-Preis (gesamt)": "301,76",
+      "VK-Preis (gesamt)": "328,00",
       "Eigene Artikel-Nr": "",
       "Kommentar": "",
       "": ""
@@ -540,23 +558,6 @@
       "VK-Preis": "154,00",
       "EK-Preis (gesamt)": "141,68",
       "VK-Preis (gesamt)": "154,00",
-      "Eigene Artikel-Nr": "",
-      "Kommentar": "",
-      "": ""
-    },
-    {
-      "Artikel": "CMIL-M12PCSSSET",
-      "Menge": "1",
-      "Bezeichnung 1": "Milwaukee Akku Edelst. Rohrschneider M12",
-      "Bezeichnung 2": "2x12V 2,0AH + Entgrater und Markierstift",
-      "Werksnummer": "4933500109",
-      "EAN": "",
-      "ME": "Stück",
-      "PE": "1",
-      "EK-Preis": "301,76",
-      "VK-Preis": "328,00",
-      "EK-Preis (gesamt)": "301,76",
-      "VK-Preis (gesamt)": "328,00",
       "Eigene Artikel-Nr": "",
       "Kommentar": "",
       "": ""
@@ -33902,6 +33903,6 @@
   "metadata": {
     "total": 1994,
     "source": "Heinrich Schmidt OnlinePro (CSV Export)",
-    "exported_at": "2026-02-05 06:48:07"
+    "exported_at": "2026-02-05 09:48:28"
   }
 }

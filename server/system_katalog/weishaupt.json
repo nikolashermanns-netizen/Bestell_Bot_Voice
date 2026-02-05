@@ -1,4 +1,5 @@
 {
+  "hersteller": "Weishaupt",
   "products": [
     {
       "Artikel": "WE+E601857",
@@ -24433,6 +24434,6 @@
   "metadata": {
     "total": 1437,
     "source": "Heinrich Schmidt OnlinePro (CSV Export)",
-    "exported_at": "2026-02-05 06:44:57"
+    "exported_at": "2026-02-05 09:42:49"
   }
 }

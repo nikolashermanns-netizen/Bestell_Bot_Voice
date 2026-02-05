@@ -102,11 +102,11 @@ class SchmidtScraper:
             login_page.raise_for_status()
             
             # Login-Formular absenden
+            # Feldnamen: KME = Kundenkennung, Kennwort = Passwort
             login_data = {
-                "Benutzer": self.username,
+                "KME": self.username,
                 "Kennwort": self.password,
-                "Dauerhaft": "",
-                "Aktion": "Anmelden"
+                "FlagAngemeldetBleiben": "",
             }
             
             response = self.session.post(
@@ -139,28 +139,23 @@ class SchmidtScraper:
             logger.error(f"Login-Fehler: {e}")
             return False
     
-    def search_products(self, search_term: str = "", page: int = 1, items_per_page: int = 100) -> tuple[list[dict], int]:
+    def search_products_init(self, search_term: str) -> tuple[str, str, int]:
         """
-        Sucht Produkte.
+        Initialisiert eine Suche und gibt die Such-IDs zurück.
         
         Args:
-            search_term: Suchbegriff (leer = alle)
-            page: Seitennummer (1-basiert)
-            items_per_page: Artikel pro Seite
+            search_term: Suchbegriff
             
         Returns:
-            Tuple von (Liste von Produkt-Grunddaten, Gesamtanzahl Treffer)
+            Tuple von (SucheLID, SucheID, Gesamtanzahl Treffer)
         """
         if not self.logged_in:
             raise RuntimeError("Nicht eingeloggt")
         
-        # Suchanfrage
         params = {
             "Suchstring": search_term,
             "SuchstringHUSOLR7ID": "",
             "SuchstringSelect": "1",
-            "Seite": str(page),
-            "ArtikelJeSeite": str(items_per_page)
         }
         
         url = urljoin(self.BASE_URL, self.SEARCH_URL) + "?" + urlencode(params)
@@ -169,37 +164,64 @@ class SchmidtScraper:
             response = self.session.get(url)
             response.raise_for_status()
             
-            soup = BeautifulSoup(response.text, "html.parser")
+            # Such-IDs extrahieren
+            suche_lid_match = re.search(r"SucheLID=(\d+)", response.text)
+            suche_id_match = re.search(r"SucheID=(\d+)", response.text)
+            
+            suche_lid = suche_lid_match.group(1) if suche_lid_match else ""
+            suche_id = suche_id_match.group(1) if suche_id_match else ""
             
             # Gesamtanzahl Treffer extrahieren
             total_hits = 0
-            hits_text = soup.find(string=re.compile(r"Ihre Suche ergab \d+ Treffer"))
-            if hits_text:
-                match = re.search(r"(\d+(?:\.\d+)?)\s*Treffer", hits_text)
-                if match:
-                    total_hits = int(match.group(1).replace(".", ""))
+            hits_match = re.search(r"Ihre Suche ergab (\d+(?:\.\d+)?)\s*Treffer", response.text)
+            if hits_match:
+                total_hits = int(hits_match.group(1).replace(".", ""))
             
-            # Produkte aus der Liste extrahieren
+            logger.info(f"Suche initialisiert: '{search_term}' -> {total_hits} Treffer (LID={suche_lid}, ID={suche_id})")
+            return suche_lid, suche_id, total_hits
+            
+        except requests.RequestException as e:
+            logger.error(f"Such-Init-Fehler: {e}")
+            return "", "", 0
+    
+    def search_products_page(self, suche_lid: str, suche_id: str, page: int) -> list[dict]:
+        """
+        Lädt eine Seite der Suchergebnisse.
+        
+        Args:
+            suche_lid: SucheLID aus der initialen Suche
+            suche_id: SucheID aus der initialen Suche
+            page: Seitennummer (1-basiert)
+            
+        Returns:
+            Liste von Produkt-Grunddaten
+        """
+        if not self.logged_in:
+            raise RuntimeError("Nicht eingeloggt")
+        
+        url = f"{self.BASE_URL}/hs/artikelsuche.csp?SucheLID={suche_lid}&HIndex=0&SucheID={suche_id}&SucheSeite={page}"
+        
+        try:
+            response = self.session.get(url)
+            response.raise_for_status()
+            
+            soup = BeautifulSoup(response.text, "html.parser")
+            
             products = []
+            article_links = soup.find_all("a", href=re.compile(r"artikelauskunft\.csp\?Artikel="))
             
-            # Artikel-Karten finden
-            article_cards = soup.find_all("div", class_=re.compile(r"artikel-card|product-card|article-item"))
-            
-            # Fallback: Links zu Artikelauskunft finden
-            if not article_cards:
-                article_links = soup.find_all("a", href=re.compile(r"artikelauskunft\.csp\?Artikel="))
-                for link in article_links:
-                    href = link.get("href", "")
-                    artikel_match = re.search(r"Artikel=([^&]+)", href)
-                    if artikel_match:
-                        artikel_nr = artikel_match.group(1).replace("%2B", "+")
-                        name = link.get_text(strip=True)
-                        if name and artikel_nr and len(name) > 3:
-                            products.append({
-                                "artikel_nr": artikel_nr,
-                                "name": name,
-                                "url": urljoin(self.BASE_URL, href)
-                            })
+            for link in article_links:
+                href = link.get("href", "")
+                artikel_match = re.search(r"Artikel=([^&]+)", href)
+                if artikel_match:
+                    artikel_nr = artikel_match.group(1).replace("%2B", "+")
+                    name = link.get_text(strip=True)
+                    if name and artikel_nr and len(name) > 5:
+                        products.append({
+                            "artikel_nr": artikel_nr,
+                            "name": name,
+                            "url": urljoin(self.BASE_URL, href)
+                        })
             
             # Duplikate entfernen
             seen = set()
@@ -209,12 +231,22 @@ class SchmidtScraper:
                     seen.add(p["artikel_nr"])
                     unique_products.append(p)
             
-            logger.info(f"Seite {page}: {len(unique_products)} Produkte gefunden (Gesamt: {total_hits})")
-            return unique_products, total_hits
+            return unique_products
             
         except requests.RequestException as e:
-            logger.error(f"Suchfehler: {e}")
+            logger.error(f"Seiten-Fehler für Seite {page}: {e}")
+            return []
+    
+    def search_products(self, search_term: str = "", page: int = 1, items_per_page: int = 100) -> tuple[list[dict], int]:
+        """
+        Sucht Produkte (Legacy-Methode für Kompatibilität).
+        """
+        suche_lid, suche_id, total_hits = self.search_products_init(search_term)
+        if not suche_lid or not suche_id:
             return [], 0
+        
+        products = self.search_products_page(suche_lid, suche_id, page)
+        return products, total_hits
     
     def get_product_details(self, artikel_nr: str) -> Optional[Product]:
         """
@@ -328,12 +360,12 @@ class SchmidtScraper:
             return None
     
     def scrape_products(self, search_term: str = "", max_products: int = 1000, 
-                       delay: float = 0.5, fetch_details: bool = False) -> list[Product]:
+                       delay: float = 0.3, fetch_details: bool = False) -> list[Product]:
         """
         Scrapt Produkte mit Paginierung.
         
         Args:
-            search_term: Suchbegriff
+            search_term: Suchbegriff (z.B. "Viega", "Geberit", etc.)
             max_products: Maximale Anzahl zu scrapender Produkte
             delay: Verzögerung zwischen Requests (in Sekunden)
             fetch_details: Ob Detailseiten geladen werden sollen
@@ -345,20 +377,36 @@ class SchmidtScraper:
             if not self.login():
                 return []
         
+        # Suche initialisieren
+        suche_lid, suche_id, total_hits = self.search_products_init(search_term)
+        
+        if not suche_lid or not suche_id:
+            logger.error("Konnte Suche nicht initialisieren")
+            return []
+        
         self.products = []
+        seen_artikel_nrs = set()
         page = 1
-        items_per_page = 100  # Maximale Anzahl pro Seite
+        max_pages = (min(max_products, total_hits) // 12) + 1  # 12 Artikel pro Seite
+        
+        logger.info(f"Starte Scraping: {total_hits} Treffer verfügbar, max {max_products} angefordert")
         
         while len(self.products) < max_products:
-            products_basic, total_hits = self.search_products(search_term, page, items_per_page)
+            products_basic = self.search_products_page(suche_lid, suche_id, page)
             
             if not products_basic:
-                logger.info("Keine weiteren Produkte gefunden")
+                logger.info(f"Seite {page}: Keine Produkte mehr gefunden")
                 break
             
+            new_count = 0
             for p in products_basic:
                 if len(self.products) >= max_products:
                     break
+                
+                # Duplikate überspringen
+                if p["artikel_nr"] in seen_artikel_nrs:
+                    continue
+                seen_artikel_nrs.add(p["artikel_nr"])
                 
                 if fetch_details:
                     # Detailseite laden
@@ -366,6 +414,7 @@ class SchmidtScraper:
                     product = self.get_product_details(p["artikel_nr"])
                     if product:
                         self.products.append(product)
+                        new_count += 1
                 else:
                     # Nur Grunddaten
                     product = Product(
@@ -375,20 +424,23 @@ class SchmidtScraper:
                         werks_nr=""
                     )
                     self.products.append(product)
-                
-                if len(self.products) % 50 == 0:
-                    logger.info(f"Fortschritt: {len(self.products)}/{max_products} Produkte")
+                    new_count += 1
             
-            # Prüfen ob es noch mehr Seiten gibt
-            if len(products_basic) < items_per_page:
+            logger.info(f"Seite {page}: {new_count} neue Produkte (Gesamt: {len(self.products)})")
+            
+            # Prüfen ob Fortschritt gemacht wurde
+            if new_count == 0:
+                logger.info("Keine neuen Produkte mehr, beende")
                 break
-            if page * items_per_page >= total_hits:
+            
+            # Prüfen ob wir das Maximum erreicht haben
+            if page >= max_pages or len(self.products) >= total_hits:
                 break
                 
             page += 1
             time.sleep(delay)
         
-        logger.info(f"Scraping abgeschlossen: {len(self.products)} Produkte")
+        logger.info(f"Scraping abgeschlossen: {len(self.products)} Produkte in {page} Seiten")
         return self.products
     
     def save_to_json(self, filepath: str, group_by: str = "hersteller"):
@@ -468,12 +520,20 @@ def load_credentials() -> tuple[str, str]:
 
 
 if __name__ == "__main__":
-    # Test: Erste 1000 Produkte scrapen
+    import sys
+    
+    # Argumente parsen
+    search_term = sys.argv[1] if len(sys.argv) > 1 else "Viega"
+    max_products = int(sys.argv[2]) if len(sys.argv) > 2 else 1000
+    
+    # Zugangsdaten laden
     username, password = load_credentials()
     
     if not username or not password:
         print("Fehler: Zugangsdaten nicht gefunden!")
         exit(1)
+    
+    print(f"Starte Scraping für '{search_term}' (max {max_products} Produkte)...")
     
     scraper = SchmidtScraper(username, password)
     
@@ -484,8 +544,8 @@ if __name__ == "__main__":
     
     # Produkte scrapen (ohne Details für schnelleren Test)
     products = scraper.scrape_products(
-        search_term="",  # Alle Produkte
-        max_products=1000,
+        search_term=search_term,
+        max_products=max_products,
         delay=0.3,
         fetch_details=False  # Nur Grunddaten für schnelleren Test
     )
@@ -496,3 +556,8 @@ if __name__ == "__main__":
     
     print(f"\nErfolgreich {len(products)} Produkte gescrapet!")
     print(f"Gespeichert unter: {output_path}")
+    
+    # Beispielprodukte anzeigen
+    print("\nBeispielprodukte:")
+    for p in products[:5]:
+        print(f"  - [{p.artikel_nr}] {p.name}")

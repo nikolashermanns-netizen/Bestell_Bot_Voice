@@ -1,4 +1,5 @@
 {
+  "hersteller": "REMS",
   "products": [
     {
       "Artikel": "PKH+OP25",
@@ -33817,6 +33818,6 @@
   "metadata": {
     "total": 1989,
     "source": "Heinrich Schmidt OnlinePro (CSV Export)",
-    "exported_at": "2026-02-05 06:47:03"
+    "exported_at": "2026-02-05 09:47:36"
   }
 }

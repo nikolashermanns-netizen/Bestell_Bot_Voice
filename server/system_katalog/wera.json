@@ -1,4 +1,5 @@
 {
+  "hersteller": "Wera",
   "products": [
     {
       "Artikel": "OHK+VSL185",
@@ -33987,6 +33988,6 @@
   "metadata": {
     "total": 1999,
     "source": "Heinrich Schmidt OnlinePro (CSV Export)",
-    "exported_at": "2026-02-05 06:47:31"
+    "exported_at": "2026-02-05 09:48:05"
   }
 }

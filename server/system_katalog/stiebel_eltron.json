@@ -1,4 +1,5 @@
 {
+  "hersteller": "Stiebel Eltron",
   "products": [
     {
       "Artikel": "STI+DHBE182124",
@@ -18823,6 +18824,6 @@
   "metadata": {
     "total": 1107,
     "source": "Heinrich Schmidt OnlinePro (CSV Export)",
-    "exported_at": "2026-02-05 06:48:42"
+    "exported_at": "2026-02-05 09:43:14"
   }
 }

@@ -1,4 +1,5 @@
 {
+  "hersteller": "Knipex",
   "products": [
     {
       "Artikel": "CKNI-7006160",
@@ -27612,6 +27613,6 @@
   "metadata": {
     "total": 1624,
     "source": "Heinrich Schmidt OnlinePro (CSV Export)",
-    "exported_at": "2026-02-05 06:47:20"
+    "exported_at": "2026-02-05 09:47:53"
   }
 }

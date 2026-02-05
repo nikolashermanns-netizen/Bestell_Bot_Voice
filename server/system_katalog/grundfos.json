@@ -1,4 +1,5 @@
 {
+  "hersteller": "Grundfos",
   "products": [
     {
       "Artikel": "HKV+OPRGVA1306",
@@ -33766,6 +33767,6 @@
   "metadata": {
     "total": 1986,
     "source": "Heinrich Schmidt OnlinePro (CSV Export)",
-    "exported_at": "2026-02-05 06:46:00"
+    "exported_at": "2026-02-05 09:45:58"
   }
 }

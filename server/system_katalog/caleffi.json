@@ -1,4 +1,5 @@
 {
+  "hersteller": "Caleffi",
   "products": [
     {
       "Artikel": "DAI+E5020323",
@@ -1976,6 +1977,6 @@
   "metadata": {
     "total": 116,
     "source": "Heinrich Schmidt OnlinePro (CSV Export)",
-    "exported_at": "2026-02-05 06:48:58"
+    "exported_at": "2026-02-05 09:45:32"
   }
 }

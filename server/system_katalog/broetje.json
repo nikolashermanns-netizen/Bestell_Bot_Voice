@@ -1,4 +1,5 @@
 {
+  "hersteller": "Brötje",
   "products": [
     {
       "Artikel": "OAG+UST110150D",
@@ -55,6 +56,6 @@
   "metadata": {
     "total": 3,
     "source": "Heinrich Schmidt OnlinePro (CSV Export)",
-    "exported_at": "2026-02-05 06:44:58"
+    "exported_at": "2026-02-05 09:42:51"
   }
 }

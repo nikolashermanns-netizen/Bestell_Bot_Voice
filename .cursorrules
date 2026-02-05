@@ -411,14 +411,29 @@ docker-compose logs -f
 
 ## Server Deployment (WICHTIG!)
 
-### IMMER via Git deployen!
+### IMMER via Deployment-Script deployen!
 
 **NIEMALS Dateien direkt via SCP auf den Server kopieren!**
-Der Server hat ein Git-Repository unter `~/bestell-bot-voice`.
-Deployment erfolgt IMMER über:
-1. Lokaler Commit + Push
-2. Git Pull auf dem Server
-3. Docker Rebuild
+Der Server hat ein Git-Repository unter `/home/nikolas/bestell-bot-voice`.
+
+### Deployment-Script verwenden
+
+```powershell
+# Mit Commit und Message:
+.\deploy.ps1 -Message "feat: Beschreibung der Änderung"
+
+# Nur deployen (Änderungen bereits committed):
+.\deploy.ps1
+
+# Nur Code aktualisieren ohne Docker Rebuild:
+.\deploy.ps1 -SkipBuild
+```
+
+Das Script macht automatisch:
+1. Git add, commit, push (wenn `-Message` angegeben)
+2. SSH zum Server → git pull
+3. Docker stop, rm, build, run
+4. Status-Check
 
 ### SSH-Zugang
 
@@ -429,7 +444,7 @@ ssh bot  # SSH-Alias für den Produktionsserver (10.200.200.1)
 **ACHTUNG:** `ssh root@10.200.200.1` funktioniert NICHT (Port 22 blockiert).
 Nutze IMMER den SSH-Alias `bot`.
 
-### Deployment-Schritte (Standard-Workflow)
+### Manuelles Deployment (falls Script nicht verfügbar)
 
 1. **Änderungen committen und pushen:**
 ```bash
@@ -440,17 +455,12 @@ git push origin master
 
 2. **Auf Server pullen:**
 ```bash
-ssh bot "cd ~/bestell-bot-voice && git pull origin master"
-```
-
-Falls lokale Änderungen auf dem Server existieren:
-```bash
-ssh bot "cd ~/bestell-bot-voice && git checkout -- . && git pull origin master"
+ssh bot "cd /home/nikolas/bestell-bot-voice && git checkout -- . && git reset --hard origin/master && git pull origin master"
 ```
 
 3. **Docker Container neu bauen und starten:**
 ```bash
-ssh bot "docker stop bestell-bot-voice; docker rm bestell-bot-voice; cd ~/bestell-bot-voice/server && docker build -t server_bestell-bot . && docker run -d --name bestell-bot-voice --network host --env-file .env -v /home/nikolas/bestell-bot-voice/server/config:/app/config -v /home/nikolas/bestell-bot-voice/server/system_katalog:/app/system_katalog server_bestell-bot"
+ssh bot "docker stop bestell-bot-voice; docker rm bestell-bot-voice; cd /home/nikolas/bestell-bot-voice/server && docker build -t server_bestell-bot . && docker run -d --name bestell-bot-voice --network host --env-file .env -v /home/nikolas/bestell-bot-voice/server/config:/app/config -v /home/nikolas/bestell-bot-voice/server/system_katalog:/app/system_katalog server_bestell-bot"
 ```
 
 4. **Status prüfen:**
@@ -459,20 +469,13 @@ ssh bot "docker logs --tail 30 bestell-bot-voice"
 ssh bot "curl -s http://localhost:8085/status"
 ```
 
-### Einzeiler für komplettes Deployment
-
-```bash
-# Alles in einem Befehl (nach git push)
-ssh bot "cd ~/bestell-bot-voice && git checkout -- . && git pull origin master && docker stop bestell-bot-voice; docker rm bestell-bot-voice; cd server && docker build -t server_bestell-bot . && docker run -d --name bestell-bot-voice --network host --env-file .env -v /home/nikolas/bestell-bot-voice/server/config:/app/config -v /home/nikolas/bestell-bot-voice/server/system_katalog:/app/system_katalog server_bestell-bot"
-```
-
 ### Server-Pfade
 
 | Pfad | Beschreibung |
 |------|--------------|
-| `~/bestell-bot-voice/` | Git Repository Root auf dem Server |
-| `~/bestell-bot-voice/server/` | Server-Code |
-| `~/bestell-bot-voice/server/.env` | Environment Variables |
+| `/home/nikolas/bestell-bot-voice/` | Git Repository Root auf dem Server |
+| `/home/nikolas/bestell-bot-voice/server/` | Server-Code |
+| `/home/nikolas/bestell-bot-voice/server/.env` | Environment Variables |
 | `/app/config/config.json` | Persistente Config (im Container) |
 | `/app/system_katalog/` | Katalog-Dateien (im Container, gemountet) |
 | `http://localhost:8085/` | API im Container |

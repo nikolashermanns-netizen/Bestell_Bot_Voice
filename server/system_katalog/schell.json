@@ -1,4 +1,5 @@
 {
+  "hersteller": "Schell",
   "products": [
     {
       "Artikel": "GAV+OP10EV",
@@ -32865,6 +32866,6 @@
   "metadata": {
     "total": 1933,
     "source": "Heinrich Schmidt OnlinePro (CSV Export)",
-    "exported_at": "2026-02-05 06:49:49"
+    "exported_at": "2026-02-05 09:40:10"
   }
 }

@@ -1,4 +1,5 @@
 {
+  "hersteller": "Grünbeck",
   "products": [
     {
       "Artikel": "FILE+FS2582",
@@ -4509,6 +4510,6 @@
   "metadata": {
     "total": 265,
     "source": "Heinrich Schmidt OnlinePro (CSV Export)",
-    "exported_at": "2026-02-05 06:49:59"
+    "exported_at": "2026-02-05 09:46:33"
   }
 }

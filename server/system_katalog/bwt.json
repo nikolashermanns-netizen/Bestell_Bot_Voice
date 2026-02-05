@@ -1,4 +1,5 @@
 {
+  "hersteller": "BWT",
   "products": [
     {
       "Artikel": "REM+DBWT",
@@ -6226,6 +6227,6 @@
   "metadata": {
     "total": 366,
     "source": "Heinrich Schmidt OnlinePro (CSV Export)",
-    "exported_at": "2026-02-05 06:49:57"
+    "exported_at": "2026-02-05 09:46:30"
   }
 }

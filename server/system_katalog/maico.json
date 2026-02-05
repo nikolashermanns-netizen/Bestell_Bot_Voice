@@ -1,4 +1,5 @@
 {
+  "hersteller": "Maico",
   "products": [
     {
       "Artikel": "MA+PP45AKR",
@@ -31454,6 +31455,6 @@
   "metadata": {
     "total": 1850,
     "source": "Heinrich Schmidt OnlinePro (CSV Export)",
-    "exported_at": "2026-02-05 06:46:42"
+    "exported_at": "2026-02-05 09:47:00"
   }
 }

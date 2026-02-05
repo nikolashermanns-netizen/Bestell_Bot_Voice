@@ -1,4 +1,5 @@
 {
+  "hersteller": "Villeroy Boch",
   "products": [
     {
       "Artikel": "WT+VERL80",
@@ -33681,6 +33682,6 @@
   "metadata": {
     "total": 1981,
     "source": "Heinrich Schmidt OnlinePro (CSV Export)",
-    "exported_at": "2026-02-05 06:43:26"
+    "exported_at": "2026-02-05 09:37:36"
   }
 }

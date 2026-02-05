@@ -1,4 +1,5 @@
 {
+  "hersteller": "Resideo",
   "products": [
     {
       "Artikel": "UNI+ESAT81210",
@@ -17565,6 +17566,6 @@
   "metadata": {
     "total": 1033,
     "source": "Heinrich Schmidt OnlinePro (CSV Export)",
-    "exported_at": "2026-02-05 06:49:26"
+    "exported_at": "2026-02-05 09:45:30"
   }
 }

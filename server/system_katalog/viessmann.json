@@ -1,4 +1,5 @@
 {
+  "hersteller": "Viessmann",
   "products": [
     {
       "Artikel": "OAG+AD0805",
@@ -89,6 +90,6 @@
   "metadata": {
     "total": 5,
     "source": "Heinrich Schmidt OnlinePro (CSV Export)",
-    "exported_at": "2026-02-05 06:44:05"
+    "exported_at": "2026-02-05 09:41:58"
   }
 }

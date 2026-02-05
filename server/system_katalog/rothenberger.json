@@ -1,4 +1,5 @@
 {
+  "hersteller": "Rothenberger",
   "products": [
     {
       "Artikel": "CROT-70123X",
@@ -33953,6 +33954,6 @@
   "metadata": {
     "total": 1997,
     "source": "Heinrich Schmidt OnlinePro (CSV Export)",
-    "exported_at": "2026-02-05 06:46:52"
+    "exported_at": "2026-02-05 09:47:25"
   }
 }

@@ -1,4 +1,5 @@
 {
+  "hersteller": "Danfoss",
   "products": [
     {
       "Artikel": "DAI+E5004889",
@@ -24875,6 +24876,6 @@
   "metadata": {
     "total": 1463,
     "source": "Heinrich Schmidt OnlinePro (CSV Export)",
-    "exported_at": "2026-02-05 06:45:42"
+    "exported_at": "2026-02-05 09:45:11"
   }
 }

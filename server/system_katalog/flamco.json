@@ -1,4 +1,5 @@
 {
+  "hersteller": "Flamco",
   "products": [
     {
       "Artikel": "WO+E2483383",
@@ -7127,6 +7128,6 @@
   "metadata": {
     "total": 419,
     "source": "Heinrich Schmidt OnlinePro (CSV Export)",
-    "exported_at": "2026-02-05 06:49:10"
+    "exported_at": "2026-02-05 09:45:39"
   }
 }

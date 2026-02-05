@@ -1,4 +1,5 @@
 {
+  "hersteller": "Buderus",
   "products": [
     {
       "Artikel": "BO+E87181070760",
@@ -31046,6 +31047,6 @@
   "metadata": {
     "total": 1826,
     "source": "Heinrich Schmidt OnlinePro (CSV Export)",
-    "exported_at": "2026-02-05 06:44:16"
+    "exported_at": "2026-02-05 09:42:09"
   }
 }

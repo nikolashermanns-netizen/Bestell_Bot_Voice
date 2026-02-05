@@ -1,0 +1,78 @@
+{
+  "hersteller": "Meibes",
+  "products": [
+    {
+      "Artikel": "MEI+SOLR15",
+      "Menge": "1",
+      "Bezeichnung 1": "MEIBES Solarleitung TWIN TUBE 15x13",
+      "Bezeichnung 2": "(DN12),mit Isolierung (20m-Rolle), je m",
+      "Werksnummer": "46125TS",
+      "EAN": "4016715005908",
+      "ME": "m",
+      "PE": "1",
+      "EK-Preis": "28,80",
+      "VK-Preis": "40,00",
+      "EK-Preis (gesamt)": "28,80",
+      "VK-Preis (gesamt)": "40,00",
+      "Eigene Artikel-Nr": "",
+      "Kommentar": "",
+      "": ""
+    },
+    {
+      "Artikel": "WVT+MEI204",
+      "Menge": "1",
+      "Bezeichnung 1": "MEIBES Wasserverteiler mit Zaehlanschlu.",
+      "Bezeichnung 2": "3/4\",4-er Verteiler 3 Abgaenge, M45280K3",
+      "Werksnummer": "M45280K3",
+      "EAN": "4016715022998",
+      "ME": "Stück",
+      "PE": "1",
+      "EK-Preis": "16,38",
+      "VK-Preis": "31,50",
+      "EK-Preis (gesamt)": "16,38",
+      "VK-Preis (gesamt)": "31,50",
+      "Eigene Artikel-Nr": "",
+      "Kommentar": "",
+      "": ""
+    },
+    {
+      "Artikel": "ABS+ARA805",
+      "Menge": "1",
+      "Bezeichnung 1": "ESBE Anbausatz ARA 805",
+      "Bezeichnung 2": "zu Meibes Mischer, 16000600",
+      "Werksnummer": "16000600",
+      "EAN": "7330193041553",
+      "ME": "Stück",
+      "PE": "1",
+      "EK-Preis": "10,18",
+      "VK-Preis": "18,50",
+      "EK-Preis (gesamt)": "10,18",
+      "VK-Preis (gesamt)": "18,50",
+      "Eigene Artikel-Nr": "",
+      "Kommentar": "",
+      "": ""
+    },
+    {
+      "Artikel": "ABS+900F",
+      "Menge": "1",
+      "Bezeichnung 1": "ESBE Anbausatz 900F fuer ESBE Motore",
+      "Bezeichnung 2": "Serie 90, OV / Meibes 3, 16053600",
+      "Werksnummer": "16053600",
+      "EAN": "7330193044158",
+      "ME": "Stück",
+      "PE": "1",
+      "EK-Preis": "50,60",
+      "VK-Preis": "92,00",
+      "EK-Preis (gesamt)": "50,60",
+      "VK-Preis (gesamt)": "92,00",
+      "Eigene Artikel-Nr": "",
+      "Kommentar": "",
+      "": ""
+    }
+  ],
+  "metadata": {
+    "total": 4,
+    "source": "Heinrich Schmidt OnlinePro (CSV Export)",
+    "exported_at": "2026-02-05 09:49:35"
+  }
+}

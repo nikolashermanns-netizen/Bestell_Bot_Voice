@@ -30,6 +30,69 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Config-Datei Pfad
+CONFIG_FILE = "/app/config/config.json"
+
+
+def load_config() -> dict:
+    """Lädt die Konfiguration aus der Datei."""
+    import json
+    import os
+    
+    try:
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                logger.debug(f"Config geladen: {list(data.keys())}")
+                return data
+    except Exception as e:
+        logger.error(f"Fehler beim Laden der Config: {e}")
+    return {}
+
+
+def save_config(config_data: dict) -> bool:
+    """
+    Speichert die Konfiguration in die Datei.
+    Verifiziert dass die Datei korrekt geschrieben wurde.
+    """
+    import json
+    import os
+    
+    try:
+        # Verzeichnis erstellen falls nicht vorhanden
+        os.makedirs(os.path.dirname(CONFIG_FILE), exist_ok=True)
+        
+        # Datei schreiben
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(config_data, f, ensure_ascii=False, indent=2)
+        
+        # Verifizieren durch erneutes Lesen
+        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+            saved_data = json.load(f)
+        
+        # Prüfen ob alle Schlüssel gespeichert wurden
+        for key in config_data:
+            if key not in saved_data:
+                logger.error(f"Schlüssel '{key}' fehlt nach dem Speichern!")
+                return False
+        
+        logger.info(f"Config gespeichert: {list(saved_data.keys())}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Fehler beim Speichern der Config: {e}")
+        return False
+
+
+def update_config(**kwargs) -> bool:
+    """
+    Aktualisiert einzelne Felder in der Config.
+    Lädt die bestehende Config, aktualisiert die Felder und speichert.
+    """
+    config_data = load_config()
+    config_data.update(kwargs)
+    return save_config(config_data)
+
 # Global instances
 sip_client: SIPClient = None
 ai_client: AIClient = None
@@ -145,23 +208,31 @@ async def lifespan(app: FastAPI):
     logger.info(f"Expert Client initialisiert mit {len(EXPERT_MODELS)} Modellen")
     
     # Gespeicherte Instructions, Model und Expert-Config laden
-    try:
-        import json
-        with open("/app/config/config.json", "r", encoding="utf-8") as f:
-            data = json.load(f)
-            if "instructions" in data:
-                ai_client.set_instructions(data["instructions"])
-                logger.info("Gespeicherte Instructions geladen")
-            if "model" in data:
-                ai_client.set_model(data["model"])
-                logger.info(f"Gespeichertes Model geladen: {data['model']}")
-            if "expert_config" in data:
-                expert_client.set_config(data["expert_config"])
-                logger.info("Gespeicherte Expert-Konfiguration geladen")
-    except FileNotFoundError:
+    config_data = load_config()
+    
+    if config_data:
+        logger.info(f"Konfiguration gefunden: {list(config_data.keys())}")
+        
+        if "instructions" in config_data:
+            ai_client.set_instructions(config_data["instructions"])
+            logger.info("Gespeicherte AI-Instructions geladen")
+        
+        if "model" in config_data:
+            success = ai_client.set_model(config_data["model"])
+            if success:
+                logger.info(f"Gespeichertes AI-Model geladen: {config_data['model']}")
+            else:
+                logger.warning(f"Gespeichertes Model '{config_data['model']}' ist ungültig, verwende Default")
+        
+        if "expert_config" in config_data:
+            expert_client.set_config(config_data["expert_config"])
+            logger.info(f"Gespeicherte Expert-Konfiguration geladen: enabled_models={config_data['expert_config'].get('enabled_models', [])}")
+        
+        if "expert_instructions" in config_data:
+            expert_client.set_instructions(config_data["expert_instructions"])
+            logger.info("Gespeicherte Expert-Instructions geladen")
+    else:
         logger.info("Keine gespeicherte Konfiguration gefunden, verwende Defaults")
-    except Exception as e:
-        logger.warning(f"Fehler beim Laden der Konfiguration: {e}")
     
     # Katalog-Index laden (Hersteller-Übersicht)
     if load_index():
@@ -460,11 +531,30 @@ async def get_status():
             "caller_id": sip_client.current_caller_id if sip_client else None
         },
         "ai": {
-            "connected": ai_client.is_connected if ai_client else False
+            "connected": ai_client.is_connected if ai_client else False,
+            "model": ai_client.model if ai_client else ""
         },
         "firewall": {
             "enabled": sip_firewall_enabled
         }
+    }
+
+
+@app.get("/config")
+async def get_config():
+    """Aktuelle Konfiguration anzeigen (für Debugging)."""
+    import os
+    
+    config_data = load_config()
+    
+    return {
+        "config_file": CONFIG_FILE,
+        "config_exists": os.path.exists(CONFIG_FILE),
+        "stored_keys": list(config_data.keys()) if config_data else [],
+        "stored_model": config_data.get("model", "nicht gesetzt"),
+        "stored_expert_models": config_data.get("expert_config", {}).get("enabled_models", []),
+        "current_ai_model": ai_client.model if ai_client else "",
+        "current_expert_models": expert_client.enabled_models if expert_client else []
     }
 
 
@@ -551,28 +641,11 @@ async def set_instructions(data: dict):
         instructions = data.get("instructions", "")
         ai_client.set_instructions(instructions)
         
-        # Persistieren in Datei (bestehende Config beibehalten)
-        try:
-            import json
-            import os
-            os.makedirs("/app/config", exist_ok=True)
-            
-            # Lade bestehende Config
-            config_data = {}
-            try:
-                with open("/app/config/config.json", "r", encoding="utf-8") as f:
-                    config_data = json.load(f)
-            except FileNotFoundError:
-                pass
-            
-            config_data["instructions"] = instructions
-            
-            with open("/app/config/config.json", "w", encoding="utf-8") as f:
-                json.dump(config_data, f, ensure_ascii=False, indent=2)
-        except Exception as e:
-            logger.warning(f"Konnte Instructions nicht speichern: {e}")
-        
-        return {"status": "ok", "length": len(instructions)}
+        # Persistieren in Datei
+        if update_config(instructions=instructions):
+            return {"status": "ok", "length": len(instructions)}
+        else:
+            return {"status": "error", "message": "Konnte nicht persistent speichern"}
     return {"status": "error"}
 
 
@@ -594,27 +667,11 @@ async def set_model(data: dict):
         model = data.get("model", "")
         if ai_client.set_model(model):
             # Persistieren in Datei
-            try:
-                import json
-                import os
-                os.makedirs("/app/config", exist_ok=True)
-                
-                # Lade bestehende Config
-                config_data = {}
-                try:
-                    with open("/app/config/config.json", "r", encoding="utf-8") as f:
-                        config_data = json.load(f)
-                except FileNotFoundError:
-                    pass
-                
-                config_data["model"] = model
-                
-                with open("/app/config/config.json", "w", encoding="utf-8") as f:
-                    json.dump(config_data, f, ensure_ascii=False, indent=2)
-            except Exception as e:
-                logger.warning(f"Konnte Model nicht speichern: {e}")
-            
-            return {"status": "ok", "model": model}
+            if update_config(model=model):
+                logger.info(f"AI-Model '{model}' gespeichert")
+                return {"status": "ok", "model": model}
+            else:
+                return {"status": "error", "message": "Modell gesetzt aber nicht persistent gespeichert"}
         return {"status": "error", "message": "Unbekanntes Modell"}
     return {"status": "error"}
 
@@ -650,28 +707,19 @@ async def set_expert_config(data: dict):
     if expert_client:
         expert_client.set_config(data)
         
-        # Persistieren in Datei
-        try:
-            import json
-            import os
-            os.makedirs("/app/config", exist_ok=True)
-            
-            # Lade bestehende Config
-            config_data = {}
-            try:
-                with open("/app/config/config.json", "r", encoding="utf-8") as f:
-                    config_data = json.load(f)
-            except FileNotFoundError:
-                pass
-            
-            config_data["expert_config"] = expert_client.get_config()
-            
-            with open("/app/config/config.json", "w", encoding="utf-8") as f:
-                json.dump(config_data, f, ensure_ascii=False, indent=2)
-        except Exception as e:
-            logger.warning(f"Konnte Expert-Config nicht speichern: {e}")
+        # Persistieren - nur enabled_models und min_confidence speichern
+        # (available_models wird dynamisch generiert, instructions separat)
+        expert_config_to_save = {
+            "enabled_models": expert_client.enabled_models,
+            "default_model": expert_client._default_model,
+            "min_confidence": expert_client.min_confidence,
+        }
         
-        return {"status": "ok", "config": expert_client.get_config()}
+        if update_config(expert_config=expert_config_to_save):
+            logger.info(f"Expert-Config gespeichert: enabled_models={expert_config_to_save['enabled_models']}")
+            return {"status": "ok", "config": expert_client.get_config()}
+        else:
+            return {"status": "error", "message": "Config gesetzt aber nicht persistent gespeichert"}
     return {"status": "error"}
 
 
@@ -698,26 +746,16 @@ async def set_expert_models(data: dict):
             expert_client.set_default_model(data["default_model"])
         
         # Persistieren
-        try:
-            import json
-            import os
-            os.makedirs("/app/config", exist_ok=True)
-            
-            config_data = {}
-            try:
-                with open("/app/config/config.json", "r", encoding="utf-8") as f:
-                    config_data = json.load(f)
-            except FileNotFoundError:
-                pass
-            
-            config_data["expert_config"] = expert_client.get_config()
-            
-            with open("/app/config/config.json", "w", encoding="utf-8") as f:
-                json.dump(config_data, f, ensure_ascii=False, indent=2)
-        except Exception as e:
-            logger.warning(f"Konnte Expert-Models nicht speichern: {e}")
+        expert_config_to_save = {
+            "enabled_models": expert_client.enabled_models,
+            "default_model": expert_client._default_model,
+            "min_confidence": expert_client.min_confidence,
+        }
         
-        return {"status": "ok", "enabled_models": expert_client.enabled_models}
+        if update_config(expert_config=expert_config_to_save):
+            return {"status": "ok", "enabled_models": expert_client.enabled_models}
+        else:
+            return {"status": "error", "message": "Config gesetzt aber nicht persistent gespeichert"}
     return {"status": "error"}
 
 
@@ -743,28 +781,11 @@ async def set_expert_instructions(data: dict):
     if expert_client:
         instructions = data.get("instructions", "")
         if expert_client.set_instructions(instructions):
-            # Persistieren
-            try:
-                import json
-                import os
-                os.makedirs("/app/config", exist_ok=True)
-                
-                config_data = {}
-                try:
-                    with open("/app/config/config.json", "r", encoding="utf-8") as f:
-                        config_data = json.load(f)
-                except FileNotFoundError:
-                    pass
-                
-                config_data["expert_config"] = expert_client.get_config()
-                
-                with open("/app/config/config.json", "w", encoding="utf-8") as f:
-                    json.dump(config_data, f, ensure_ascii=False, indent=2)
-                    
-            except Exception as e:
-                logger.warning(f"Konnte Expert-Instructions nicht speichern: {e}")
-            
-            return {"status": "ok", "length": len(instructions)}
+            # Persistieren - Expert-Instructions separat speichern
+            if update_config(expert_instructions=instructions):
+                return {"status": "ok", "length": len(instructions)}
+            else:
+                return {"status": "error", "message": "Instruktionen gesetzt aber nicht persistent gespeichert"}
         return {"status": "error", "message": "Instruktionen zu kurz"}
     return {"status": "error"}
 
