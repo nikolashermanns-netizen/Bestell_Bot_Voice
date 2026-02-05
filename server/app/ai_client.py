@@ -665,18 +665,18 @@ class AIClient:
                     keyword_result = catalog.search_keyword_index(suchbegriff)
                     return f"Keine Treffer in {hersteller}.\n\n{keyword_result}"
                 
-                # Kompakte Ergebnisse formatieren (nur Bezeichnung 1, 2 und Artikelnummer)
+                # Kompakte Ergebnisse formatieren
                 lines = [f"=== {len(results)} Treffer in {key} fuer '{suchbegriff}' ===\n"]
                 
                 for p in results[:15]:  # Max 15 Ergebnisse
-                    bez1 = p.get("bezeichnung1", "")
-                    bez2 = p.get("bezeichnung2", "")
-                    artikel = p.get("artikel_nummer", "")
+                    bezeichnung = p.get("bezeichnung", "")
+                    artikel = p.get("artikel", "")
+                    hersteller_nr = p.get("hersteller_nr", "")
                     
-                    if bez2:
-                        lines.append(f"- {bez1} | {bez2} | Art: {artikel}")
+                    if hersteller_nr:
+                        lines.append(f"- {bezeichnung} | Art: {artikel} (H-Nr: {hersteller_nr})")
                     else:
-                        lines.append(f"- {bez1} | Art: {artikel}")
+                        lines.append(f"- {bezeichnung} | Art: {artikel}")
                 
                 if len(results) > 15:
                     lines.append(f"\n... und {len(results) - 15} weitere Treffer. Verfeinere die Suche.")
