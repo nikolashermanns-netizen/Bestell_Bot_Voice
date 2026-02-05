@@ -1,112 +1,411 @@
-Wenn du das hier liest scheibe RULES GELESEN
-service 
-es gibt ein file findings.md bitte schreibe alle informationen die wir durch längeres troubleshooting gefunden haben da rein, damit ich wenn ich das richtig projekt bau nicht wieder in das selbe problem laufe
+# Bestell Bot Voice - Cursor Rules
 
-Cursor Rules (POC, Python + Qt, Aircall SIP + Live-ChatGPT)
-1) Zielbild & Scope (POC-first)
+## Projektübersicht
 
-Primäres Ziel: Eingehenden Anruf via SIP (Aircall) annehmen, Audio in Echtzeit an eine ChatGPT Realtime/Streaming API senden, Antwort-Audio zurück zum Anrufer streamen, parallel Live-Transkript anzeigen.
+Ein Voice-Bot für telefonische Bestellungen. Der Server empfängt Telefonanrufe via SIP, verarbeitet Sprache mit OpenAI Realtime API und ermöglicht Produktsuche sowie Bestellverwaltung.
 
-POC = minimal: 1 Call gleichzeitig, keine Multi-Account-Administration, keine komplizierte Konfiguration, keine Datenbank.
+## Architektur
 
-Nicht-Ziele (für POC): Call Recording Archiv, CRM-Integration, Rollen/Rechte, Multi-Queue, Skalierung, Cloud-Deployment.
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           LINUX SERVER (Docker)                         │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │                    FastAPI Backend (Port 8085)                   │   │
+│  │  ┌───────────────┐   ┌────────────────┐   ┌──────────────────┐  │   │
+│  │  │  SIP Client   │   │   AI Client    │   │  Order Manager   │  │   │
+│  │  │   (PJSIP)     │◄─►│ (OpenAI WS)    │◄─►│                  │  │   │
+│  │  └───────┬───────┘   └───────┬────────┘   └──────────────────┘  │   │
+│  │          │                   │                                   │   │
+│  │          │ Audio 48kHz       │ Audio 16kHz/24kHz                 │   │
+│  │          ▼                   ▼                                   │   │
+│  │  ┌──────────────────────────────────────────────────────────┐   │   │
+│  │  │              Audio Resampling Pipeline                    │   │   │
+│  │  │   Caller (48kHz) ─resample─► AI (16kHz)                  │   │   │
+│  │  │   AI (24kHz) ─resample─► Caller (48kHz)                  │   │   │
+│  │  └──────────────────────────────────────────────────────────┘   │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+│  Ports: 5060/UDP (SIP), 4000-4100/UDP (RTP), 8085/TCP (API)            │
+└─────────────────────────────────────────────────────────────────────────┘
+          │
+          │ WebSocket + REST API
+          ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                     REMOTE GUI (PySide6 Desktop App)                    │
+│                                                                         │
+│  - Verbindet zu http://SERVER_IP:8085                                   │
+│  - WebSocket für Live-Updates (Transkripte, Call-Events, Bestellungen) │
+│  - REST API für Steuerung (Hangup, Mute, Instructions, Model)          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
 
-2) Architektur-Prinzipien
+## Projektstruktur
 
-Event-driven: SIP Events und Audio-Frames laufen in separaten Threads/Tasks; UI bleibt immer responsiv.
+```
+Bestell Bot Voice/
+├── .cursorrules          # Diese Datei - Architektur-Dokumentation
+├── findings.md           # Troubleshooting-Wissen (WICHTIG!)
+├── README.md
+│
+├── gui/                  # Remote-GUI (PySide6)
+│   ├── main.py           # Hauptanwendung, verbindet zu Server
+│   └── instructions.json # Lokale Kopie der AI-Instruktionen
+│
+├── server/               # Server-Backend (FastAPI + PJSIP)
+│   ├── app/
+│   │   ├── main.py       # FastAPI Einstiegspunkt, Event-Handler
+│   │   ├── sip_client.py # PJSIP SIP-Client (eigener Thread!)
+│   │   ├── ai_client.py  # OpenAI Realtime API WebSocket Client
+│   │   ├── catalog.py    # Viega Produktkatalog
+│   │   ├── order_manager.py  # Bestellverwaltung
+│   │   ├── connection_manager.py  # WebSocket-Verbindungen
+│   │   ├── config.py     # Pydantic Settings
+│   │   └── viega_katalog.json
+│   ├── config/
+│   │   ├── config.json   # Persistente Config (Instructions, Model)
+│   │   └── instructions_new.json
+│   ├── scraper/          # Katalog-Scraper
+│   ├── Dockerfile
+│   ├── docker-compose.yml
+│   └── requirements.txt
+│
+└── archiv/               # Archivierter Windows-Client (nicht mehr aktiv)
+    └── windows-client/   # Alte lokale Implementierung
+```
 
-Single responsibility: Klare Module:
+## Server-Komponenten
 
-sip/ (Call control + RTP Audio I/O)
+### SIP Client (`server/app/sip_client.py`)
 
-realtime_ai/ (Streaming API Client, VAD/Turn-Handling)
+- **PJSIP** C-Library mit Python Bindings
+- Läuft in **separatem Thread** (KRITISCH! PJSIP ist nicht thread-safe)
+- Kommunikation mit Main-Loop via `asyncio.Queue`
+- Unterstützt **Opus Codec @ 48kHz** (viel bessere Qualität als G.711)
+- Audio wird in 20ms Frames (960 Samples @ 48kHz = 1920 Bytes) verarbeitet
 
-transcription/ (ASR-In/Out, Anzeigenormierung)
+```python
+# WICHTIG: PJSIP muss in eigenem Thread laufen
+self._pjsip_thread = threading.Thread(target=self._run_pjsip, daemon=True)
 
-ui/ (Qt Widgets, keine Business-Logik)
+# Events via Queue an asyncio weitergeben
+self._loop.call_soon_threadsafe(
+    self._event_queue.put_nowait,
+    {"type": "audio_received", "data": audio_data}
+)
+```
 
-Schmaler “happy path” zuerst: incoming call → accept → stream → answer → hangup.
+### AI Client (`server/app/ai_client.py`)
 
-3) Technik-Entscheidungen (POC-friendly)
+- **OpenAI Realtime API** via WebSocket (aiohttp)
+- Endpoint: `wss://api.openai.com/v1/realtime?model=MODEL_NAME`
+- Audio-Format: Input 16kHz PCM16, Output 24kHz PCM16
+- Server-seitige VAD (Voice Activity Detection)
+- **Function Calling** für Katalog-Suche, Bestellungen und Experten-Anfragen
 
-SIP/RTP: Nimm eine etablierte Library (z. B. pjsua2 / baresip binding / linphone SDK binding) statt “selbst RTP bauen”.
+Verfügbare Tools:
+- `lade_system_katalog` - Lädt Produkte eines Systems
+- `bestellung_hinzufuegen` - Fügt Produkt zur Bestellung hinzu
+- `zeige_bestellung` - Zeigt aktuelle Bestellung
+- `frage_experten` - Fragt Experten-Modell bei komplexen Fragen
 
-Audio pipeline: Intern ein einheitliches Format (z. B. 16kHz mono PCM) und klare Converter an den Rändern (SIP Codec ↔ PCM).
+### Expert Client (`server/app/expert_client.py`)
 
-Streaming: Immer Chunk-basiert (20ms Frames), mit Ringbuffer.
+Für komplexe Fachfragen kann die Realtime-AI einen "Kollegen" (Experten-Modell) fragen.
 
-Qt: PySide6 bevorzugt. UI-Updates nur über Qt-Signale/Slots.
+**Verfügbare Modelle (Stand Februar 2026):**
 
-4) Latenz-Regeln
+| Modell | Basis | Typ | Latenz |
+|--------|-------|-----|--------|
+| `gpt-5-mini` | GPT-5 | Standard | ~10s |
+| `gpt-5-nano` | GPT-5 | Standard | ~24s |
+| `gpt-5` | GPT-5 | Standard | ~27s |
+| `gpt-5.2` | GPT-5 | Standard | ~30s |
+| `o4-mini` | O-Serie | Reasoning | ~15s |
+| `o3` | O-Serie | Reasoning | ~30s |
+| `o3-pro` | O-Serie | Reasoning | ~45s |
 
-“Fast path” gilt immer:
+**WICHTIG:** Nur GPT-5 und O-Serie Modelle verwenden - KEINE alten GPT-3/4 Modelle!
 
-Keine blockierenden Netzwerkcalls im UI-Thread.
+**Konfidenz-System:**
+- Nur Antworten mit ≥90% Konfidenz werden an Kunden weitergegeben
+- Bei niedriger Konfidenz: "Das kann ich leider nicht sicher beantworten"
 
-Keine großen Buffers (keep small, e.g. 100–300ms).
+**Modellauswahl nach Dringlichkeit:**
+- `schnell`: gpt-5-mini oder o4-mini
+- `normal`: o4-mini oder gpt-5
+- `gruendlich`: o3 oder o3-pro
 
-Audio-Frames sofort weiterreichen (producer/consumer queues).
+### Order Manager (`server/app/order_manager.py`)
 
-Logging asynchron und sparsam; keine riesigen JSON dumps im hot path.
+- In-Memory Bestellverwaltung
+- Bestellung wird bei Anrufstart erstellt, bei Anrufende gelöscht
+- Callback für GUI-Updates
 
-5) Sicherheits- & Datenschutz-Minimum (auch im POC)
+### Catalog (`server/app/catalog.py`)
 
-Keine Secrets im Repo: API Keys via .env / OS keychain / env vars.
+- Lädt Viega Produktkatalog aus JSON
+- Produktsuche nach System, Größe, Name
+- Systeme: temponox, sanpress, sanpress-inox
 
-Default: keine Speicherung von Audio/Transkripten; nur Live-Anzeige.
+## REST API Endpoints
 
-“Kill switch”: Button/Hotkey „AI stumm“ / „Stop Streaming“.
+| Endpoint | Methode | Beschreibung |
+|----------|---------|--------------|
+| `/` | GET | Health Check |
+| `/status` | GET | Detaillierter Status (SIP, AI) |
+| `/call/accept` | POST | Anruf manuell annehmen |
+| `/call/hangup` | POST | Anruf beenden |
+| `/ai/mute` | POST | AI stumm schalten |
+| `/ai/unmute` | POST | Stummschaltung aufheben |
+| `/instructions` | GET/POST | AI-Instruktionen lesen/setzen |
+| `/model` | GET/POST | AI-Modell lesen/setzen |
+| `/order` | GET/DELETE | Bestellung abrufen/löschen |
+| `/expert/config` | GET/POST | Experten-Konfiguration |
+| `/expert/models` | GET/POST | Experten-Modelle aktivieren/deaktivieren |
+| `/expert/stats` | GET | Experten-Statistiken |
+| `/ws` | WebSocket | Live-Updates |
 
-6) Konfig & Setup
+## WebSocket Events
 
-Eine einzige config.toml oder .env:
+### Server → Client
 
-SIP user/pass/server
+```javascript
+{ "type": "status", "sip_registered": true, "call_active": false }
+{ "type": "call_incoming", "caller_id": "+4912345678" }
+{ "type": "call_active", "caller_id": "+4912345678" }
+{ "type": "call_ended", "reason": "hangup" }
+{ "type": "transcript", "role": "caller|assistant", "text": "...", "is_final": true }
+{ "type": "order_update", "order": { "items": [...], "caller_id": "..." } }
+{ "type": "debug_event", "event": { "type": "...", "data": {...} } }
+```
 
-OpenAI API key + model
+## Audio-Pipeline (KRITISCH!)
 
-Audio settings
+```
+Telefon (48kHz Opus)
+    ↓ PJSIP dekodiert
+48kHz 16-bit PCM
+    ↓ scipy.signal.resample
+16kHz 16-bit PCM
+    ↓ OpenAI Realtime API
 
-Startbar per: python main.py — ohne Installer.
+OpenAI Realtime API
+    ↓ 24kHz 16-bit PCM
+scipy.signal.resample
+    ↓ 48kHz 16-bit PCM
+PJSIP enkodiert
+    ↓ 48kHz Opus
+Telefon
+```
 
-7) Observability (POC-nützlich, nicht overkill)
+**Resampling-Code:**
+```python
+from scipy import signal as scipy_signal
+import numpy as np
 
-Ein Debug-Panel in der UI:
+def resample_audio(audio_data: bytes, from_rate: int, to_rate: int) -> bytes:
+    if from_rate == to_rate:
+        return audio_data
+    samples = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32)
+    num_samples = int(len(samples) * to_rate / from_rate)
+    resampled = scipy_signal.resample(samples, num_samples)
+    resampled = np.clip(resampled, -32768, 32767).astype(np.int16)
+    return resampled.tobytes()
+```
 
-Call state (RINGING/ACTIVE/ENDED)
+## Deployment
 
-RTT/Latency grob (ms)
+### Docker
 
-Queue sizes (Audio in/out)
+```yaml
+# docker-compose.yml
+services:
+  bestell-bot:
+    build: .
+    network_mode: host    # WICHTIG für SIP/RTP!
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - ./config:/app/config     # Persistente Config
+      - ./recordings:/app/recordings
+    environment:
+      - SIP_SERVER=sipconnect.sipgate.de
+      - SIP_USER=xxx
+      - SIP_PASSWORD=xxx
+      - OPENAI_API_KEY=xxx
+```
 
-Last error
+### PJSIP Build (im Dockerfile)
 
-Logs: rotierend, Level via ENV.
+PJSIP muss aus Source gebaut werden mit Opus-Support:
+- Version: 2.14.1
+- Build-Deps: swig, libopus-dev, libspeex-dev
+- **Null Sound Device** aktivieren (kein Hardware-Audio in Docker)
 
-8) Definition of Done (POC)
+### Firewall-Ports
 
-Eingehender Call kann angenommen werden.
+- **5060/UDP** - SIP Signaling
+- **4000-4100/UDP** - RTP Media
+- **8085/TCP** - API
 
-Anrufer spricht → ChatGPT antwortet hörbar innerhalb “gefühlt” kurzer Zeit (Ziel: < 1–2s turn latency).
+## Wichtige Hinweise
 
-Live-Transkript zeigt:
+### PJSIP Threading (KRITISCH!)
 
-“Caller” Text (Streaming)
+```
+Assertion failed: "Calling pjlib from unknown/external thread"
+```
+→ PJSIP muss IMMER in einem dedizierten Thread laufen!
 
-“Assistant” Text (Streaming)
+### Audio-Queue Größe
 
-App crasht nicht beim Auflegen / erneuten Anruf.
+```python
+# FALSCH: Zu klein, Audio wird abgeschnitten
+self._outgoing_queue: deque = deque(maxlen=100)  # Nur 2 Sekunden!
 
-9) Coding Standards
+# RICHTIG: 10 Sekunden Buffer
+self._outgoing_queue: deque = deque(maxlen=500)
+```
 
-Type hints überall, ruff + black.
+### ByteVector für PJSIP Audio
 
-Keine abstrakten Frameworks, keine generischen “Enterprise”-Patterns.
+```python
+# FALSCH: bytes direkt übergeben
+frame.buf = audio_data  # ERROR!
 
-Jede Komponente hat eine kleine Demo/Smoke-Test Funktion.
+# RICHTIG: ByteVector verwenden
+frame.buf = pj.ByteVector(list(audio_data))
+```
 
-10) Risiken & Fallbacks (POC pragmatisch)
+### OpenAI Response Handling
 
-Wenn Full Duplex schwierig ist: zuerst Half-duplex (Push-to-talk / turn-based) als Fallback.
+- Server-VAD erkennt Sprach-Ende und triggert Response automatisch
+- Bei aktiver Response KEIN manuelles `response.create` senden
+- `response_in_progress` Flag tracken
 
-Wenn SIP Audio schwierig: zuerst Loopback-Mic/Speaker lokal testen, dann SIP dran.
+### Barge-In / Interruption
+
+Wenn User AI unterbricht:
+1. Event `input_audio_buffer.speech_started` empfangen
+2. Audio-Queue leeren: `sip_client.clear_audio_queue()`
+
+## Troubleshooting
+
+**WICHTIG:** Siehe `findings.md` für detaillierte Troubleshooting-Informationen!
+
+Häufige Probleme:
+1. **Audio verzerrt/schnell** → Sample-Rate Mismatch (siehe Audio-Pipeline)
+2. **PJSIP Assertion Error** → Thread-Modell prüfen
+3. **Keine RTP-Daten** → NAT/Firewall, `network_mode: host`
+4. **AI antwortet nicht** → WebSocket-Verbindung, Session-Update prüfen
+
+## GUI (Remote Control)
+
+Die GUI (`gui/main.py`) verbindet sich zum Server und bietet:
+- Live-Transkript
+- Call-Status
+- AI-Instruktionen bearbeiten
+- Modell-Auswahl
+- Bestellungsübersicht
+- Debug-Log
+
+```bash
+# GUI starten
+cd gui
+python main.py --server http://10.200.200.1:8085
+```
+
+## Entwicklung
+
+### Server lokal testen
+
+```bash
+cd server
+docker-compose up --build
+```
+
+### Logs beobachten
+
+```bash
+docker-compose logs -f
+```
+
+## Server Deployment (WICHTIG!)
+
+### SSH-Zugang
+
+```bash
+ssh bot  # SSH-Alias für den Produktionsserver (10.200.200.1)
+```
+
+**ACHTUNG:** `ssh root@10.200.200.1` funktioniert NICHT (Port 22 blockiert).
+Nutze IMMER den SSH-Alias `bot`.
+
+### Deployment-Schritte
+
+1. **Änderungen committen und pushen:**
+```bash
+git add <files>
+git commit -m "feat: Beschreibung"
+git push origin master
+```
+
+2. **Server aktualisieren (ein Befehl):**
+```bash
+ssh bot "cd ~/bestell-bot-voice/server && git fetch origin && git reset --hard origin/master && docker-compose down && docker-compose up -d --build"
+```
+
+3. **Status prüfen:**
+```bash
+ssh bot "docker ps && curl -s http://localhost:8085/"
+```
+
+### Server-Pfade
+
+| Pfad | Beschreibung |
+|------|--------------|
+| `~/bestell-bot-voice/server` | Server-Code auf dem Server |
+| `/app/config/config.json` | Persistente Config (im Container) |
+| `http://localhost:8085/` | API im Container |
+
+### Wichtige Docker-Befehle auf dem Server
+
+```bash
+# Container Status
+ssh bot "docker ps | grep bestell"
+
+# Logs anzeigen
+ssh bot "docker logs -f bestell-bot-voice --tail 100"
+
+# Container neu starten (ohne Rebuild)
+ssh bot "cd ~/bestell-bot-voice/server && docker-compose restart"
+
+# Container komplett neu bauen
+ssh bot "cd ~/bestell-bot-voice/server && docker-compose down && docker-compose up -d --build"
+
+# API Health Check
+ssh bot "curl -s http://localhost:8085/"
+
+# Expert Config prüfen
+ssh bot "curl -s http://localhost:8085/expert/config"
+```
+
+### Bei Git-Konflikten auf dem Server
+
+Wenn `git pull` fehlschlägt wegen divergierender Branches:
+```bash
+ssh bot "cd ~/bestell-bot-voice/server && git fetch origin && git reset --hard origin/master"
+```
+
+Dies überschreibt lokale Änderungen auf dem Server mit dem Stand von GitHub.
+
+## Archivierter Code
+
+Der `archiv/windows-client/` Ordner enthält den alten lokalen Windows-Client mit:
+- pyVoIP (Python SIP Client)
+- Lokale OpenAI Realtime Verbindung
+- PySide6 UI
+
+Dieser Code ist **nicht mehr aktiv**. Die gesamte Telefonie- und AI-Logik läuft jetzt auf dem Linux-Server.
