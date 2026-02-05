@@ -46,7 +46,6 @@ ssh $SSH_ALIAS "docker stop bestell-bot-voice; docker rm bestell-bot-voice; cd $
 echo ""
 echo "[6/7] Python-Code in Container kopieren (fuer Live-Updates)..."
 ssh $SSH_ALIAS "docker cp $SERVER_PATH/server/app/. bestell-bot-voice:/app/app/"
-ssh $SSH_ALIAS "docker cp $SERVER_PATH/server/main.py bestell-bot-voice:/app/main.py"
 
 echo ""
 echo "[7/7] Status prüfen..."
