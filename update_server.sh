@@ -40,11 +40,16 @@ echo "[4/4] Deploy auf Server (via SSH-Alias: $SSH_ALIAS)..."
 ssh $SSH_ALIAS "cd $SERVER_PATH && git pull origin master"
 
 echo ""
-echo "[5/5] Docker Container neu starten..."
+echo "[5/7] Docker Container neu starten..."
 ssh $SSH_ALIAS "docker stop bestell-bot-voice; docker rm bestell-bot-voice; cd $SERVER_PATH/server && docker build -t server_bestell-bot . && docker run -d --name bestell-bot-voice --network host --env-file .env -v $SERVER_PATH/server/config:/app/config -v $SERVER_PATH/server/system_katalog:/app/system_katalog -v $SERVER_PATH/server/wissen:/app/wissen server_bestell-bot"
 
 echo ""
-echo "[6/6] Status prüfen..."
+echo "[6/7] Python-Code in Container kopieren (fuer Live-Updates)..."
+ssh $SSH_ALIAS "docker cp $SERVER_PATH/server/app/. bestell-bot-voice:/app/app/"
+ssh $SSH_ALIAS "docker cp $SERVER_PATH/server/main.py bestell-bot-voice:/app/main.py"
+
+echo ""
+echo "[7/7] Status prüfen..."
 sleep 3
 ssh $SSH_ALIAS "docker logs --tail 20 bestell-bot-voice"
 
