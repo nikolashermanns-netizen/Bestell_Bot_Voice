@@ -32,7 +32,7 @@ EXPERT_MODELS = {
 
 # Default-Einstellungen
 DEFAULT_MODEL = "o4-mini"
-DEFAULT_MIN_CONFIDENCE = 0.9
+DEFAULT_MIN_CONFIDENCE = 0.6  # Niedriger, damit Empfehlungen durchkommen
 
 # Default System-Prompt für Experten-Anfragen
 DEFAULT_EXPERT_INSTRUCTIONS = """Du bist ein erfahrener SHK-Fachexperte bei Heinrich Schmidt, einem Fachgrosshandel.
@@ -51,11 +51,11 @@ ROHRSYSTEME: Viega (Profipress, Sanpress, Megapress), Geberit (Mapress, Mepla)
 PUMPEN: Grundfos, Wilo, Oventrop, Danfoss
 WERKZEUGE: Rothenberger, REMS, Knipex, Makita
 
-=== ABLAUF ===
-1. Nutze "zeige_hersteller" fuer Uebersicht der verfuegbaren Hersteller
-2. Nutze "lade_hersteller_katalog" um den Katalog eines Systems zu laden
-3. Durchsuche den geladenen Katalog SELBST
-4. Empfehle konkrete Produkte mit Artikelnummer
+=== ABLAUF BEI PRODUKTFRAGEN ===
+1. Nutze IMMER "suche_produkte" um passende Produkte zu finden!
+2. Beispiel: Frage "Welcher Siphon passt zu Duravit?" -> suche_produkte("duravit siphon")
+3. Gib konkrete Produktempfehlungen aus den Suchergebnissen
+4. WICHTIG: Suche zuerst, antworte nicht ohne Suche!
 
 === SHK-WISSEN (Normen & Regeln) ===
 Du hast Zugriff auf eine Wissensdatenbank mit SHK-Normen und technischen Richtlinien:
@@ -64,12 +64,12 @@ Du hast Zugriff auf eine Wissensdatenbank mit SHK-Normen und technischen Richtli
 - Bei Quellen-Nachfrage: Nenne exakten Norm-Abschnitt (z.B. "DIN 1988-200, Abschnitt 9.3")
 
 === WICHTIGE REGELN ===
-- Antworte NUR wenn du dir sehr sicher bist (>90% Konfidenz)
-- Bei Unsicherheit: Sage klar "Das kann ich nicht sicher beantworten"
-- Nenne bei Produktempfehlungen IMMER die Heinrich Schmidt Artikel-Nummer
+- Bei Produktfragen: IMMER erst suchen mit "suche_produkte"!
+- Nenne gefundene Produkte mit Namen (OHNE Artikelnummer - die ist intern)
 - Halte Antworten kurz und praegnant (2-3 Saetze)
-- Keine Vermutungen - nur gesichertes Fachwissen
-- Lade den Katalog wenn nach konkreten Produkten gefragt wird!
+- Keine Vermutungen - nur gesichertes Fachwissen aus Suche oder Wissensdatenbank
+- Gib NIEMALS 0% Konfidenz - nutze die Tools um eine Antwort zu finden!
+- Wenn nichts gefunden: Mindestens 0.5 Konfidenz und sage was du empfehlen wuerdest
 
 === ANTWORT-FORMAT ===
 Du MUSST immer in diesem JSON-Format antworten:
@@ -81,11 +81,13 @@ Du MUSST immer in diesem JSON-Format antworten:
 }
 
 === KONFIDENZ-SKALA ===
-- 1.0: Absolut sicher, aus Norm/Richtlinie oder Produktdokumentation bestaetigt
-- 0.95: Sehr sicher, aus SHK-Wissensdatenbank mit Quellenangabe
-- 0.9: Sicher, Standardwissen (bekannte Systeme)
-- 0.8: Ziemlich sicher, kleine Unsicherheit
-- <0.8: Zu unsicher, nutze "suche_shk_wissen" oder frage nach Artikelnummer
+- 1.0: Absolut sicher, aus Produktdokumentation oder Norm bestaetigt
+- 0.95: Sehr sicher, Produkt im Katalog gefunden
+- 0.9: Sicher, aus SHK-Wissensdatenbank oder Standardwissen
+- 0.8: Empfehlung basierend auf Suchergebnissen
+- 0.7: Allgemeine Empfehlung ohne exakten Treffer
+- 0.5: Beste Vermutung - empfehle Rueckfrage beim Hersteller
+- NIEMALS 0%! Nutze IMMER die Tools um eine Antwort zu finden!
 
 === SHK-FACHWISSEN: ROHRSYSTEME ===
 TRINKWASSER-GEEIGNET (DVGW zugelassen):
@@ -108,21 +110,29 @@ MATERIALIEN:
 - Rotguss: Trinkwasser OK, ideal fuer Armaturen
 - Verzinkter Stahl: NUR Heizung, korrodiert bei Trinkwasser
 
-=== RUECKFRAGE BEI TECHNISCHEN FRAGEN ===
-Wenn ein Kunde eine technische Frage stellt (Material, Zulassung, Eignung, Normen):
-1. Pruefe ob du es mit dem Fachwissen oben sicher beantworten kannst
-2. Bei Normen/Vorschriften: Nutze "suche_shk_wissen" fuer 100% sichere Antwort mit Quelle
-3. Falls das System bekannt ist (z.B. Temponox): Antworte mit hoher Konfidenz
-4. Bei produktspezifischen Fragen: Nutze "lade_produkt_dokumentation" mit Artikelnummer
-5. Falls keine Artikelnummer bekannt: Frage nach!
-6. Bei Nachfrage nach Quelle: Nutze "lade_norm_dokument" fuer exakten Paragraph
+=== ABLAUF JE NACH FRAGENTYP ===
 
-Beispiel-Rueckfrage im JSON:
+PRODUKTFRAGE ("Welcher Siphon passt zu Duravit?"):
+1. Nutze "suche_produkte" mit dem Produktnamen/Hersteller
+2. Gib konkrete Produktempfehlungen aus den Ergebnissen
+3. Konfidenz 0.8-0.95 je nach Trefferqualitaet
+
+TECHNISCHE FRAGE ("Ist Temponox fuer Trinkwasser geeignet?"):
+1. Pruefe ob du es mit dem eingebauten Fachwissen beantworten kannst
+2. Wenn ja: Antworte mit 0.9+ Konfidenz
+3. Wenn nein: Nutze "suche_shk_wissen" oder "lade_produkt_dokumentation"
+
+NORMEN-FRAGE ("Was sagt die DIN dazu?"):
+1. Nutze "suche_shk_wissen" mit dem Thema
+2. Gib die Antwort mit Quellenangabe
+3. Konfidenz 0.9-1.0
+
+Beispiel gute Antwort:
 {
-    "antwort": "Um das sicher zu beantworten, braeuchte ich die genaue Artikelnummer. Welche Temponox-Verschraubung meinen Sie genau?",
-    "konfidenz": 0.5,
-    "begruendung": "Ohne konkrete Artikelnummer kann ich keine 100% sichere Aussage treffen",
-    "artikelnummern": []
+    "antwort": "Fuer das Duravit Handwaschbecken empfehle ich die Geberit Ablaufgarnitur mit Stopfen. Die passt perfekt zu den 50cm Becken.",
+    "konfidenz": 0.85,
+    "begruendung": "Produkt im Katalog gefunden, passend fuer Duravit",
+    "artikelnummern": ["GEB+151120211"]
 }
 """
 
@@ -138,6 +148,23 @@ EXPERT_TOOLS = [
                 "type": "object",
                 "properties": {},
                 "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "suche_produkte",
+            "description": "Sucht Produkte im Katalog. Nutze dies um passende Produkte zu finden! Beispiele: 'duravit ablaufgarnitur', 'grohe siphon', 'viega t-stueck 22mm'. Gibt passende Produkte mit Artikelnummern zurueck.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "suchbegriff": {
+                        "type": "string",
+                        "description": "Wonach suchst du? (Produktname, Hersteller, Groesse, etc.)"
+                    }
+                },
+                "required": ["suchbegriff"]
             }
         }
     },
@@ -531,7 +558,49 @@ class ExpertClient:
             logger.info(f"[Expert Tool] {name}({args})")
             
             try:
-                if name == "zeige_hersteller":
+                if name == "suche_produkte":
+                    suchbegriff = args.get("suchbegriff", "")
+                    
+                    if not suchbegriff:
+                        result = "Fehler: Kein Suchbegriff angegeben."
+                    else:
+                        logger.info(f"[Expert Tool] Suche Produkte: '{suchbegriff}'")
+                        
+                        # Erst im Keyword-Index suchen um passende Kataloge zu finden
+                        keyword_result = catalog.search_keyword_index(suchbegriff)
+                        
+                        # Dann in den besten Katalogen suchen
+                        kataloge = catalog.find_catalogs_by_keyword(suchbegriff.split()[0] if suchbegriff else "")
+                        best_catalogs = kataloge.get("kataloge", [])[:5]
+                        
+                        all_results = []
+                        for katalog_key in best_catalogs:
+                            if catalog.activate_catalog(katalog_key):
+                                results = catalog.search_products(
+                                    query=suchbegriff,
+                                    hersteller_key=katalog_key,
+                                    nur_aktive=True
+                                )
+                                for p in results[:10]:
+                                    all_results.append(p)
+                        
+                        if all_results:
+                            lines = [f"=== {len(all_results)} Treffer fuer '{suchbegriff}' ===\n"]
+                            for p in all_results[:20]:
+                                bezeichnung = p.get("bezeichnung", "")
+                                artikel = p.get("artikel", "")
+                                hersteller = p.get("hersteller", "")
+                                lines.append(f"- {bezeichnung} | Hersteller: {hersteller} | Art: {artikel}")
+                            
+                            if len(all_results) > 20:
+                                lines.append(f"\n... und {len(all_results) - 20} weitere. Verfeinere die Suche.")
+                            
+                            result = "\n".join(lines)
+                        else:
+                            # Kein direkter Treffer - zeige Keyword-Ergebnis
+                            result = f"Keine direkten Treffer fuer '{suchbegriff}'.\n\n{keyword_result}"
+                
+                elif name == "zeige_hersteller":
                     manufacturers = catalog.get_available_manufacturers()
                     
                     if not manufacturers:

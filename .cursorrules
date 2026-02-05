@@ -72,6 +72,10 @@ Bestell Bot Voice/
 │   │   ├── villeroy_boch.json
 │   │   ├── viega_sanpress.json
 │   │   └── ...           # 63 Hersteller-Kataloge
+│   ├── wissen/           # SHK-Wissensdatenbank
+│   │   ├── _normen_index.json    # Index aller SHK-Normen
+│   │   ├── _shk_fachwissen.json  # Strukturierte Regeln
+│   │   └── dokumente/            # Hersteller-PDFs
 │   ├── config/
 │   │   ├── config.json   # Persistente Config (Instructions, Model)
 │   │   └── instructions_new.json
@@ -182,6 +186,8 @@ Die AI hat Zugriff auf folgende Funktionen:
 | `zeige_hersteller` | Zeigt alle Hersteller im Katalog |
 | `lade_hersteller_katalog` | Lädt Katalog in Experten-Context |
 | `lade_produkt_dokumentation` | Lädt PDFs von Heinrich Schmidt und analysiert mit GPT-5 |
+| `suche_shk_wissen` | Durchsucht SHK-Wissensdatenbank (Normen, Richtlinien, Regeln) |
+| `lade_norm_dokument` | Lädt Norm-/Richtlinien-PDF für detaillierte Analyse |
 
 ### AI-Workflow
 
@@ -273,6 +279,34 @@ Bei technischen Fragen, die nicht mit Fachwissen beantwortet werden können:
 3. Falls unklar → Frage nach Artikelnummer
 4. Lade Dokumentation → PDFs analysieren
 5. Antwort mit 100% Konfidenz aus Originaldokumenten
+```
+
+**SHK-Wissensdatenbank (`server/wissen/`):**
+
+Der Experte hat Zugriff auf eine strukturierte Wissensdatenbank:
+
+| Datei | Inhalt |
+|-------|--------|
+| `_normen_index.json` | Index aller relevanten SHK-Normen (DIN, VDI, DVGW) |
+| `_shk_fachwissen.json` | Strukturierte Regeln mit Quellenangaben |
+| `dokumente/` | Hersteller-PDFs (Viega, Geberit Planungshandbücher) |
+
+**Bereiche im Fachwissen:**
+
+| Bereich | Themen | Wichtige Normen |
+|---------|--------|-----------------|
+| Trinkwasser | Legionellen, 3-Liter-Regel, Temperaturhaltung | DIN 1988, DIN EN 806, DVGW W 551 |
+| Heizung | Wasserqualität, Druckhaltung, Entlüftung | VDI 2035, DIN EN 12828 |
+| Gas | Rohrdimensionierung, Leitungsführung | TRGI 2018 |
+| Presssysteme | Viega/Geberit Systeme, Werkzeuge, O-Ringe | Hersteller-Dokumentation |
+
+**Ablauf bei Normen-Frage (z.B. "Wie heiß muss Warmwasser sein?"):**
+
+```
+1. Nutze "suche_shk_wissen" mit Stichwort "Warmwasser Temperatur"
+2. Ergebnis: 60°C am Speicher (DIN 1988-200, Abschnitt 9.3)
+3. Antwort mit 95%+ Konfidenz und Quellenangabe
+4. Bei Nachfrage: "lade_norm_dokument" für genauen Paragraph
 ```
 
 ### Order Manager (`server/app/order_manager.py`)

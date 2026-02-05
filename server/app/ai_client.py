@@ -103,8 +103,9 @@ Sage NIEMALS "Das haben wir nicht" - suche erst gruendlich!
    - Das geht schnell - kein "Moment" oder "ich schau mal" noetig
 
 3. PRODUKT NENNEN UND NACH MENGE FRAGEN
-   - "Die Grohe Eurosmart, Artikel Nummer GR2339210E. Wieviel Stueck brauchen Sie?"
+   - "Die Grohe Eurosmart. Wieviel Stueck brauchen Sie?"
    - IMMER nach Menge fragen wenn nicht genannt!
+   - NIEMALS die Artikelnummer vorlesen! Die ist nur fuer interne Zwecke!
 
 4. ERST NACH MENGENANGABE ZUR BESTELLUNG
    - Kunde sagt "10 Stueck" -> JETZT 'bestellung_hinzufuegen' mit menge=10
@@ -127,7 +128,7 @@ SO GEHST DU VOR:
 
 === WICHTIGE REGELN ===
 - Halte Antworten KURZ (2-3 Saetze)
-- Sage IMMER "Artikel Nummer" ausgesprochen (nie "Art.Nr.")
+- Artikelnummern sind INTERN - NIEMALS vorlesen oder erwaehnen!
 - Erfinde NIEMALS Artikelnummern oder Preise!
 - NIEMALS sagen "Das haben wir nicht" - IMMER erst suchen!
 - Im Zweifel: Im Katalog nachschauen oder Kollegen fragen
@@ -850,7 +851,8 @@ class AIClient:
                 # Zur Bestellung hinzufügen (mit kennung für Kompatibilität)
                 order_manager.add_item(kennung=artikel_nummer, menge=menge, produktname=produktname)
                 
-                return f"Bestellung notiert: {menge}x {produktname} (Artikel Nummer: {artikel_nummer})"
+                # WICHTIG: Keine Artikelnummer im Ergebnis - AI soll sie NICHT vorlesen!
+                return f"Bestellung notiert: {menge}x {produktname}. Sage dem Kunden: '{menge} Stueck {produktname} - notiert!'"
             
             elif name == "zeige_bestellung":
                 logger.info("Zeige aktuelle Bestellung")
