@@ -721,8 +721,9 @@ def search_products(
 
 def analyze_search_specificity(query: str, results: List[Dict]) -> dict:
     """
-    Analysiert ob die Suche spezifisch genug ist.
+    Analysiert ob die Suche spezifisch genug ist UND ob die Ergebnisse relevant sind.
     Bei unspezifischen Suchen werden Vorschlaege zur Eingrenzung extrahiert.
+    Bei irrelevanten Ergebnissen werden alternative Suchbegriffe vorgeschlagen.
     
     Args:
         query: Der Suchbegriff
@@ -731,6 +732,8 @@ def analyze_search_specificity(query: str, results: List[Dict]) -> dict:
     Returns:
         {
             "is_specific": bool,
+            "results_relevant": bool,
+            "alternative_terms": ["siphon", "ablauf", ...],
             "suggestions": {
                 "serien": ["Starck 3", "D-Code", ...],
                 "groessen": ["45x34cm", "50x25cm", ...],
@@ -748,6 +751,11 @@ def analyze_search_specificity(query: str, results: List[Dict]) -> dict:
         'bogen', 'muffe', 'fitting', 'verschraubung', 'adapter',
         'pumpe', 'kessel', 'speicher', 'boiler'
     }
+    
+    # Stoppwoerter die ignoriert werden bei der Relevanzpruefung
+    STOPPWOERTER = {'mm', 'cm', 'zoll', 'auf', 'mit', 'und', 'fuer', 'von', 'in', 'zu', 
+                    'der', 'die', 'das', 'ein', 'eine', 'einen', 'verchromt', 'weiss',
+                    'schwarz', 'matt', 'glanz', 'edelstahl', 'messing', 'kunststoff'}
     
     # Bekannte Serien/Modellreihen verschiedener Hersteller
     BEKANNTE_SERIEN = {
@@ -773,6 +781,9 @@ def analyze_search_specificity(query: str, results: List[Dict]) -> dict:
     query_lower = query.lower().strip()
     words = query_lower.split()
     
+    # Wichtige Suchwoerter extrahieren (ohne Stoppwoerter)
+    wichtige_woerter = [w for w in words if w not in STOPPWOERTER and len(w) > 2]
+    
     # Pruefen ob Query spezifisch ist
     has_dimension = bool(re.search(r'\d+', query_lower))  # Enthaelt Zahlen
     has_series = any(serie in query_lower for serie in BEKANNTE_SERIEN)
@@ -784,6 +795,47 @@ def analyze_search_specificity(query: str, results: List[Dict]) -> dict:
     # Auch spezifisch wenn wenige Treffer (<=5) - dann braucht man keine Eingrenzung
     if len(results) <= 5:
         is_specific = True
+    
+    # === RELEVANZPRUEFUNG ===
+    # Pruefen ob die Ergebnisse ueberhaupt den Suchbegriff enthalten
+    results_relevant = True
+    alternative_terms = []
+    
+    if results and wichtige_woerter:
+        # Zaehlen wieviele Ergebnisse mindestens ein wichtiges Wort enthalten
+        relevant_count = 0
+        for product in results[:10]:  # Nur erste 10 pruefen
+            bezeichnung_lower = product.get("bezeichnung", "").lower()
+            for wort in wichtige_woerter:
+                if wort in bezeichnung_lower:
+                    relevant_count += 1
+                    break
+        
+        # Wenn weniger als 30% der Ergebnisse relevant sind -> Ergebnisse sind nicht relevant
+        relevance_ratio = relevant_count / min(len(results), 10)
+        if relevance_ratio < 0.3:
+            results_relevant = False
+            
+            # Alternative Suchbegriffe vorschlagen
+            for wort in wichtige_woerter:
+                # Kuerzere Varianten vorschlagen (z.B. "siphon" statt "flaschensiphon")
+                if len(wort) > 6:
+                    # Versuche Teilwoerter zu finden
+                    # "flaschensiphon" -> "siphon", "flasche"
+                    for i in range(3, len(wort) - 2):
+                        teil = wort[i:]
+                        if len(teil) >= 4 and teil not in alternative_terms:
+                            alternative_terms.append(teil)
+                        teil_vorn = wort[:len(wort)-i]
+                        if len(teil_vorn) >= 4 and teil_vorn not in alternative_terms:
+                            alternative_terms.append(teil_vorn)
+                
+                # Auch das Wort selbst wenn es nicht zu kurz ist
+                if wort not in alternative_terms and len(wort) >= 4:
+                    alternative_terms.append(wort)
+            
+            # Nur die ersten 5 Alternativen, sortiert nach Laenge (kuerzere zuerst)
+            alternative_terms = sorted(set(alternative_terms), key=len)[:5]
     
     # Vorschlaege aus den Ergebnissen extrahieren
     typen = set()
@@ -843,6 +895,8 @@ def analyze_search_specificity(query: str, results: List[Dict]) -> dict:
     
     return {
         "is_specific": is_specific,
+        "results_relevant": results_relevant,
+        "alternative_terms": alternative_terms,
         "suggestions": {
             "typen": sorted(list(typen))[:8],
             "serien": sorted(list(serien))[:8],

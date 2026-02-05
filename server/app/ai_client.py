@@ -85,6 +85,12 @@ SCHRITT 2: IM KATALOG SUCHEN
 - Nutze 'suche_im_katalog' mit Katalog-Key UND Suchbegriff
 - WICHTIG: Uebersetze Kundensprache in Katalogsprache!
 
+WENN ERGEBNISSE NICHT RELEVANT (System zeigt "NICHT relevant"):
+- Das System schlaegt alternative Suchbegriffe vor -> PROBIERE SIE!
+- z.B. "flaschensiphon" nicht gefunden? Suche nach "siphon"!
+- SOFORT mit Alternativen suchen, NICHT aufgeben oder Kollegen fragen!
+- Erst wenn ALLE Alternativen probiert: Kunden nach anderem Begriff fragen
+
 BEI VIELEN TREFFERN:
 - Nicht alle auflisten! Stattdessen nachfragen
 - "Da habe ich mehrere Varianten. Brauchen Sie Innen- oder Aussengewinde?"
@@ -798,14 +804,40 @@ class AIClient:
                     keyword_result = catalog.search_keyword_index(suchbegriff)
                     return f"Keine Treffer in {hersteller}.\n\n{keyword_result}"
                 
-                # Pruefen ob Suche spezifisch genug ist
+                # Pruefen ob Suche spezifisch genug ist UND ob Ergebnisse relevant sind
                 specificity = catalog.analyze_search_specificity(suchbegriff, results)
                 
                 # Debug: Immer anzeigen was die Analyse ergeben hat
-                logger.info(f"[KATALOG-SUCHE] Spezifitaet: is_specific={specificity['is_specific']}, results={specificity['result_count']}")
+                logger.info(f"[KATALOG-SUCHE] Analyse: relevant={specificity['results_relevant']}, spezifisch={specificity['is_specific']}, treffer={specificity['result_count']}, alternativen={specificity['alternative_terms']}")
                 if self.on_transcript:
-                    await self.on_transcript("system", f"[Suche-Analyse] '{suchbegriff}': spezifisch={specificity['is_specific']}, {specificity['result_count']} Treffer", True)
+                    await self.on_transcript("system", f"[Suche-Analyse] '{suchbegriff}': relevant={specificity['results_relevant']}, spezifisch={specificity['is_specific']}, {specificity['result_count']} Treffer", True)
                 
+                # ZUERST: Pruefen ob Ergebnisse ueberhaupt relevant sind
+                if not specificity["results_relevant"]:
+                    # Ergebnisse passen nicht zum Suchbegriff!
+                    lines = [f"=== Ergebnisse fuer '{suchbegriff}' sind NICHT relevant ==="]
+                    lines.append(f"\nDie {specificity['result_count']} Treffer in {key} enthalten den Suchbegriff nicht.")
+                    lines.append("\nWICHTIG: Suche SELBST mit alternativen Begriffen!")
+                    
+                    if specificity["alternative_terms"]:
+                        lines.append(f"\nProbiere diese Suchbegriffe:")
+                        for term in specificity["alternative_terms"]:
+                            lines.append(f"  -> '{term}'")
+                    
+                    lines.append("\nODER frage den Kunden nach einem anderen Begriff fuer das Produkt.")
+                    lines.append("Sage NICHT 'nicht gefunden' - probiere zuerst die Alternativen!")
+                    
+                    result_text = "\n".join(lines)
+                    
+                    # An GUI senden
+                    if self.on_transcript:
+                        await self.on_transcript("system", f"[Suche-Warnung]\n{result_text}", True)
+                    
+                    logger.info(f"[KATALOG-SUCHE] Irrelevante Ergebnisse fuer '{suchbegriff}' - Alternativen: {specificity['alternative_terms']}")
+                    
+                    return result_text
+                
+                # DANN: Pruefen ob Suche spezifisch genug ist
                 if not specificity["is_specific"]:
                     # Suche zu unspezifisch - Vorschlaege statt Produktliste zurueckgeben
                     suggestions = specificity["suggestions"]
@@ -832,7 +864,7 @@ class AIClient:
                     
                     return result_text
                 
-                # Kompakte Ergebnisse formatieren (spezifische Suche)
+                # Kompakte Ergebnisse formatieren (spezifische Suche mit relevanten Ergebnissen)
                 lines = [f"=== {len(results)} Treffer in {key} fuer '{suchbegriff}' ===\n"]
                 
                 for p in results[:15]:  # Max 15 Ergebnisse

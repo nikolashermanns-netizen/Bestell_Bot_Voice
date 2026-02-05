@@ -585,17 +585,33 @@ class ExpertClient:
                                     all_results.append(p)
                         
                         if all_results:
-                            lines = [f"=== {len(all_results)} Treffer fuer '{suchbegriff}' ===\n"]
-                            for p in all_results[:20]:
-                                bezeichnung = p.get("bezeichnung", "")
-                                artikel = p.get("artikel", "")
-                                hersteller = p.get("hersteller", "")
-                                lines.append(f"- {bezeichnung} | Hersteller: {hersteller} | Art: {artikel}")
+                            # Pruefen ob Ergebnisse relevant sind
+                            specificity = catalog.analyze_search_specificity(suchbegriff, all_results)
                             
-                            if len(all_results) > 20:
-                                lines.append(f"\n... und {len(all_results) - 20} weitere. Verfeinere die Suche.")
-                            
-                            result = "\n".join(lines)
+                            if not specificity["results_relevant"]:
+                                # Ergebnisse passen nicht zum Suchbegriff
+                                lines = [f"=== Ergebnisse fuer '{suchbegriff}' sind NICHT relevant ==="]
+                                lines.append(f"\nDie {len(all_results)} Treffer enthalten den Suchbegriff nicht.")
+                                
+                                if specificity["alternative_terms"]:
+                                    lines.append("\nProbiere diese Suchbegriffe:")
+                                    for term in specificity["alternative_terms"]:
+                                        lines.append(f"  -> '{term}'")
+                                
+                                lines.append("\nODER frage nach einem anderen Begriff fuer das Produkt.")
+                                result = "\n".join(lines)
+                            else:
+                                lines = [f"=== {len(all_results)} Treffer fuer '{suchbegriff}' ===\n"]
+                                for p in all_results[:20]:
+                                    bezeichnung = p.get("bezeichnung", "")
+                                    artikel = p.get("artikel", "")
+                                    hersteller = p.get("hersteller", "")
+                                    lines.append(f"- {bezeichnung} | Hersteller: {hersteller} | Art: {artikel}")
+                                
+                                if len(all_results) > 20:
+                                    lines.append(f"\n... und {len(all_results) - 20} weitere. Verfeinere die Suche.")
+                                
+                                result = "\n".join(lines)
                         else:
                             # Kein direkter Treffer - zeige Keyword-Ergebnis
                             result = f"Keine direkten Treffer fuer '{suchbegriff}'.\n\n{keyword_result}"
