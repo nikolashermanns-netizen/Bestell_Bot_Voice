@@ -111,6 +111,105 @@ def load_keyword_index() -> bool:
         return False
 
 
+def _levenshtein_distance(s1: str, s2: str) -> int:
+    """Berechnet Levenshtein-Distanz zwischen zwei Strings."""
+    if len(s1) < len(s2):
+        return _levenshtein_distance(s2, s1)
+    if len(s2) == 0:
+        return len(s1)
+    
+    previous_row = range(len(s2) + 1)
+    for i, c1 in enumerate(s1):
+        current_row = [i + 1]
+        for j, c2 in enumerate(s2):
+            insertions = previous_row[j + 1] + 1
+            deletions = current_row[j] + 1
+            substitutions = previous_row[j] + (c1 != c2)
+            current_row.append(min(insertions, deletions, substitutions))
+        previous_row = current_row
+    
+    return previous_row[-1]
+
+
+def find_similar_keywords(keyword: str, max_distance: int = 2, limit: int = 20) -> List[Dict]:
+    """
+    Findet aehnliche Schlagwoerter im Index.
+    
+    Args:
+        keyword: Suchbegriff
+        max_distance: Maximale Levenshtein-Distanz
+        limit: Maximale Anzahl Ergebnisse
+    
+    Returns:
+        Liste von Dicts mit keyword, distance, kataloge
+    """
+    import re
+    
+    # Normalisieren
+    keyword = keyword.lower().strip()
+    keyword = keyword.replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
+    keyword = re.sub(r'[^a-z0-9]', '', keyword)
+    
+    if not keyword or len(keyword) < 3:
+        return []
+    
+    results = []
+    
+    # Exakter Match zuerst
+    if keyword in _keyword_index:
+        data = _keyword_index[keyword]
+        results.append({
+            "keyword": keyword,
+            "distance": 0,
+            "kataloge": data["kataloge"],
+            "count": data["count"]
+        })
+    
+    # Partial Matches (enthält oder ist enthalten)
+    for indexed_kw, data in _keyword_index.items():
+        if indexed_kw == keyword:
+            continue
+        
+        # Substring-Match (höhere Priorität)
+        if keyword in indexed_kw:
+            results.append({
+                "keyword": indexed_kw,
+                "distance": 0.5,  # Pseudo-Distanz für Substring
+                "kataloge": data["kataloge"],
+                "count": data["count"]
+            })
+        elif indexed_kw in keyword:
+            results.append({
+                "keyword": indexed_kw,
+                "distance": 0.5,
+                "kataloge": data["kataloge"],
+                "count": data["count"]
+            })
+    
+    # Levenshtein nur wenn wenige Ergebnisse und Keyword kurz genug
+    if len(results) < 5 and len(keyword) <= 15:
+        for indexed_kw, data in _keyword_index.items():
+            # Nur ähnlich lange Keywords prüfen (Performance)
+            if abs(len(indexed_kw) - len(keyword)) > max_distance:
+                continue
+            if any(r["keyword"] == indexed_kw for r in results):
+                continue
+            
+            distance = _levenshtein_distance(keyword, indexed_kw)
+            if distance <= max_distance:
+                results.append({
+                    "keyword": indexed_kw,
+                    "distance": distance,
+                    "kataloge": data["kataloge"],
+                    "count": data["count"]
+                })
+    
+    # Nach Distanz sortieren, dann nach Count
+    results.sort(key=lambda x: (x["distance"], -x["count"]))
+    
+    return results[:limit]
+
+
 def find_catalogs_by_keyword(keyword: str) -> Dict:
     """
     Findet welche Kataloge ein bestimmtes Schlagwort enthalten.
@@ -121,72 +220,84 @@ def find_catalogs_by_keyword(keyword: str) -> Dict:
     Returns:
         Dict mit kataloge und count, oder leeres Dict
     """
-    import re
+    similar = find_similar_keywords(keyword, max_distance=2, limit=10)
     
-    # Normalisieren
-    keyword = keyword.lower().strip()
-    keyword = keyword.replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
-    keyword = re.sub(r'[^a-z0-9]', '', keyword)
-    
-    if not keyword or len(keyword) < 3:
+    if not similar:
         return {"kataloge": [], "count": 0}
     
-    # Exakter Match
-    if keyword in _keyword_index:
-        return _keyword_index[keyword]
+    # Alle Kataloge aus allen ähnlichen Keywords sammeln
+    all_kataloge = {}
+    for item in similar:
+        for katalog in item["kataloge"]:
+            if katalog not in all_kataloge:
+                all_kataloge[katalog] = 0
+            all_kataloge[katalog] += item["count"]
     
-    # Partial Match (Keyword ist Teil eines indexierten Keywords)
-    matches = {}
-    for indexed_kw, data in _keyword_index.items():
-        if keyword in indexed_kw or indexed_kw in keyword:
-            for katalog in data["kataloge"]:
-                if katalog not in matches:
-                    matches[katalog] = 0
-                matches[katalog] += data["count"]
-    
-    if matches:
-        sorted_kataloge = sorted(matches.keys(), key=lambda k: matches[k], reverse=True)
-        return {"kataloge": sorted_kataloge[:10], "count": sum(matches.values())}
-    
-    return {"kataloge": [], "count": 0}
+    sorted_kataloge = sorted(all_kataloge.keys(), key=lambda k: all_kataloge[k], reverse=True)
+    return {"kataloge": sorted_kataloge[:10], "count": sum(all_kataloge.values())}
 
 
 def search_keyword_index(query: str) -> str:
     """
     Sucht im Keyword-Index nach einem Begriff und gibt formatierte Ergebnisse zurück.
-    Diese Funktion ist für die AI gedacht.
+    Zeigt auch aehnliche Schlagwoerter, damit die AI entscheiden kann.
     
     Args:
         query: Suchbegriff (kann mehrere Woerter enthalten)
     
     Returns:
-        Formatierter String mit gefundenen Katalogen
+        Formatierter String mit gefundenen Schlagwoertern und Katalogen
     """
     words = query.lower().split()
-    all_matches = {}
+    all_similar = []
+    all_kataloge = {}
     
     for word in words:
-        result = find_catalogs_by_keyword(word)
-        for katalog in result.get("kataloge", []):
-            if katalog not in all_matches:
-                all_matches[katalog] = {"count": 0, "keywords": []}
-            all_matches[katalog]["count"] += 1
-            all_matches[katalog]["keywords"].append(word)
+        # Alle ähnlichen Keywords für dieses Wort finden
+        similar = find_similar_keywords(word, max_distance=2, limit=15)
+        
+        for item in similar:
+            # Ähnliche Keywords zur Ausgabe hinzufügen
+            existing = next((s for s in all_similar if s["keyword"] == item["keyword"]), None)
+            if not existing:
+                all_similar.append({
+                    "keyword": item["keyword"],
+                    "distance": item["distance"],
+                    "search_word": word,
+                    "kataloge": item["kataloge"]
+                })
+            
+            # Kataloge sammeln
+            for katalog in item["kataloge"]:
+                if katalog not in all_kataloge:
+                    all_kataloge[katalog] = {"count": 0, "keywords": set()}
+                all_kataloge[katalog]["count"] += 1
+                all_kataloge[katalog]["keywords"].add(item["keyword"])
     
-    if not all_matches:
-        return f"Kein Katalog gefunden fuer '{query}'. Versuche eine Internet-Recherche oder frag den Experten."
+    if not all_similar:
+        return f"Kein Schlagwort gefunden fuer '{query}'. Versuche eine Internet-Recherche."
     
-    # Nach Relevanz sortieren (mehr Keywords = relevanter)
-    sorted_matches = sorted(all_matches.items(), key=lambda x: x[1]["count"], reverse=True)
+    lines = [f"=== Suche nach '{query}' ===\n"]
     
-    lines = [f"=== Gefundene Kataloge fuer '{query}' ===\n"]
-    for katalog, data in sorted_matches[:5]:
+    # Gefundene ähnliche Schlagwörter anzeigen
+    lines.append("GEFUNDENE SCHLAGWOERTER (du entscheidest welches passt):")
+    for item in all_similar[:15]:
+        dist_info = "" if item["distance"] == 0 else f" (aehnlich zu '{item['search_word']}')"
+        lines.append(f"  - {item['keyword']}{dist_info}")
+    
+    lines.append("")
+    
+    # Kataloge anzeigen
+    lines.append("PASSENDE KATALOGE:")
+    sorted_kataloge = sorted(all_kataloge.items(), key=lambda x: x[1]["count"], reverse=True)
+    for katalog, data in sorted_kataloge[:8]:
         info = _hersteller_index.get(katalog, {})
         name = info.get("name", katalog)
         products = info.get("products", 0)
-        lines.append(f"- {name}: {products} Produkte (Match: {', '.join(data['keywords'])})")
+        keywords = ", ".join(list(data["keywords"])[:3])
+        lines.append(f"  - {name}: {products} Produkte (Keywords: {keywords})")
     
-    lines.append(f"\nNutze 'lade_hersteller_katalog' mit dem passenden Hersteller.")
+    lines.append("\nEntscheide welches Schlagwort/Katalog am besten passt und lade den Katalog.")
     return "\n".join(lines)
 
 
