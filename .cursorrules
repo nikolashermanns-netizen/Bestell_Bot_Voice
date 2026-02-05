@@ -175,6 +175,14 @@ Die AI hat Zugriff auf folgende Funktionen:
 | `zeige_bestellung` | Zeigt aktuelle Bestellung |
 | `frage_experten` | Fragt Experten-Modell bei Fachfragen |
 
+**Experten-Tools (nur für Expert Client):**
+
+| Tool | Beschreibung |
+|------|--------------|
+| `zeige_hersteller` | Zeigt alle Hersteller im Katalog |
+| `lade_hersteller_katalog` | Lädt Katalog in Experten-Context |
+| `lade_produkt_dokumentation` | Lädt PDFs von Heinrich Schmidt und analysiert mit GPT-5 |
+
 ### AI-Workflow
 
 1. **Hersteller ermitteln** - AI fragt Kunden oder nutzt `zeige_hersteller`
@@ -222,6 +230,50 @@ Für komplexe Fachfragen kann die Realtime-AI einen "Kollegen" (Experten-Modell)
 **Konfidenz-System:**
 - Nur Antworten mit ≥90% Konfidenz werden an Kunden weitergegeben
 - Bei niedriger Konfidenz: "Das kann ich leider nicht sicher beantworten"
+
+**Experten-Tools:**
+
+| Tool | Beschreibung |
+|------|--------------|
+| `zeige_hersteller` | Zeigt alle verfügbaren Hersteller im Katalog |
+| `lade_hersteller_katalog` | Lädt Katalog eines Herstellers in Context |
+| `lade_produkt_dokumentation` | Lädt PDFs/Datenblätter und analysiert sie mit GPT-5 |
+
+**SHK-Fachwissen (integriert in Instruktionen):**
+
+Der Experte hat Fachwissen zu Rohrsystemen eingebaut:
+
+| System | Hersteller | Material | Trinkwasser |
+|--------|------------|----------|-------------|
+| Temponox | Viega | Edelstahl 1.4521 (V4A) | JA (DVGW W 534) |
+| Sanpress Inox | Viega | Edelstahl 1.4401/1.4521 | JA (DVGW) |
+| Profipress | Viega | Kupfer/Rotguss | JA (DVGW) |
+| Megapress | Viega | Stahl verzinkt | NEIN (nur Heizung/Gas) |
+| Prestabo | Viega | Stahl verzinkt | NEIN (nur Heizung/Gas) |
+| Mapress Edelstahl | Geberit | Edelstahl 1.4401/1.4521 | JA (DVGW) |
+| Mapress C-Stahl | Geberit | Kohlenstoffstahl | NEIN (nur Heizung) |
+| Mepla | Geberit | Mehrschicht-Verbundrohr | JA (DVGW) |
+
+**Dokumenten-Analyse (PDF-Upload):**
+
+Bei technischen Fragen, die nicht mit Fachwissen beantwortet werden können:
+
+1. Experte fragt nach konkreter Artikelnummer
+2. `lade_produkt_dokumentation` wird aufgerufen
+3. `ProductDownloader` (`server/scraper/product_downloads.py`) lädt Dokumente von Heinrich Schmidt OnlinePro
+4. PDFs werden mit GPT-5 File-Upload analysiert
+5. Technische Daten (Material, DVGW-Zulassung, Einsatzbereiche) werden extrahiert
+6. Antwort mit 100% Konfidenz basierend auf Originaldokumenten
+
+**Ablauf bei technischer Frage (z.B. "Ist Temponox für Trinkwasser geeignet?"):**
+
+```
+1. Prüfe Fachwissen → "Temponox = Edelstahl 1.4521, DVGW W 534"
+2. Falls bekannt → Antwort mit 90%+ Konfidenz
+3. Falls unklar → Frage nach Artikelnummer
+4. Lade Dokumentation → PDFs analysieren
+5. Antwort mit 100% Konfidenz aus Originaldokumenten
+```
 
 ### Order Manager (`server/app/order_manager.py`)
 

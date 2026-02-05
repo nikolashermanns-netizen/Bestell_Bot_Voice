@@ -8,6 +8,7 @@ Nur Antworten mit hoher Konfidenz werden weitergegeben.
 import asyncio
 import json
 import logging
+import os
 from typing import Optional, Callable
 from openai import AsyncOpenAI
 
@@ -74,10 +75,46 @@ Du MUSST immer in diesem JSON-Format antworten:
 }
 
 === KONFIDENZ-SKALA ===
-- 1.0: Absolut sicher, aus Katalog bestaetigt
-- 0.9: Sehr sicher, Standardwissen
+- 1.0: Absolut sicher, aus Katalog oder Dokumentation bestaetigt
+- 0.9: Sehr sicher, Standardwissen (bekannte Systeme)
 - 0.8: Ziemlich sicher, kleine Unsicherheit
-- <0.8: Zu unsicher, verweigere die Antwort
+- <0.8: Zu unsicher, verweigere die Antwort oder frage nach Artikelnummer
+
+=== SHK-FACHWISSEN: ROHRSYSTEME ===
+TRINKWASSER-GEEIGNET (DVGW zugelassen):
+- Temponox (Viega): Edelstahl 1.4521 (V4A), DVGW W 534, fuer Trinkwasser geeignet
+- Sanpress Inox (Viega): Edelstahl 1.4401/1.4521, DVGW zugelassen, Trinkwasser geeignet
+- Profipress (Viega): Kupfer/Rotguss, DVGW zugelassen, Trinkwasser geeignet
+- Mapress Edelstahl (Geberit): 1.4401/1.4521, DVGW zugelassen, Trinkwasser geeignet
+- Mepla (Geberit): Mehrschicht-Verbundrohr, fuer Trinkwasser zugelassen
+- Sanfix (Viega): Mehrschicht-Verbundrohr, DVGW zugelassen
+
+NUR HEIZUNG/GAS (NICHT fuer Trinkwasser):
+- Megapress (Viega): Stahl verzinkt, NUR Heizung/Gas/Druckluft
+- Prestabo (Viega): Stahl verzinkt, NUR Heizung/Gas
+- Mapress C-Stahl (Geberit): Kohlenstoffstahl, NUR Heizung
+
+MATERIALIEN:
+- 1.4521 / V4A: Edelstahl, korrosionsbestaendig, Trinkwasser OK
+- 1.4401 / V2A: Edelstahl, Trinkwasser OK
+- Kupfer: Trinkwasser OK, nicht bei pH < 7.0
+- Rotguss: Trinkwasser OK, ideal fuer Armaturen
+- Verzinkter Stahl: NUR Heizung, korrodiert bei Trinkwasser
+
+=== RUECKFRAGE BEI TECHNISCHEN FRAGEN ===
+Wenn ein Kunde eine technische Frage stellt (Material, Zulassung, Eignung):
+1. Pruefe ob du es mit dem Fachwissen oben sicher beantworten kannst
+2. Falls das System bekannt ist (z.B. Temponox): Antworte mit hoher Konfidenz
+3. Falls unklar: Nutze "lade_produkt_dokumentation" mit der Artikelnummer
+4. Falls keine Artikelnummer bekannt: Frage nach!
+
+Beispiel-Rueckfrage im JSON:
+{
+    "antwort": "Um das sicher zu beantworten, braeuchte ich die genaue Artikelnummer. Welche Temponox-Verschraubung meinen Sie genau?",
+    "konfidenz": 0.5,
+    "begruendung": "Ohne konkrete Artikelnummer kann ich keine 100% sichere Aussage treffen",
+    "artikelnummern": []
+}
 """
 
 # Tools für Katalog-Zugriff (Multi-Hersteller)
@@ -111,6 +148,23 @@ EXPERT_TOOLS = [
                 "required": ["hersteller"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "lade_produkt_dokumentation",
+            "description": "Laedt technische Dokumentation (Datenblaetter, Montageanleitungen, PDFs) fuer ein Produkt und analysiert sie. Nutze dies wenn du 100% sichere technische Informationen brauchst (Material, Zulassungen, Einsatzbereiche). WICHTIG: Du brauchst die konkrete Artikelnummer!",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "artikelnummer": {
+                        "type": "string",
+                        "description": "Heinrich Schmidt Artikelnummer (z.B. 'TEM+VS4240I', 'VIE+SA2815')"
+                    }
+                },
+                "required": ["artikelnummer"]
+            }
+        }
     }
 ]
 
@@ -136,6 +190,7 @@ class ExpertClient:
         # Callbacks
         self.on_expert_start: Optional[Callable[[str, str], None]] = None  # (frage, model)
         self.on_expert_done: Optional[Callable[[dict], None]] = None  # result
+        self.on_download_status: Optional[Callable[[dict], None]] = None  # Download-Status für GUI
         
         # Statistiken
         self._stats = {
@@ -485,6 +540,157 @@ class ExpertClient:
                         else:
                             result = f"Fehler beim Laden des Katalogs '{hersteller}'."
                 
+                elif name == "lade_produkt_dokumentation":
+                    import time as time_module
+                    artikelnummer = args.get("artikelnummer", "")
+                    
+                    if not artikelnummer:
+                        result = "Fehler: Keine Artikelnummer angegeben. Frage den Kunden nach der genauen Artikelnummer."
+                    else:
+                        logger.info(f"[Expert Tool] Lade Dokumentation fuer: {artikelnummer}")
+                        
+                        # Status: Download startet
+                        if self.on_download_status:
+                            try:
+                                await self.on_download_status({
+                                    "status": "start",
+                                    "artikelnummer": artikelnummer,
+                                    "message": f"Lade Dokumentation für {artikelnummer}..."
+                                })
+                            except Exception as cb_err:
+                                logger.warning(f"on_download_status callback error: {cb_err}")
+                        
+                        try:
+                            # ProductDownloader importieren und verwenden
+                            import sys
+                            scraper_path = os.path.join(os.path.dirname(__file__), "..", "scraper")
+                            if scraper_path not in sys.path:
+                                sys.path.insert(0, scraper_path)
+                            
+                            from product_downloads import ProductDownloader
+                            
+                            download_start = time_module.time()
+                            downloader = ProductDownloader()
+                            product_data = downloader.get_downloads_for_expert_ai(artikelnummer)
+                            download_duration = time_module.time() - download_start
+                            
+                            if "error" in product_data:
+                                result = f"Fehler: {product_data['error']}"
+                                
+                                # Status: Download fehlgeschlagen
+                                if self.on_download_status:
+                                    try:
+                                        await self.on_download_status({
+                                            "status": "error",
+                                            "artikelnummer": artikelnummer,
+                                            "message": f"Fehler: {product_data['error']}",
+                                            "duration_sec": round(download_duration, 1)
+                                        })
+                                    except Exception as cb_err:
+                                        logger.warning(f"on_download_status callback error: {cb_err}")
+                            else:
+                                # Alle Downloads sammeln
+                                all_downloads = product_data.get("downloads", [])
+                                pdf_files = [d for d in all_downloads if d.get("type") == "pdf" and d.get("local_path")]
+                                
+                                # Status: Download abgeschlossen
+                                if self.on_download_status:
+                                    try:
+                                        await self.on_download_status({
+                                            "status": "downloaded",
+                                            "artikelnummer": artikelnummer,
+                                            "product_name": product_data.get('name', 'Unbekannt'),
+                                            "files": [d.get("name", "?") for d in all_downloads if d.get("local_path")],
+                                            "pdf_count": len(pdf_files),
+                                            "total_count": len(all_downloads),
+                                            "duration_sec": round(download_duration, 1),
+                                            "message": f"{len(all_downloads)} Dateien heruntergeladen in {download_duration:.1f}s"
+                                        })
+                                    except Exception as cb_err:
+                                        logger.warning(f"on_download_status callback error: {cb_err}")
+                                
+                                # Produktinfo sammeln
+                                lines = [
+                                    f"=== PRODUKTDOKUMENTATION: {artikelnummer} ===",
+                                    f"Name: {product_data.get('name', 'Unbekannt')}",
+                                    f"Hersteller: {product_data.get('manufacturer', 'Unbekannt')}",
+                                    f"Kategorie: {product_data.get('category', '-')} / {product_data.get('subcategory', '-')}",
+                                ]
+                                
+                                if product_data.get('description'):
+                                    lines.append(f"Beschreibung: {product_data['description']}")
+                                if product_data.get('weight'):
+                                    lines.append(f"Gewicht: {product_data['weight']}")
+                                
+                                # PDFs analysieren
+                                if pdf_files:
+                                    lines.append(f"\n{len(pdf_files)} PDF-Dokumente gefunden. Analysiere...")
+                                    
+                                    # Status: PDF-Analyse startet
+                                    if self.on_download_status:
+                                        try:
+                                            await self.on_download_status({
+                                                "status": "analyzing",
+                                                "artikelnummer": artikelnummer,
+                                                "pdf_count": len(pdf_files),
+                                                "message": f"Analysiere {len(pdf_files)} PDFs mit GPT-5..."
+                                            })
+                                        except Exception as cb_err:
+                                            logger.warning(f"on_download_status callback error: {cb_err}")
+                                    
+                                    # PDFs an GPT-5 zur Analyse senden
+                                    try:
+                                        analysis_start = time_module.time()
+                                        analysis = await self._analyze_pdfs(pdf_files, artikelnummer)
+                                        analysis_duration = time_module.time() - analysis_start
+                                        
+                                        lines.append("\n=== ANALYSE DER TECHNISCHEN DOKUMENTE ===")
+                                        lines.append(analysis)
+                                        
+                                        # Status: Analyse abgeschlossen
+                                        if self.on_download_status:
+                                            try:
+                                                await self.on_download_status({
+                                                    "status": "complete",
+                                                    "artikelnummer": artikelnummer,
+                                                    "pdf_count": len(pdf_files),
+                                                    "analysis_duration_sec": round(analysis_duration, 1),
+                                                    "total_duration_sec": round(download_duration + analysis_duration, 1),
+                                                    "message": f"Analyse abgeschlossen in {analysis_duration:.1f}s (Gesamt: {download_duration + analysis_duration:.1f}s)"
+                                                })
+                                            except Exception as cb_err:
+                                                logger.warning(f"on_download_status callback error: {cb_err}")
+                                                
+                                    except Exception as pdf_error:
+                                        logger.error(f"[Expert Tool] PDF-Analyse fehlgeschlagen: {pdf_error}")
+                                        lines.append(f"\nPDF-Analyse fehlgeschlagen: {pdf_error}")
+                                        # Zumindest die Dateinamen auflisten
+                                        lines.append("Verfuegbare Dokumente:")
+                                        for pdf in pdf_files:
+                                            lines.append(f"  - {pdf.get('name', 'Unbekannt')}")
+                                        
+                                        # Status: Analyse fehlgeschlagen
+                                        if self.on_download_status:
+                                            try:
+                                                await self.on_download_status({
+                                                    "status": "analysis_error",
+                                                    "artikelnummer": artikelnummer,
+                                                    "message": f"PDF-Analyse fehlgeschlagen: {pdf_error}"
+                                                })
+                                            except Exception as cb_err:
+                                                logger.warning(f"on_download_status callback error: {cb_err}")
+                                else:
+                                    lines.append("\nKeine PDF-Dokumente verfuegbar.")
+                                
+                                result = "\n".join(lines)
+                                
+                        except ImportError as ie:
+                            logger.error(f"[Expert Tool] Import-Fehler: {ie}")
+                            result = f"Fehler: ProductDownloader nicht verfuegbar ({ie})"
+                        except Exception as e:
+                            logger.error(f"[Expert Tool] Fehler bei Dokumentation: {e}")
+                            result = f"Fehler beim Laden der Dokumentation: {e}"
+                
                 else:
                     result = f"Unbekannte Funktion: {name}"
                 
@@ -497,6 +703,99 @@ class ExpertClient:
             results.append(result)
         
         return results
+    
+    async def _analyze_pdfs(self, pdf_files: list, artikelnummer: str) -> str:
+        """
+        Analysiert PDF-Dokumente mit GPT-5 File-Upload.
+        
+        Args:
+            pdf_files: Liste von Dicts mit 'name' und 'local_path'
+            artikelnummer: Artikelnummer für Kontext
+            
+        Returns:
+            Analyse-Text aus den Dokumenten
+        """
+        import base64
+        
+        logger.info(f"[Expert PDF] Analysiere {len(pdf_files)} PDFs fuer {artikelnummer}")
+        
+        # PDF-Inhalte laden und als Base64 kodieren (max 3 PDFs)
+        pdf_contents = []
+        for pdf in pdf_files[:3]:
+            try:
+                local_path = pdf.get("local_path", "")
+                if local_path and os.path.exists(local_path):
+                    with open(local_path, "rb") as f:
+                        content = base64.b64encode(f.read()).decode()
+                        pdf_contents.append({
+                            "name": pdf.get("name", "Dokument"),
+                            "content": content
+                        })
+                        logger.info(f"[Expert PDF] Geladen: {pdf.get('name')} ({len(content)} Bytes base64)")
+            except Exception as e:
+                logger.warning(f"[Expert PDF] Konnte PDF nicht laden: {e}")
+        
+        if not pdf_contents:
+            return "Keine PDFs konnten geladen werden."
+        
+        # An GPT-5 mit File-Input senden
+        try:
+            # Multimodal-Nachricht mit PDFs erstellen
+            user_content = [
+                {
+                    "type": "text", 
+                    "text": f"""Analysiere die technischen Dokumente fuer Artikel {artikelnummer}.
+
+Extrahiere folgende Informationen (falls vorhanden):
+1. MATERIAL: Aus welchem Material ist das Produkt? (z.B. Edelstahl 1.4521, Kupfer, etc.)
+2. ZULASSUNGEN: Welche Zulassungen hat es? (DVGW, KTW, WRAS, etc.)
+3. EINSATZBEREICHE: Wofuer ist es geeignet? (Trinkwasser, Heizung, Gas, etc.)
+4. TECHNISCHE DATEN: Temperatur, Druck, Abmessungen
+5. WICHTIGE HINWEISE: Besondere Einschraenkungen oder Anforderungen
+
+Antworte praegnant und strukturiert."""
+                }
+            ]
+            
+            # PDFs als File-Attachments hinzufügen
+            for pdf in pdf_contents:
+                user_content.append({
+                    "type": "file",
+                    "file": {
+                        "filename": pdf["name"],
+                        "file_data": f"data:application/pdf;base64,{pdf['content']}"
+                    }
+                })
+            
+            messages = [
+                {
+                    "role": "system", 
+                    "content": "Du bist ein technischer Dokumenten-Analyst fuer SHK-Produkte. Extrahiere relevante technische Informationen aus den Dokumenten."
+                },
+                {
+                    "role": "user",
+                    "content": user_content
+                }
+            ]
+            
+            # GPT-5 für Dokumentenanalyse verwenden (besser für multimodal)
+            response = await self._client.chat.completions.create(
+                model="gpt-5",
+                messages=messages,
+                max_completion_tokens=1500,
+                temperature=0.2
+            )
+            
+            analysis = response.choices[0].message.content
+            logger.info(f"[Expert PDF] Analyse erhalten: {len(analysis)} Zeichen")
+            
+            return analysis
+            
+        except Exception as e:
+            logger.error(f"[Expert PDF] API-Fehler: {e}")
+            
+            # Fallback: Nur Dateinamen auflisten
+            return f"PDF-Analyse fehlgeschlagen ({e}). Dokumente: {', '.join([p['name'] for p in pdf_contents])}"
     
     def get_config(self) -> dict:
         """Gibt die aktuelle Konfiguration zurück."""

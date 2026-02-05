@@ -437,7 +437,49 @@ $('.ArtikelsucheExport').on('click', function() {
 
 ---
 
-## 12. Verfügbare Scripts
+## 12. Kategorie-Struktur
+
+Die Webseite hat eine 3-stufige Kategorien-Hierarchie:
+
+### Hierarchie
+```
+Sortiment (z.B. Sanitär)
+  └── Obergruppe (z.B. Badkeramik)
+       └── Produktgruppe (z.B. Waschtische)
+```
+
+### Sortimente (Produktgruppe1)
+| Code | Name | Produkte |
+|------|------|----------|
+| S | Sanitär | ~220.000 |
+| H | Heizung | ~200.000 |
+| I | Installation | ~56.000 |
+| L | Klima/Lüftung | ~34.000 |
+| E | Elektro | ~558.000 |
+| C | Werkzeug | ~69.000 |
+| P | Photovoltaik | ~771 |
+| G | Hausgeräte | ? |
+| M | Befestigungstechnik | ~4.400 |
+
+### Such-URLs
+```
+# Sortiment
+artikelsuche.csp?Produktgruppe1=S
+
+# Obergruppe
+artikelsuche.csp?Produktgruppe1=S&Produktgruppe2=S0080
+
+# Produktgruppe
+artikelsuche.csp?Produktgruppe1=S&Produktgruppe2=S0080&Produktgruppe3=S00800130
+```
+
+### Exportierte Dateien
+- `_sortiment_struktur.json` - Vollständige Hierarchie (9 Sortimente, 130 Obergruppen, 798 Produktgruppen)
+- `_such_index.json` - Keyword-basierter Such-Index
+
+---
+
+## 13. Verfügbare Scripts
 
 | Script | Funktion |
 |--------|----------|
@@ -446,6 +488,9 @@ $('.ArtikelsucheExport').on('click', function() {
 | `export_by_hersteller.py` | Export nach Herstellern sortiert |
 | `export_all_systems.py` | Export aller Sortimente |
 | `complete_catalogs.py` | Vervollständigung bei 2000er Limit |
+| `export_sortiment_struktur.py` | Export der Kategorie-Hierarchie |
+| `create_such_index.py` | Erstellt Keyword-Such-Index |
+| `test_dokumentation.py` | Test: Produkt-Downloads |
 
 ---
 

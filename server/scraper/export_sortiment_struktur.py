@@ -1,6 +1,6 @@
 """
 Exportiert die komplette Sortiment-Struktur von der Schmidt-Webseite.
-Parst alle Links von der Sortiment-Hauptseite.
+Lädt ALLE Produktgruppen durch Parsen der vollständigen Link-Liste.
 """
 import requests
 import re
@@ -50,91 +50,108 @@ def login() -> requests.Session:
     return session
 
 
-def parse_sortiment_links(html: str) -> dict:
-    """Parst alle Sortiment-Links und baut die Struktur auf"""
-    soup = BeautifulSoup(html, 'html.parser')
+def get_all_groups_from_page(session: requests.Session, sort_code: str) -> dict:
+    """
+    Holt alle Obergruppen und Produktgruppen von einer Sortiment-Seite.
+    Parst sowohl die sichtbaren Links als auch die versteckten Links am Ende.
+    """
+    url = f'{BASE_URL}/sortimenthsa.csp?Produktgruppe1={sort_code}'
+    response = session.get(url, timeout=REQUEST_TIMEOUT)
+    soup = BeautifulSoup(response.text, 'html.parser')
     
-    # Struktur: sortiment -> obergruppe -> produktgruppe
-    struktur = defaultdict(lambda: {'obergruppen': defaultdict(lambda: {'produktgruppen': {}})})
+    # Sammle alle Produktgruppen-Links (mit und ohne Text)
+    obergruppen = {}  # og_code -> {name, produktgruppen: {pg_code -> name}}
+    pg_names = {}     # pg_code -> name (für Links mit Text)
+    pg_to_og = {}     # pg_code -> og_code (Zuordnung)
     
     for link in soup.find_all('a', href=True):
         href = link.get('href', '')
         text = link.get_text(strip=True)
         
-        if 'sortimenthsa.csp' not in href or not text or 'weitere' in text.lower():
+        if 'sortimenthsa.csp' not in href:
             continue
-        
+        if 'weitere' in text.lower():
+            continue
         if '?' not in href:
             continue
             
         params = parse_qs(href.split('?')[1])
-        
         pg1 = params.get('Produktgruppe1', [''])[0]
         pg2 = params.get('Produktgruppe2', [''])[0]
         pg3 = params.get('Produktgruppe3', [''])[0]
         
-        if pg1 and not pg2:
-            # Sortiment selbst - ignorieren, haben wir schon
-            pass
-        elif pg1 and pg2 and not pg3:
-            # Obergruppe
-            if pg2 not in struktur[pg1]['obergruppen']:
-                struktur[pg1]['obergruppen'][pg2] = {
-                    'code': pg2,
-                    'name': text,
-                    'produktgruppen': {}
-                }
-        elif pg1 and pg2 and pg3:
-            # Produktgruppe
-            if pg2 in struktur[pg1]['obergruppen']:
-                struktur[pg1]['obergruppen'][pg2]['produktgruppen'][pg3] = {
-                    'code': pg3,
-                    'name': text,
-                }
-            else:
-                # Obergruppe noch nicht bekannt - erstellen
-                struktur[pg1]['obergruppen'][pg2] = {
-                    'code': pg2,
-                    'name': 'Unbekannt',
-                    'produktgruppen': {
-                        pg3: {'code': pg3, 'name': text}
-                    }
-                }
+        if pg1 != sort_code:
+            continue
+        
+        # Obergruppe (pg1 + pg2, kein pg3)
+        if pg2 and not pg3:
+            if pg2 not in obergruppen and text:
+                obergruppen[pg2] = {'name': text, 'produktgruppen': {}}
+        
+        # Produktgruppe (pg1 + pg2 + pg3)
+        elif pg2 and pg3:
+            # Zuordnung speichern
+            pg_to_og[pg3] = pg2
+            
+            # Name speichern wenn vorhanden
+            if text:
+                pg_names[pg3] = text
+            
+            # Obergruppe erstellen falls noch nicht vorhanden
+            if pg2 not in obergruppen:
+                obergruppen[pg2] = {'name': 'Unbekannt', 'produktgruppen': {}}
     
-    return struktur
+    # Jetzt alle Produktgruppen zu ihren Obergruppen zuordnen
+    for pg_code, og_code in pg_to_og.items():
+        if og_code in obergruppen:
+            name = pg_names.get(pg_code, pg_code)  # Fallback auf Code wenn kein Name
+            obergruppen[og_code]['produktgruppen'][pg_code] = name
+    
+    return obergruppen
+
+
+def get_produktgruppen_details(session: requests.Session, sort_code: str, og_code: str) -> dict:
+    """
+    Holt alle Produktgruppen einer Obergruppe mit ihren Namen.
+    """
+    url = f'{BASE_URL}/sortimenthsa.csp?Produktgruppe1={sort_code}&Produktgruppe2={og_code}'
+    response = session.get(url, timeout=REQUEST_TIMEOUT)
+    soup = BeautifulSoup(response.text, 'html.parser')
+    
+    produktgruppen = {}
+    
+    for link in soup.find_all('a', href=True):
+        href = link.get('href', '')
+        text = link.get_text(strip=True)
+        
+        if 'sortimenthsa.csp' not in href:
+            continue
+        if 'weitere' in text.lower():
+            continue
+        if '?' not in href:
+            continue
+            
+        params = parse_qs(href.split('?')[1])
+        pg1 = params.get('Produktgruppe1', [''])[0]
+        pg2 = params.get('Produktgruppe2', [''])[0]
+        pg3 = params.get('Produktgruppe3', [''])[0]
+        
+        # Nur Produktgruppen dieser Obergruppe
+        if pg1 == sort_code and pg2 == og_code and pg3:
+            if pg3 not in produktgruppen:
+                produktgruppen[pg3] = text if text else pg3
+    
+    return produktgruppen
 
 
 def main():
-    print('=== Schmidt Sortiment-Struktur Export ===')
+    print('=== Schmidt Sortiment-Struktur Export (Vollständig) ===')
     print()
     
     session = login()
     print('Login erfolgreich!')
     print()
     
-    # Alle Sortimente durchgehen und deren Seiten laden
-    all_links_html = ""
-    
-    for sort_code, sort_name in SORTIMENTE.items():
-        print(f'Lade [{sort_code}] {sort_name}...', end=' ', flush=True)
-        
-        try:
-            # Sortiment-Seite laden
-            url = f'{BASE_URL}/sortimenthsa.csp?Produktgruppe1={sort_code}'
-            response = session.get(url, timeout=REQUEST_TIMEOUT)
-            all_links_html += response.text
-            print('OK')
-            time.sleep(0.2)
-        except Exception as e:
-            print(f'Fehler: {e}')
-    
-    print()
-    print('Parse Struktur...')
-    
-    # Alle Links parsen
-    raw_struktur = parse_sortiment_links(all_links_html)
-    
-    # In finale Struktur umwandeln
     struktur = {
         'meta': {
             'source': 'Heinrich Schmidt OnlinePro',
@@ -148,24 +165,50 @@ def main():
     total_produktgruppen = 0
     
     for sort_code, sort_name in SORTIMENTE.items():
+        print(f'[{sort_code}] {sort_name}')
+        
+        # Erste Übersicht laden
+        obergruppen = get_all_groups_from_page(session, sort_code)
+        print(f'    {len(obergruppen)} Obergruppen gefunden')
+        
         sortiment_data = {
             'code': sort_code,
             'name': sort_name,
             'obergruppen': {}
         }
         
-        if sort_code in raw_struktur:
-            for og_code, og_data in raw_struktur[sort_code]['obergruppen'].items():
-                sortiment_data['obergruppen'][og_code] = {
-                    'code': og_data['code'],
-                    'name': og_data['name'],
-                    'produktgruppen': og_data['produktgruppen']
+        # Für jede Obergruppe die Detail-Seite laden um alle Produktgruppen-Namen zu bekommen
+        for og_code, og_data in obergruppen.items():
+            og_name = og_data['name']
+            
+            # Detail-Seite laden für vollständige Produktgruppen-Liste
+            pg_details = get_produktgruppen_details(session, sort_code, og_code)
+            
+            # Merge mit bereits gefundenen
+            for pg_code, pg_name in og_data['produktgruppen'].items():
+                if pg_code not in pg_details:
+                    pg_details[pg_code] = pg_name
+            
+            pg_dict = {}
+            for pg_code, pg_name in pg_details.items():
+                pg_dict[pg_code] = {
+                    'code': pg_code,
+                    'name': pg_name
                 }
-                total_obergruppen += 1
-                total_produktgruppen += len(og_data['produktgruppen'])
+            
+            sortiment_data['obergruppen'][og_code] = {
+                'code': og_code,
+                'name': og_name,
+                'produktgruppen': pg_dict
+            }
+            
+            total_produktgruppen += len(pg_dict)
+            print(f'      - {og_name}: {len(pg_dict)} Produktgruppen')
+            
+            time.sleep(0.1)
         
+        total_obergruppen += len(obergruppen)
         struktur['sortimente'][sort_code] = sortiment_data
-        print(f'  [{sort_code}] {sort_name}: {len(sortiment_data["obergruppen"])} Obergruppen')
     
     # Statistiken
     struktur['meta']['statistics'] = {

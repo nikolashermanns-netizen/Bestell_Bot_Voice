@@ -204,6 +204,7 @@ async def lifespan(app: FastAPI):
     # Expert Client Callbacks
     expert_client.on_expert_start = on_expert_start
     expert_client.on_expert_done = on_expert_done
+    expert_client.on_download_status = on_download_status
     
     logger.info(f"Expert Client initialisiert mit {len(EXPERT_MODELS)} Modellen")
     
@@ -347,6 +348,14 @@ async def on_expert_done(result: dict):
         "confidence": result.get("konfidenz", 0),
         "latency_ms": result.get("latency_ms", 0),
         "answer_preview": result.get("antwort", "")[:100]
+    })
+
+
+async def on_download_status(status: dict):
+    """Callback für Download-Status bei Produktdokumentation."""
+    await manager.broadcast({
+        "type": "download_status",
+        **status
     })
 
 
