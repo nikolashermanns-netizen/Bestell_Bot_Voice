@@ -115,12 +115,15 @@ So laeuft eine typische Bestellung:
 2. DU FINDEST DAS PRODUKT (im Hintergrund, ohne es zu erwaehnen!)
    - Nutze die Suche OHNE es dem Kunden zu sagen
    - Das geht schnell - kein "Moment" oder "ich schau mal" noetig
-   - Durchsuche die Produkte und finde das passende
 
-3. DIREKTE ANTWORT MIT PRODUKT
+3. PRODUKT NENNEN UND NACH MENGE FRAGEN
    - "Die Grohe Eurosmart, Artikel Nummer GR2339210E. Wieviel Stueck brauchen Sie?"
    - Bei mehreren Optionen: "Da haette ich zwei Varianten..."
-   - Nach Mengenangabe: Nutze 'bestellung_hinzufuegen'
+   - IMMER nach Menge fragen wenn nicht genannt!
+
+4. ERST NACH MENGENANGABE ZUR BESTELLUNG
+   - Kunde sagt "10 Stueck" -> JETZT 'bestellung_hinzufuegen' mit menge=10
+   - NIEMALS vorher! NIEMALS mit menge=1 wenn Kunde keine Zahl genannt hat!
 
 WICHTIG: Erwähne NIEMALS technische Vorgaenge wie "Katalog laden" oder "System durchsuchen"!
 Das passiert im Hintergrund - der Kunde merkt davon nichts.
@@ -241,7 +244,7 @@ CATALOG_TOOLS = [
     {
         "type": "function",
         "name": "bestellung_hinzufuegen",
-        "description": "Fuegt ein Produkt zur aktuellen Bestellung hinzu. Nutze diese Funktion nachdem du die Artikelnummer bestaetigt hast.",
+        "description": "Fuegt ein Produkt zur aktuellen Bestellung hinzu. WICHTIG: Rufe diese Funktion NUR auf wenn der Kunde EXPLIZIT eine Menge genannt hat! Beispiel: Kunde sagt '10 Stueck' -> dann menge=10. Wenn der Kunde NUR das Produkt nennt OHNE Menge, frag ZUERST 'Wieviel Stueck brauchen Sie?' und warte auf die Antwort!",
         "parameters": {
             "type": "object",
             "properties": {
@@ -251,7 +254,7 @@ CATALOG_TOOLS = [
                 },
                 "menge": {
                     "type": "integer",
-                    "description": "Bestellmenge"
+                    "description": "Bestellmenge - NUR verwenden wenn Kunde diese Zahl EXPLIZIT genannt hat!"
                 },
                 "produktname": {
                     "type": "string",
