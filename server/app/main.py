@@ -46,12 +46,36 @@ ALLOWED_SIP_NETWORKS = [
     ipaddress.ip_network("2001:ab7::/32"),      # Sipgate IPv6
 ]
 
+# Private IP-Ranges (für NAT-Traversal bei sipgate)
+PRIVATE_IP_NETWORKS = [
+    ipaddress.ip_network("10.0.0.0/8"),         # Private Class A
+    ipaddress.ip_network("172.16.0.0/12"),      # Private Class B
+    ipaddress.ip_network("192.168.0.0/16"),     # Private Class C
+]
+
 # Firewall Status (kann zur Laufzeit geändert werden)
 sip_firewall_enabled = True
 
 
-def is_ip_allowed(ip_str: str) -> bool:
-    """Prüft ob eine IP-Adresse von einem erlaubten SIP-Provider stammt."""
+def is_private_ip(ip_str: str) -> bool:
+    """Prüft ob eine IP-Adresse privat ist (hinter NAT)."""
+    try:
+        ip = ipaddress.ip_address(ip_str)
+        for network in PRIVATE_IP_NETWORKS:
+            if ip in network:
+                return True
+        return False
+    except ValueError:
+        return False
+
+
+def is_ip_allowed(ip_str: str, caller_uri: str = None) -> bool:
+    """
+    Prüft ob eine IP-Adresse von einem erlaubten SIP-Provider stammt.
+    
+    Bei NAT-Traversal kann die Contact-IP privat sein (192.168.x.x etc.).
+    In diesem Fall prüfen wir ob die Caller-URI von unserem Server stammt.
+    """
     global sip_firewall_enabled
     
     # Wenn Firewall deaktiviert, alle IPs erlauben
@@ -65,9 +89,27 @@ def is_ip_allowed(ip_str: str) -> bool:
     
     try:
         ip = ipaddress.ip_address(ip_str)
+        
+        # Direkt erlaubt wenn von sipgate
         for network in ALLOWED_SIP_NETWORKS:
             if ip in network:
+                logger.info(f"IP {ip_str} ist sipgate - erlaubt")
                 return True
+        
+        # Private IP: Erlauben wenn Caller-URI von unserem Server kommt
+        # (NAT-Traversal bei sipgate-Anrufen)
+        if is_private_ip(ip_str):
+            # Unser Server-IP in der URI = legitimer Anruf via sipgate
+            our_server = "142.132.212.248"
+            if caller_uri and our_server in caller_uri:
+                logger.info(f"Private IP {ip_str} mit Server-URI - erlaubt (NAT-Traversal)")
+                return True
+            # Sipgate domain in URI
+            if caller_uri and "sipgate" in caller_uri.lower():
+                logger.info(f"Private IP {ip_str} mit sipgate-URI - erlaubt (NAT-Traversal)")
+                return True
+            logger.warning(f"Private IP {ip_str} ohne gültige URI - abgelehnt")
+        
         return False
     except ValueError as e:
         logger.warning(f"Ungültige IP-Adresse '{ip_str}': {e}")
@@ -238,8 +280,8 @@ async def on_incoming_call(caller_id: str, remote_ip: str = None):
     """Wird aufgerufen wenn ein Anruf eingeht."""
     logger.info(f"Eingehender Anruf von: {caller_id} (Remote-IP: {remote_ip})")
     
-    # IP-Whitelist prüfen
-    if not is_ip_allowed(remote_ip):
+    # IP-Whitelist prüfen (mit Caller-URI für NAT-Traversal Check)
+    if not is_ip_allowed(remote_ip, caller_id):
         logger.warning(f"ABGELEHNT: Anruf von nicht autorisierter IP {remote_ip} ({caller_id})")
         await sip_client.reject_call(403)  # 403 Forbidden
         await manager.broadcast({
@@ -250,7 +292,7 @@ async def on_incoming_call(caller_id: str, remote_ip: str = None):
         })
         return
     
-    logger.info(f"IP {remote_ip} ist autorisiert (Sipgate)")
+    logger.info(f"Anruf von {remote_ip} ist autorisiert")
     
     # Reset stats
     _audio_stats["caller_to_ai"] = 0
