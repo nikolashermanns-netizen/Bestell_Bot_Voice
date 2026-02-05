@@ -351,14 +351,20 @@ class SIPClient:
             ep_cfg.logConfig.level = 4
             ep_cfg.logConfig.consoleLevel = 4
             
+            # STUN Server für NAT-Traversal
+            ep_cfg.uaConfig.stunServer.append("stun.sipgate.de")
+            logger.info("STUN Server konfiguriert: stun.sipgate.de")
+            
             # Endpoint erstellen
             self._endpoint = pj.Endpoint()
             self._endpoint.libCreate()
             self._endpoint.libInit(ep_cfg)
             
-            # UDP Transport
+            # UDP Transport mit öffentlicher IP
             tp_cfg = pj.TransportConfig()
             tp_cfg.port = 5060
+            tp_cfg.publicAddress = "142.132.212.248"  # Öffentliche Server-IP
+            logger.info("Transport mit öffentlicher IP: 142.132.212.248")
             self._endpoint.transportCreate(pj.PJSIP_TRANSPORT_UDP, tp_cfg)
             
             # Codecs konfigurieren
@@ -420,9 +426,15 @@ class SIPClient:
         cred = pj.AuthCredInfo("digest", "*", self.user, 0, self.password)
         acc_cfg.sipConfig.authCreds.append(cred)
         
-        # NAT
-        acc_cfg.natConfig.iceEnabled = False
+        # NAT-Traversal Konfiguration
+        acc_cfg.natConfig.sipStunUse = pj.PJSUA_STUN_USE_DEFAULT
+        acc_cfg.natConfig.mediaStunUse = pj.PJSUA_STUN_USE_DEFAULT
+        acc_cfg.natConfig.contactRewriteUse = 1  # Contact-Header mit öffentlicher IP
+        acc_cfg.natConfig.viaRewriteUse = 1      # Via-Header umschreiben
+        acc_cfg.natConfig.sdpNatRewriteUse = 1   # SDP NAT-Adressen korrigieren
+        acc_cfg.natConfig.iceEnabled = False     # ICE nicht nötig mit publicAddress
         acc_cfg.natConfig.turnEnabled = False
+        logger.info("NAT-Traversal konfiguriert: STUN aktiviert, Contact/Via/SDP Rewrite")
         
         # Account erstellen mit Callbacks
         self._account = AccountCallback()
