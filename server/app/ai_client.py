@@ -615,9 +615,10 @@ class AIClient:
                 # Key ermitteln
                 key = catalog.get_manufacturer_key(hersteller)
                 if not key:
-                    manufacturers = catalog.get_available_manufacturers()
-                    vorschlaege = [m["key"] for m in manufacturers[:10]]
-                    return f"Katalog '{hersteller}' nicht gefunden. Verfuegbar: {', '.join(vorschlaege)}"
+                    # Katalog nicht gefunden - versuche Keyword-Suche
+                    logger.info(f"[KATALOG-SUCHE] Katalog '{hersteller}' nicht gefunden, starte Keyword-Suche")
+                    keyword_result = catalog.search_keyword_index(suchbegriff)
+                    return f"Katalog '{hersteller}' nicht gefunden.\n\n{keyword_result}"
                 
                 # Katalog laden falls nicht geladen
                 if not catalog.activate_catalog(key):
@@ -631,7 +632,38 @@ class AIClient:
                 )
                 
                 if not results:
-                    return f"Keine Produkte gefunden fuer '{suchbegriff}' in {hersteller}."
+                    # Nichts gefunden - automatisch in anderen Katalogen suchen!
+                    logger.info(f"[KATALOG-SUCHE] Keine Treffer in {key}, suche in anderen Katalogen...")
+                    
+                    if self.on_transcript:
+                        await self.on_transcript("system", f"[Katalog-Suche] Keine Treffer in {key}, suche richtige Kataloge...", True)
+                    
+                    # Keyword-Suche um richtige Kataloge zu finden
+                    keyword_result = catalog.find_catalogs_by_keyword(suchbegriff.split()[0] if suchbegriff else "")
+                    best_catalogs = keyword_result.get("kataloge", [])[:3]
+                    
+                    # In den besten Katalogen suchen
+                    for alt_key in best_catalogs:
+                        if alt_key == key:
+                            continue
+                        if catalog.activate_catalog(alt_key):
+                            alt_results = catalog.search_products(
+                                query=suchbegriff,
+                                hersteller_key=alt_key,
+                                nur_aktive=True
+                            )
+                            if alt_results:
+                                results = alt_results
+                                key = alt_key
+                                logger.info(f"[KATALOG-SUCHE] Treffer in alternativem Katalog: {key}")
+                                if self.on_transcript:
+                                    await self.on_transcript("system", f"[Katalog-Suche] Gefunden in: {key}", True)
+                                break
+                
+                if not results:
+                    # Immer noch nichts - zeige wo man suchen sollte
+                    keyword_result = catalog.search_keyword_index(suchbegriff)
+                    return f"Keine Treffer in {hersteller}.\n\n{keyword_result}"
                 
                 # Kompakte Ergebnisse formatieren (nur Bezeichnung 1, 2 und Artikelnummer)
                 lines = [f"=== {len(results)} Treffer in {key} fuer '{suchbegriff}' ===\n"]
@@ -656,7 +688,7 @@ class AIClient:
                     short_result = '\n'.join(lines[:12]) if len(lines) > 12 else result_text
                     await self.on_transcript("system", f"[Katalog-Treffer]\n{short_result}", True)
                 
-                logger.info(f"[KATALOG-SUCHE] {len(results)} Treffer gefunden")
+                logger.info(f"[KATALOG-SUCHE] {len(results)} Treffer in {key}")
                 
                 return result_text
             
