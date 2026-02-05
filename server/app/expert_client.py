@@ -57,6 +57,12 @@ WERKZEUGE: Rothenberger, REMS, Knipex, Makita
 3. Durchsuche den geladenen Katalog SELBST
 4. Empfehle konkrete Produkte mit Artikelnummer
 
+=== SHK-WISSEN (Normen & Regeln) ===
+Du hast Zugriff auf eine Wissensdatenbank mit SHK-Normen und technischen Richtlinien:
+- Nutze "suche_shk_wissen" fuer Vorschriften, Grenzwerte, Normen (DIN, DVGW, VDI)
+- Nutze "lade_norm_dokument" fuer die Originalquelle bei komplexen Fragen
+- Bei Quellen-Nachfrage: Nenne exakten Norm-Abschnitt (z.B. "DIN 1988-200, Abschnitt 9.3")
+
 === WICHTIGE REGELN ===
 - Antworte NUR wenn du dir sehr sicher bist (>90% Konfidenz)
 - Bei Unsicherheit: Sage klar "Das kann ich nicht sicher beantworten"
@@ -75,10 +81,11 @@ Du MUSST immer in diesem JSON-Format antworten:
 }
 
 === KONFIDENZ-SKALA ===
-- 1.0: Absolut sicher, aus Katalog oder Dokumentation bestaetigt
-- 0.9: Sehr sicher, Standardwissen (bekannte Systeme)
+- 1.0: Absolut sicher, aus Norm/Richtlinie oder Produktdokumentation bestaetigt
+- 0.95: Sehr sicher, aus SHK-Wissensdatenbank mit Quellenangabe
+- 0.9: Sicher, Standardwissen (bekannte Systeme)
 - 0.8: Ziemlich sicher, kleine Unsicherheit
-- <0.8: Zu unsicher, verweigere die Antwort oder frage nach Artikelnummer
+- <0.8: Zu unsicher, nutze "suche_shk_wissen" oder frage nach Artikelnummer
 
 === SHK-FACHWISSEN: ROHRSYSTEME ===
 TRINKWASSER-GEEIGNET (DVGW zugelassen):
@@ -102,11 +109,13 @@ MATERIALIEN:
 - Verzinkter Stahl: NUR Heizung, korrodiert bei Trinkwasser
 
 === RUECKFRAGE BEI TECHNISCHEN FRAGEN ===
-Wenn ein Kunde eine technische Frage stellt (Material, Zulassung, Eignung):
+Wenn ein Kunde eine technische Frage stellt (Material, Zulassung, Eignung, Normen):
 1. Pruefe ob du es mit dem Fachwissen oben sicher beantworten kannst
-2. Falls das System bekannt ist (z.B. Temponox): Antworte mit hoher Konfidenz
-3. Falls unklar: Nutze "lade_produkt_dokumentation" mit der Artikelnummer
-4. Falls keine Artikelnummer bekannt: Frage nach!
+2. Bei Normen/Vorschriften: Nutze "suche_shk_wissen" fuer 100% sichere Antwort mit Quelle
+3. Falls das System bekannt ist (z.B. Temponox): Antworte mit hoher Konfidenz
+4. Bei produktspezifischen Fragen: Nutze "lade_produkt_dokumentation" mit Artikelnummer
+5. Falls keine Artikelnummer bekannt: Frage nach!
+6. Bei Nachfrage nach Quelle: Nutze "lade_norm_dokument" fuer exakten Paragraph
 
 Beispiel-Rueckfrage im JSON:
 {
@@ -163,6 +172,45 @@ EXPERT_TOOLS = [
                     }
                 },
                 "required": ["artikelnummer"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "suche_shk_wissen",
+            "description": "Durchsucht die SHK-Wissensdatenbank nach Normen, Richtlinien und technischen Regeln. Gibt Quellen mit Paragraph/Abschnitt an. Nutze dies fuer Fragen zu Vorschriften, Grenzwerten, Temperaturen, DIN/VDI/DVGW Normen.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "thema": {
+                        "type": "string",
+                        "description": "Suchbegriff (z.B. 'Legionellen', '3-Liter-Regel', 'Warmwasser Temperatur', 'Heizungswasser pH')"
+                    },
+                    "bereich": {
+                        "type": "string",
+                        "enum": ["trinkwasser", "heizung", "gas", "abwasser", "presssysteme", "alle"],
+                        "description": "Fachbereich einschraenken (optional, default: alle)"
+                    }
+                },
+                "required": ["thema"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "lade_norm_dokument",
+            "description": "Laedt ein spezifisches Norm-/Richtlinien-Dokument (PDF) und analysiert es fuer detaillierte Informationen. Nutze dies wenn die Wissensdatenbank nicht ausreicht und du die Originalquelle brauchst.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "dokument_id": {
+                        "type": "string",
+                        "description": "ID des Dokuments (z.B. 'viega_planungswissen', 'viega_temperaturhaltung', 'geberit_handbuch')"
+                    }
+                },
+                "required": ["dokument_id"]
             }
         }
     }
@@ -346,13 +394,13 @@ class ExpertClient:
             })
             
             # API-Aufruf mit Tool-Unterstützung
+            # HINWEIS: temperature wird nicht gesetzt, da GPT-5 Modelle nur temperature=1 unterstützen
             response = await self._client.chat.completions.create(
                 model=selected_model,
                 messages=messages,
                 tools=EXPERT_TOOLS,
                 tool_choice="auto",
                 response_format={"type": "json_object"},
-                temperature=0.3,  # Niedrig für konsistente Antworten
                 max_completion_tokens=1000  # GPT-5/O-Serie benötigt diesen Parameter
             )
             
@@ -379,7 +427,6 @@ class ExpertClient:
                     tools=EXPERT_TOOLS,
                     tool_choice="auto",
                     response_format={"type": "json_object"},
-                    temperature=0.3,
                     max_completion_tokens=1000  # GPT-5/O-Serie benötigt diesen Parameter
                 )
                 message = response.choices[0].message
@@ -539,6 +586,130 @@ class ExpertClient:
                             result = catalog.get_catalog_for_ai(key, max_products=500)
                         else:
                             result = f"Fehler beim Laden des Katalogs '{hersteller}'."
+                
+                elif name == "suche_shk_wissen":
+                    # SHK-Wissensdatenbank durchsuchen
+                    try:
+                        from app.wissen import suche_normen, suche_fachwissen, formatiere_fuer_ai, formatiere_normen_fuer_ai
+                        
+                        thema = args.get("thema", "")
+                        bereich = args.get("bereich", "alle")
+                        
+                        if not thema:
+                            result = "Fehler: Kein Suchbegriff angegeben."
+                        else:
+                            logger.info(f"[Expert Tool] Suche SHK-Wissen: '{thema}' in '{bereich}'")
+                            
+                            # Sowohl Normen als auch Fachwissen durchsuchen
+                            normen = suche_normen(thema, bereich)
+                            fachwissen = suche_fachwissen(thema, bereich)
+                            
+                            lines = []
+                            
+                            # Normen-Ergebnisse
+                            if normen:
+                                lines.append(formatiere_normen_fuer_ai(normen))
+                            
+                            # Fachwissen-Ergebnisse
+                            if fachwissen.get("treffer"):
+                                lines.append("\n" + formatiere_fuer_ai(fachwissen))
+                            
+                            if lines:
+                                result = "\n".join(lines)
+                            else:
+                                result = f"Keine Ergebnisse fuer '{thema}' in der Wissensdatenbank gefunden."
+                            
+                    except ImportError as ie:
+                        logger.error(f"[Expert Tool] Wissen-Modul nicht verfuegbar: {ie}")
+                        result = f"Fehler: Wissensmodul nicht verfuegbar ({ie})"
+                    except Exception as e:
+                        logger.error(f"[Expert Tool] Fehler bei SHK-Wissen-Suche: {e}")
+                        result = f"Fehler bei der Suche: {e}"
+                
+                elif name == "lade_norm_dokument":
+                    import time as time_module
+                    # Norm-Dokument laden und analysieren
+                    try:
+                        from app.wissen import get_dokument_pfad, get_dokument_liste
+                        
+                        dokument_id = args.get("dokument_id", "")
+                        
+                        if not dokument_id:
+                            # Verfügbare Dokumente auflisten
+                            dokumente = get_dokument_liste()
+                            if dokumente:
+                                lines = ["Verfuegbare Dokumente:"]
+                                for dok in dokumente:
+                                    status = "verfuegbar" if dok.get("verfuegbar") else "nicht heruntergeladen"
+                                    lines.append(f"  - {dok['id']}: {dok['name']} ({status})")
+                                result = "\n".join(lines)
+                            else:
+                                result = "Keine Dokumente in der Wissensdatenbank."
+                        else:
+                            # Dokument laden
+                            pfad = get_dokument_pfad(dokument_id)
+                            
+                            if not pfad:
+                                # Dokument nicht vorhanden - Versuch herunterzuladen
+                                dokumente = get_dokument_liste()
+                                verfuegbar = [d["id"] for d in dokumente if d.get("verfuegbar")]
+                                nicht_verfuegbar = [d["id"] for d in dokumente if not d.get("verfuegbar")]
+                                
+                                if dokument_id in nicht_verfuegbar:
+                                    result = f"Dokument '{dokument_id}' ist bekannt aber noch nicht heruntergeladen. Verfuegbare Dokumente: {', '.join(verfuegbar) if verfuegbar else 'keine'}"
+                                else:
+                                    result = f"Dokument '{dokument_id}' nicht gefunden. Verfuegbare Dokumente: {', '.join(verfuegbar) if verfuegbar else 'keine'}"
+                            else:
+                                # PDF analysieren
+                                logger.info(f"[Expert Tool] Lade Norm-Dokument: {dokument_id}")
+                                
+                                # Status: Analyse startet
+                                if self.on_download_status:
+                                    try:
+                                        await self.on_download_status({
+                                            "status": "analyzing_norm",
+                                            "dokument_id": dokument_id,
+                                            "message": f"Analysiere Norm-Dokument: {dokument_id}..."
+                                        })
+                                    except Exception as cb_err:
+                                        logger.warning(f"on_download_status callback error: {cb_err}")
+                                
+                                # PDF analysieren
+                                try:
+                                    analysis_start = time_module.time()
+                                    
+                                    pdf_files = [{
+                                        "name": f"{dokument_id}.pdf",
+                                        "local_path": pfad
+                                    }]
+                                    
+                                    analysis = await self._analyze_pdfs(pdf_files, dokument_id)
+                                    analysis_duration = time_module.time() - analysis_start
+                                    
+                                    result = f"=== DOKUMENT: {dokument_id} ===\n\n{analysis}"
+                                    
+                                    # Status: Analyse abgeschlossen
+                                    if self.on_download_status:
+                                        try:
+                                            await self.on_download_status({
+                                                "status": "norm_analyzed",
+                                                "dokument_id": dokument_id,
+                                                "duration_sec": round(analysis_duration, 1),
+                                                "message": f"Analyse abgeschlossen in {analysis_duration:.1f}s"
+                                            })
+                                        except Exception as cb_err:
+                                            logger.warning(f"on_download_status callback error: {cb_err}")
+                                            
+                                except Exception as pdf_error:
+                                    logger.error(f"[Expert Tool] PDF-Analyse fehlgeschlagen: {pdf_error}")
+                                    result = f"Fehler bei der Analyse von {dokument_id}: {pdf_error}"
+                                    
+                    except ImportError as ie:
+                        logger.error(f"[Expert Tool] Wissen-Modul nicht verfuegbar: {ie}")
+                        result = f"Fehler: Wissensmodul nicht verfuegbar ({ie})"
+                    except Exception as e:
+                        logger.error(f"[Expert Tool] Fehler beim Laden des Norm-Dokuments: {e}")
+                        result = f"Fehler: {e}"
                 
                 elif name == "lade_produkt_dokumentation":
                     import time as time_module
@@ -779,11 +950,11 @@ Antworte praegnant und strukturiert."""
             ]
             
             # GPT-5 für Dokumentenanalyse verwenden (besser für multimodal)
+            # HINWEIS: temperature wird nicht gesetzt, da GPT-5 Modelle nur temperature=1 unterstützen
             response = await self._client.chat.completions.create(
                 model="gpt-5",
                 messages=messages,
-                max_completion_tokens=1500,
-                temperature=0.2
+                max_completion_tokens=1500
             )
             
             analysis = response.choices[0].message.content
