@@ -1,0 +1,412 @@
+{
+  "version": "1.0",
+  "stand": "2026-02",
+  "beschreibung": "Strukturiertes SHK-Fachwissen mit Quellangaben",
+  "bereiche": {
+    "trinkwasser": {
+      "name": "Trinkwasserinstallation",
+      "regelwerke": ["DIN 1988-200", "DIN EN 806", "VDI 6023", "DVGW W 551"],
+      "themen": {
+        "legionellen": {
+          "beschreibung": "Legionellenpraevention in Trinkwasserinstallationen",
+          "grenzwerte": {
+            "warmwasser_austritt": {
+              "wert": "min. 55 Grad C",
+              "beschreibung": "Mindesttemperatur an jeder Entnahmestelle",
+              "quelle": "DVGW W 551, Abschnitt 4.2"
+            },
+            "warmwasser_speicher": {
+              "wert": "min. 60 Grad C",
+              "beschreibung": "Mindesttemperatur im Trinkwassererwaermer",
+              "quelle": "DVGW W 551, Abschnitt 4.1"
+            },
+            "zirkulation_ruecklauf": {
+              "wert": "min. 55 Grad C",
+              "beschreibung": "Max. 5 Kelvin Abkuehlung in der Zirkulation",
+              "quelle": "DVGW W 551, Abschnitt 4.3"
+            },
+            "kaltwasser": {
+              "wert": "max. 25 Grad C",
+              "beschreibung": "Maximaltemperatur fuer Kaltwasser",
+              "quelle": "DVGW W 551, Abschnitt 4.4"
+            }
+          },
+          "grossanlage_definition": {
+            "beschreibung": "Ab 400 Liter Speicherinhalt ODER mehr als 3 Liter Leitungsinhalt zwischen Trinkwassererwaermer und Entnahmestelle",
+            "quelle": "DVGW W 551, Abschnitt 3"
+          }
+        },
+        "3_liter_regel": {
+          "beschreibung": "Maximaler Wasserinhalt zwischen Warmwasser-Verteilung und Entnahmestelle",
+          "wert": "max. 3 Liter",
+          "erklaerung": "Der Wasserinhalt der Stichleitungen vom Verteiler bis zur Entnahmestelle darf 3 Liter nicht ueberschreiten, um Stagnation und Legionellenwachstum zu vermeiden",
+          "quelle": "DIN 1988-200, Abschnitt 9.7.3"
+        },
+        "30_sekunden_regel": {
+          "beschreibung": "Zeitanforderung fuer Temperaturerreichung",
+          "warmwasser": {
+            "wert": "min. 55 Grad C innerhalb 30 Sekunden",
+            "quelle": "DIN 1988-200, Abschnitt 9.7.2"
+          },
+          "kaltwasser": {
+            "wert": "max. 25 Grad C",
+            "quelle": "DIN 1988-200, Abschnitt 9.7.2"
+          }
+        },
+        "rohrdimensionierung": {
+          "beschreibung": "Berechnung der Rohrweiten fuer Trinkwasserleitungen",
+          "methoden": [
+            {
+              "name": "Differenzdruckverfahren",
+              "beschreibung": "Genaue Berechnung mit Druckverlust pro Meter",
+              "quelle": "DIN 1988-300"
+            },
+            {
+              "name": "Vereinfachtes Verfahren",
+              "beschreibung": "Berechnung mit Belastungswerten (LU)",
+              "quelle": "DIN EN 806-3"
+            }
+          ],
+          "belastungswerte_beispiele": {
+            "waschtisch": "1 LU",
+            "dusche": "2 LU",
+            "badewanne": "2 LU",
+            "wc_spuelkasten": "1 LU",
+            "geschirrspueler": "2 LU",
+            "waschmaschine": "2 LU",
+            "quelle": "DIN EN 806-3, Tabelle 1"
+          }
+        },
+        "druckpruefung": {
+          "beschreibung": "Pruefung der Trinkwasserinstallation vor Inbetriebnahme",
+          "verfahren": [
+            {
+              "name": "Wasserpruefung",
+              "druck": "1,1 x Betriebsdruck, min. 10 bar",
+              "dauer": "30 Minuten Vorpruefung, dann 2 Stunden Hauptpruefung",
+              "quelle": "DIN EN 806-4, Abschnitt 7"
+            },
+            {
+              "name": "Luftpruefung (oelfreie Druckluft oder Inertgas)",
+              "druck": "110 mbar, dann 15 mbar Feinpruefung",
+              "quelle": "DIN EN 806-4, Abschnitt 7"
+            }
+          ]
+        },
+        "werkstoffe_trinkwasser": {
+          "beschreibung": "Zugelassene Werkstoffe fuer Trinkwasserleitungen",
+          "zugelassen": [
+            {
+              "werkstoff": "Edelstahl 1.4401 (V2A)",
+              "eignung": "Trinkwasser geeignet",
+              "einschraenkung": "Nicht bei chloridhaltigem Wasser > 200 mg/l",
+              "quelle": "DVGW W 534"
+            },
+            {
+              "werkstoff": "Edelstahl 1.4521 (V4A)",
+              "eignung": "Trinkwasser geeignet",
+              "einschraenkung": "Hohe Chloridbestaendigkeit",
+              "systeme": ["Temponox (Viega)", "Sanpress Inox (Viega)"],
+              "quelle": "DVGW W 534"
+            },
+            {
+              "werkstoff": "Kupfer",
+              "eignung": "Trinkwasser geeignet",
+              "einschraenkung": "Nicht bei pH < 7,0",
+              "systeme": ["Profipress (Viega)", "Mapress Kupfer (Geberit)"],
+              "quelle": "DVGW W 534"
+            },
+            {
+              "werkstoff": "Rotguss",
+              "eignung": "Trinkwasser geeignet",
+              "anwendung": "Armaturen, Fittings",
+              "quelle": "DVGW W 534"
+            },
+            {
+              "werkstoff": "Mehrschicht-Verbundrohr",
+              "eignung": "Trinkwasser geeignet",
+              "systeme": ["Mepla (Geberit)", "Sanfix (Viega)"],
+              "quelle": "DVGW W 534"
+            }
+          ],
+          "nicht_fuer_trinkwasser": [
+            {
+              "werkstoff": "Verzinkter Stahl",
+              "grund": "Korrosionsgefahr, Zinkausloesung",
+              "anwendung": "Nur Heizung, Gas",
+              "systeme": ["Megapress (Viega)", "Prestabo (Viega)", "Mapress C-Stahl (Geberit)"]
+            }
+          ]
+        }
+      }
+    },
+    "heizung": {
+      "name": "Heizungsinstallation",
+      "regelwerke": ["VDI 2035", "DIN EN 12828", "DIN 4753"],
+      "themen": {
+        "heizungswasser": {
+          "beschreibung": "Anforderungen an Fuell- und Ergaenzungswasser in Heizungsanlagen",
+          "parameter": {
+            "ph_wert": {
+              "wert": "8,2 bis 10,0",
+              "beschreibung": "Optimaler pH-Bereich fuer Korrosionsschutz",
+              "achtung": "Bei Aluminium-Werkstoffen max. 8,5",
+              "quelle": "VDI 2035 Blatt 1, Abschnitt 6"
+            },
+            "haerte": {
+              "beschreibung": "Gesamthaerte abhaengig von Anlagenleistung und spezifischem Wasserinhalt",
+              "tabelle": {
+                "bis_50_kw": "Keine Anforderung bei < 20 l/kW",
+                "50_200_kw": "Max. 11,2 Grad dH bei < 20 l/kW",
+                "200_600_kw": "Max. 8,4 Grad dH bei < 20 l/kW",
+                "ueber_600_kw": "Max. 0,11 Grad dH (Enthärtung erforderlich)"
+              },
+              "quelle": "VDI 2035 Blatt 1, Tabelle 1"
+            },
+            "leitfaehigkeit": {
+              "wert": "100 bis 1500 Mikro-S/cm",
+              "achtung": "Bei Aluminium max. 100 Mikro-S/cm",
+              "quelle": "VDI 2035 Blatt 2, Abschnitt 5"
+            },
+            "sauerstoff": {
+              "wert": "max. 0,1 mg/l (sauerstoffarmer Betrieb)",
+              "beschreibung": "Sauerstoffarmer Betrieb zur Vermeidung von Korrosion",
+              "quelle": "VDI 2035 Blatt 2, Abschnitt 4"
+            }
+          },
+          "wasseraustausch": {
+            "regel": "Das gesamte Heizungswasser sollte ueber die Lebensdauer der Anlage nicht mehr als 3x ausgetauscht werden",
+            "quelle": "VDI 2035 Blatt 1, Abschnitt 7"
+          }
+        },
+        "ausdehnungsgefaess": {
+          "beschreibung": "Membran-Ausdehnungsgefaesse in Heizungsanlagen",
+          "dimensionierung": {
+            "formel": "V_n = (V_A x n) / (1 - p_e / p_0)",
+            "parameter": {
+              "V_A": "Anlagenvolumen in Liter",
+              "n": "Ausdehnungskoeffizient (abhaengig von Temperatur)",
+              "p_e": "Enddruck (Ansprechdruck Sicherheitsventil - 0,5 bar)",
+              "p_0": "Vordruck des Gefaesses"
+            },
+            "quelle": "DIN EN 12828, Abschnitt 5"
+          }
+        },
+        "sicherheitsventil": {
+          "beschreibung": "Absicherung der Heizungsanlage",
+          "ansprechdruecke": {
+            "2_5_bar": "Standard Einfamilienhaus",
+            "3_bar": "Groessere Anlagen"
+          },
+          "quelle": "DIN EN 12828"
+        }
+      }
+    },
+    "gas": {
+      "name": "Gasinstallation",
+      "regelwerke": ["TRGI 2018 (DVGW G 600)", "DVGW G 607", "DVGW G 628"],
+      "themen": {
+        "leitungsdimensionierung": {
+          "beschreibung": "Berechnung der Gasleitungs-Nennweiten",
+          "methode": "Nach Nennbelastung (kW) und Leitungslaenge",
+          "druckverlust": "Max. 1 mbar auf der Hausinstallation (Anschlussdruck 23 mbar)",
+          "quelle": "TRGI 2018, Kapitel 8"
+        },
+        "verbrennungsluft": {
+          "beschreibung": "Verbrennungsluftversorgung fuer Gasfeuerstätten",
+          "arten": [
+            {
+              "art": "Raumluftabhaengig (Typ B)",
+              "beschreibung": "Verbrennungsluft aus dem Aufstellraum",
+              "anforderung": "Oeffnung ins Freie min. 150 cm2 oder Tuerspalt"
+            },
+            {
+              "art": "Raumluftunabhaengig (Typ C)",
+              "beschreibung": "Verbrennungsluft ueber eigene Leitung von aussen",
+              "anforderung": "Keine besonderen Raumanforderungen"
+            }
+          ],
+          "quelle": "TRGI 2018, Kapitel 7"
+        },
+        "abgasfuehrung": {
+          "beschreibung": "Anforderungen an Abgasanlagen",
+          "arten": ["Schornstein", "Abgasleitung", "Luft-Abgas-System (LAS)"],
+          "quelle": "TRGI 2018, Kapitel 9"
+        },
+        "druckpruefung_gas": {
+          "beschreibung": "Pruefung von Gasleitungen",
+          "verfahren": [
+            {
+              "name": "Belastungspruefung",
+              "druck": "1 bar (1000 mbar)",
+              "dauer": "10 Minuten",
+              "medium": "Luft oder Inertgas"
+            },
+            {
+              "name": "Dichtheitspruefung",
+              "druck": "150 mbar",
+              "dauer": "10 Minuten",
+              "medium": "Luft oder Inertgas"
+            }
+          ],
+          "quelle": "TRGI 2018, Kapitel 10"
+        },
+        "absperreinrichtungen": {
+          "HAE": {
+            "name": "Hauptabsperreinrichtung",
+            "beschreibung": "Absperrung am Hausanschluss, im Keller oder Hausanschlussraum"
+          },
+          "GAE": {
+            "name": "Geraeteabsperreinrichtung",
+            "beschreibung": "Absperrung vor jedem Gasgeraet"
+          },
+          "TAE": {
+            "name": "Thermisch auslösende Absperreinrichtung",
+            "beschreibung": "Schliesst bei Brandfall automatisch",
+            "pflicht": "Bei Durchfuehrung durch Brandwaende"
+          },
+          "quelle": "TRGI 2018, Kapitel 5"
+        }
+      }
+    },
+    "abwasser": {
+      "name": "Abwasserinstallation",
+      "regelwerke": ["DIN 1986-100", "DIN EN 12056"],
+      "themen": {
+        "dimensionierung": {
+          "beschreibung": "Nennweiten fuer Abwasserleitungen",
+          "mindest_nennweiten": {
+            "waschtisch": "DN 40",
+            "dusche": "DN 50",
+            "badewanne": "DN 50",
+            "wc": "DN 100",
+            "spuele": "DN 50"
+          },
+          "quelle": "DIN 1986-100, Tabelle 4"
+        },
+        "gefaelle": {
+          "beschreibung": "Mindestgefaelle fuer Abwasserleitungen",
+          "werte": {
+            "DN_50": "1,0 bis 1,5 %",
+            "DN_70": "1,0 bis 1,5 %",
+            "DN_100": "0,5 bis 1,0 %",
+            "DN_125": "0,5 bis 1,0 %",
+            "DN_150": "0,5 %"
+          },
+          "quelle": "DIN 1986-100, Abschnitt 8"
+        },
+        "belueftung": {
+          "beschreibung": "Belueftung der Abwasseranlage",
+          "arten": [
+            {
+              "art": "Hauptlueftung",
+              "beschreibung": "Senkrechte Verlaengerung des Fallstrangs ueber Dach"
+            },
+            {
+              "art": "Nebenlueftung",
+              "beschreibung": "Zusaetzliche Belueftung bei langen Sammelleitungen"
+            },
+            {
+              "art": "Belueftungsventil",
+              "beschreibung": "Alternative zur Nebenlueftung, nur innerhalb Gebaeude zulaessig"
+            }
+          ],
+          "quelle": "DIN 1986-100, Abschnitt 7"
+        }
+      }
+    },
+    "presssysteme": {
+      "name": "Presssysteme und Rohrverbindungen",
+      "regelwerke": ["DVGW W 534", "DIN EN 10312"],
+      "themen": {
+        "viega_systeme": {
+          "temponox": {
+            "werkstoff": "Edelstahl 1.4521 (V4A)",
+            "anwendung": ["Trinkwasser", "Heizung", "Kuehlung"],
+            "trinkwasser": true,
+            "zulassung": "DVGW W 534"
+          },
+          "sanpress_inox": {
+            "werkstoff": "Edelstahl 1.4401/1.4521",
+            "anwendung": ["Trinkwasser", "Heizung"],
+            "trinkwasser": true,
+            "zulassung": "DVGW"
+          },
+          "profipress": {
+            "werkstoff": "Kupfer/Rotguss",
+            "anwendung": ["Trinkwasser", "Heizung", "Gas"],
+            "trinkwasser": true,
+            "zulassung": "DVGW"
+          },
+          "megapress": {
+            "werkstoff": "Stahl verzinkt",
+            "anwendung": ["Heizung", "Gas", "Druckluft"],
+            "trinkwasser": false,
+            "hinweis": "NICHT fuer Trinkwasser geeignet"
+          },
+          "prestabo": {
+            "werkstoff": "Stahl verzinkt",
+            "anwendung": ["Heizung", "Gas"],
+            "trinkwasser": false,
+            "hinweis": "NICHT fuer Trinkwasser geeignet"
+          },
+          "sanfix": {
+            "werkstoff": "Mehrschicht-Verbundrohr",
+            "anwendung": ["Trinkwasser", "Heizung"],
+            "trinkwasser": true,
+            "zulassung": "DVGW"
+          }
+        },
+        "geberit_systeme": {
+          "mapress_edelstahl": {
+            "werkstoff": "Edelstahl 1.4401/1.4521",
+            "anwendung": ["Trinkwasser", "Heizung"],
+            "trinkwasser": true,
+            "zulassung": "DVGW"
+          },
+          "mapress_c_stahl": {
+            "werkstoff": "Kohlenstoffstahl",
+            "anwendung": ["Heizung"],
+            "trinkwasser": false,
+            "hinweis": "NICHT fuer Trinkwasser geeignet"
+          },
+          "mapress_kupfer": {
+            "werkstoff": "Kupfer",
+            "anwendung": ["Trinkwasser", "Heizung", "Gas"],
+            "trinkwasser": true,
+            "zulassung": "DVGW"
+          },
+          "mepla": {
+            "werkstoff": "Mehrschicht-Verbundrohr",
+            "anwendung": ["Trinkwasser", "Heizung"],
+            "trinkwasser": true,
+            "zulassung": "DVGW"
+          }
+        }
+      }
+    }
+  },
+  "dokumente": [
+    {
+      "id": "viega_planungswissen",
+      "name": "Viega Planungswissen",
+      "typ": "hersteller",
+      "url": "https://www.viega.de/de/produkte/downloadcenter.html",
+      "themen": ["Trinkwasserhygiene", "Temperaturhaltung", "Dimensionierung"]
+    },
+    {
+      "id": "viega_temperaturhaltung",
+      "name": "Viega Temperaturhaltung",
+      "typ": "hersteller",
+      "url": "https://www.viega.de/content/dam/viega/aem_online_assets/download_assets/de/temperaturhaltung_web_12122018.pdf",
+      "themen": ["Legionellen", "Zirkulation", "30-Sekunden-Regel"]
+    },
+    {
+      "id": "geberit_handbuch",
+      "name": "Geberit Planungshandbuch",
+      "typ": "hersteller",
+      "url": "https://www.geberit.de/service-support/downloads/",
+      "themen": ["Sanitaerinstallation", "Rohrleitungssysteme"]
+    }
+  ]
+}

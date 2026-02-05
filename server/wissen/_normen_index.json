@@ -1,0 +1,434 @@
+{
+  "version": "1.0",
+  "stand": "2026-02",
+  "beschreibung": "Index aller relevanten SHK-Normen und Regelwerke",
+  "normen": [
+    {
+      "id": "din_1988_100",
+      "name": "DIN 1988-100",
+      "titel": "Schutz des Trinkwassers",
+      "bereich": "trinkwasser",
+      "beschreibung": "Nationale Ergaenzungsnorm zu DIN EN 1717 - Schutz des Trinkwassers vor Verunreinigungen",
+      "wichtige_regeln": [
+        {
+          "regel": "Sicherungseinrichtungen",
+          "inhalt": "Absicherung gegen Rueckfliessen je nach Fluessigkeitskategorie 1-5",
+          "abschnitt": "Abschnitt 5"
+        }
+      ],
+      "verweise": ["din_en_1717"]
+    },
+    {
+      "id": "din_1988_200",
+      "name": "DIN 1988-200",
+      "titel": "Trinkwasser-Installation Typ A - Planung",
+      "bereich": "trinkwasser",
+      "beschreibung": "Nationale Ergaenzungsnorm zu DIN EN 806 fuer Planung von Trinkwasserinstallationen",
+      "wichtige_regeln": [
+        {
+          "regel": "3-Liter-Regel",
+          "inhalt": "Max. 3 Liter Wasserinhalt zwischen Warmwasser-Verteilung (Zirkulation) und Entnahmestelle",
+          "abschnitt": "Abschnitt 9.7.3"
+        },
+        {
+          "regel": "30-Sekunden-Regel",
+          "inhalt": "Warmwasser >= 55 Grad C innerhalb 30 Sekunden, Kaltwasser <= 25 Grad C",
+          "abschnitt": "Abschnitt 9.7.2"
+        },
+        {
+          "regel": "Stagnationsvermeidung",
+          "inhalt": "Rohrleitungen so dimensionieren, dass regelmaessiger Wasseraustausch gewaehrleistet ist",
+          "abschnitt": "Abschnitt 9.7"
+        }
+      ],
+      "verweise": ["din_en_806", "vdi_6023", "dvgw_w551"]
+    },
+    {
+      "id": "din_1988_300",
+      "name": "DIN 1988-300",
+      "titel": "Ermittlung der Rohrdurchmesser",
+      "bereich": "trinkwasser",
+      "beschreibung": "Berechnungsverfahren zur Dimensionierung von Trinkwasserleitungen",
+      "wichtige_regeln": [
+        {
+          "regel": "Belastungswerte",
+          "inhalt": "Summierte Belastungswerte (LU) fuer Entnahmestellen zur Rohrweitenermittlung",
+          "abschnitt": "Abschnitt 5"
+        },
+        {
+          "regel": "Druckverlustberechnung",
+          "inhalt": "Max. verfuegbarer Druckverlust im unguenstigsten Strang",
+          "abschnitt": "Abschnitt 6"
+        }
+      ],
+      "verweise": ["din_1988_200"]
+    },
+    {
+      "id": "din_1988_500",
+      "name": "DIN 1988-500",
+      "titel": "Druckerhoehungsanlagen",
+      "bereich": "trinkwasser",
+      "beschreibung": "Planung und Ausfuehrung von Druckerhoehungsanlagen in Trinkwasserinstallationen",
+      "wichtige_regeln": [
+        {
+          "regel": "Mindestfliessgeschwindigkeit",
+          "inhalt": "Vermeidung von Stagnation durch Mindestdurchfluss",
+          "abschnitt": "Abschnitt 4"
+        }
+      ],
+      "verweise": ["din_1988_200"]
+    },
+    {
+      "id": "din_1988_600",
+      "name": "DIN 1988-600",
+      "titel": "Feuerloesch- und Brandschutzanlagen",
+      "bereich": "trinkwasser",
+      "beschreibung": "Trinkwasserinstallationen in Verbindung mit Feuerloesch- und Brandschutzanlagen",
+      "wichtige_regeln": [
+        {
+          "regel": "Trennung",
+          "inhalt": "Strikte Trennung von Trinkwasser- und Loeschwasserleitungen",
+          "abschnitt": "Abschnitt 5"
+        }
+      ],
+      "verweise": ["din_14462"]
+    },
+    {
+      "id": "din_en_806_1",
+      "name": "DIN EN 806-1",
+      "titel": "Allgemeines",
+      "bereich": "trinkwasser",
+      "beschreibung": "Europaeische Norm - Allgemeine Anforderungen an Trinkwasserinstallationen",
+      "wichtige_regeln": [
+        {
+          "regel": "Grundanforderungen",
+          "inhalt": "Hygiene, Sicherheit, Gebrauchstauglichkeit",
+          "abschnitt": "Abschnitt 4"
+        }
+      ],
+      "verweise": ["din_1988_200"]
+    },
+    {
+      "id": "din_en_806_2",
+      "name": "DIN EN 806-2",
+      "titel": "Planung",
+      "bereich": "trinkwasser",
+      "beschreibung": "Europaeische Norm - Planung von Trinkwasserinstallationen",
+      "wichtige_regeln": [
+        {
+          "regel": "Planungsgrundsaetze",
+          "inhalt": "Dimensionierung, Werkstoffauswahl, Leitungsfuehrung",
+          "abschnitt": "Abschnitt 5-8"
+        }
+      ],
+      "verweise": ["din_1988_200", "din_1988_300"]
+    },
+    {
+      "id": "din_en_806_3",
+      "name": "DIN EN 806-3",
+      "titel": "Berechnung der Rohrinnendurchmesser - Vereinfachtes Verfahren",
+      "bereich": "trinkwasser",
+      "beschreibung": "Europaeische Norm - Vereinfachtes Berechnungsverfahren",
+      "wichtige_regeln": [
+        {
+          "regel": "Belastungswerte",
+          "inhalt": "Tabelle mit Belastungswerten (LU) fuer verschiedene Entnahmestellen",
+          "abschnitt": "Tabelle 1"
+        }
+      ],
+      "verweise": ["din_1988_300"]
+    },
+    {
+      "id": "din_en_806_4",
+      "name": "DIN EN 806-4",
+      "titel": "Installation",
+      "bereich": "trinkwasser",
+      "beschreibung": "Europaeische Norm - Installationsausfuehrung",
+      "wichtige_regeln": [
+        {
+          "regel": "Druckpruefung",
+          "inhalt": "Dichtheitspruefung mit Wasser oder Luft",
+          "abschnitt": "Abschnitt 7"
+        },
+        {
+          "regel": "Spuelung",
+          "inhalt": "Spuelung vor Inbetriebnahme",
+          "abschnitt": "Abschnitt 8"
+        }
+      ],
+      "verweise": ["din_1988_200"]
+    },
+    {
+      "id": "din_en_806_5",
+      "name": "DIN EN 806-5",
+      "titel": "Betrieb und Wartung",
+      "bereich": "trinkwasser",
+      "beschreibung": "Europaeische Norm - Betrieb und Wartung von Trinkwasserinstallationen",
+      "wichtige_regeln": [
+        {
+          "regel": "Wartungsintervalle",
+          "inhalt": "Regelmaessige Inspektion und Wartung",
+          "abschnitt": "Abschnitt 5"
+        }
+      ],
+      "verweise": ["vdi_6023"]
+    },
+    {
+      "id": "din_en_1717",
+      "name": "DIN EN 1717",
+      "titel": "Schutz des Trinkwassers vor Verunreinigungen",
+      "bereich": "trinkwasser",
+      "beschreibung": "Europaeische Norm - Sicherungseinrichtungen nach Fluessigkeitskategorien",
+      "wichtige_regeln": [
+        {
+          "regel": "Fluessigkeitskategorien",
+          "inhalt": "Kategorie 1-5 je nach Gefaehrdungspotential",
+          "abschnitt": "Abschnitt 4"
+        },
+        {
+          "regel": "Sicherungseinrichtungen",
+          "inhalt": "AA, AB, AD, BA, CA, DA, EA, GA, GB, etc.",
+          "abschnitt": "Abschnitt 5"
+        }
+      ],
+      "verweise": ["din_1988_100"]
+    },
+    {
+      "id": "dvgw_w551",
+      "name": "DVGW W 551",
+      "titel": "Trinkwassererwaermungs- und Leitungsanlagen - Technische Massnahmen zur Verminderung des Legionellenwachstums",
+      "bereich": "trinkwasser",
+      "beschreibung": "DVGW-Arbeitsblatt zur Legionellenpraevention",
+      "wichtige_regeln": [
+        {
+          "regel": "Warmwassertemperatur Austritt",
+          "inhalt": "Min. 55 Grad C an jeder Entnahmestelle",
+          "abschnitt": "Abschnitt 4.2"
+        },
+        {
+          "regel": "Speichertemperatur",
+          "inhalt": "Min. 60 Grad C im Trinkwassererwaermer",
+          "abschnitt": "Abschnitt 4.1"
+        },
+        {
+          "regel": "Zirkulationstemperatur",
+          "inhalt": "Max. 5 Kelvin Abkuehlung in der Zirkulation",
+          "abschnitt": "Abschnitt 4.3"
+        },
+        {
+          "regel": "Kaltwassertemperatur",
+          "inhalt": "Max. 25 Grad C Kaltwassertemperatur",
+          "abschnitt": "Abschnitt 4.4"
+        },
+        {
+          "regel": "Grossanlagen",
+          "inhalt": "Ab 400 Liter Speicher oder 3 Liter Leitungsinhalt gilt Anlage als Grossanlage",
+          "abschnitt": "Abschnitt 3"
+        }
+      ],
+      "verweise": ["din_1988_200", "vdi_6023"]
+    },
+    {
+      "id": "vdi_6023",
+      "name": "VDI 6023",
+      "titel": "Hygiene in Trinkwasser-Installationen",
+      "bereich": "trinkwasser",
+      "beschreibung": "VDI-Richtlinie zur Hygiene in Trinkwasserinstallationen",
+      "wichtige_regeln": [
+        {
+          "regel": "Hygienische Anforderungen",
+          "inhalt": "Vermeidung von Stagnation, Temperaturhaltung, Werkstoffauswahl",
+          "abschnitt": "Blatt 1, Abschnitt 5"
+        },
+        {
+          "regel": "Betrieb",
+          "inhalt": "Bestimmungsgemaesser Betrieb zur Erhaltung der Wasserqualitaet",
+          "abschnitt": "Blatt 2"
+        }
+      ],
+      "verweise": ["dvgw_w551", "din_1988_200"]
+    },
+    {
+      "id": "vdi_2035",
+      "name": "VDI 2035",
+      "titel": "Vermeidung von Schaeden in Warmwasser-Heizungsanlagen",
+      "bereich": "heizung",
+      "beschreibung": "VDI-Richtlinie zu Steinbildung und Korrosion in Heizungsanlagen",
+      "wichtige_regeln": [
+        {
+          "regel": "pH-Wert",
+          "inhalt": "Heizungswasser pH 8,2 bis 10,0",
+          "abschnitt": "Blatt 1, Abschnitt 6"
+        },
+        {
+          "regel": "Haerte",
+          "inhalt": "Gesamthaerte abhaengig von Anlagenleistung und spez. Wasserinhalt",
+          "abschnitt": "Blatt 1, Abschnitt 5"
+        },
+        {
+          "regel": "Leitfaehigkeit",
+          "inhalt": "Max. 100 Mikro-S/cm bei Aluminiumwerkstoffen",
+          "abschnitt": "Blatt 2, Abschnitt 5"
+        },
+        {
+          "regel": "Sauerstoff",
+          "inhalt": "Sauerstoffarmer Betrieb < 0,1 mg/l",
+          "abschnitt": "Blatt 2, Abschnitt 4"
+        },
+        {
+          "regel": "Wasseraustausch",
+          "inhalt": "Gesamtes Heizungswasser max. 3x austauschen ueber Lebensdauer",
+          "abschnitt": "Blatt 1, Abschnitt 7"
+        }
+      ],
+      "verweise": ["din_en_12828"]
+    },
+    {
+      "id": "din_en_12828",
+      "name": "DIN EN 12828",
+      "titel": "Heizungsanlagen in Gebaeuden - Planung von Warmwasser-Heizungsanlagen",
+      "bereich": "heizung",
+      "beschreibung": "Europaeische Norm zur Planung von Heizungsanlagen",
+      "wichtige_regeln": [
+        {
+          "regel": "Sicherheitseinrichtungen",
+          "inhalt": "Sicherheitsventil, Ausdehnungsgefaess, Absicherung",
+          "abschnitt": "Abschnitt 5"
+        },
+        {
+          "regel": "Temperaturregelung",
+          "inhalt": "Begrenzung der Vorlauftemperatur",
+          "abschnitt": "Abschnitt 6"
+        }
+      ],
+      "verweise": ["vdi_2035"]
+    },
+    {
+      "id": "trgi_2018",
+      "name": "TRGI 2018 (DVGW G 600)",
+      "titel": "Technische Regeln fuer Gasinstallationen",
+      "bereich": "gas",
+      "beschreibung": "DVGW-Arbeitsblatt G 600 - Wichtigstes Regelwerk fuer Gasinstallationen",
+      "wichtige_regeln": [
+        {
+          "regel": "Leitungsdimensionierung",
+          "inhalt": "Berechnung nach Nennbelastung und Leitungslaenge",
+          "abschnitt": "Kapitel 8"
+        },
+        {
+          "regel": "Verbrennungsluftversorgung",
+          "inhalt": "Raumluftabhaengig oder raumluftunabhaengig",
+          "abschnitt": "Kapitel 7"
+        },
+        {
+          "regel": "Abgasfuehrung",
+          "inhalt": "Anforderungen an Abgasanlagen",
+          "abschnitt": "Kapitel 9"
+        },
+        {
+          "regel": "Druckpruefung",
+          "inhalt": "Belastungspruefung und Dichtheitspruefung",
+          "abschnitt": "Kapitel 10"
+        },
+        {
+          "regel": "Absperreinrichtungen",
+          "inhalt": "Hauptabsperreinrichtung (HAE), Geraeteabsperreinrichtung (GAE)",
+          "abschnitt": "Kapitel 5"
+        }
+      ],
+      "verweise": ["dvgw_g607", "dvgw_g628"]
+    },
+    {
+      "id": "dvgw_g607",
+      "name": "DVGW G 607",
+      "titel": "Thermisch hoeherbeanspruchbare Gasrohre in Gebaeuden",
+      "bereich": "gas",
+      "beschreibung": "Anforderungen an Gasleitungen mit erhoehter thermischer Beanspruchung",
+      "wichtige_regeln": [
+        {
+          "regel": "Rohrwerkstoffe",
+          "inhalt": "Zugelassene Werkstoffe fuer Gasleitungen",
+          "abschnitt": "Abschnitt 4"
+        }
+      ],
+      "verweise": ["trgi_2018"]
+    },
+    {
+      "id": "dvgw_g628",
+      "name": "DVGW G 628",
+      "titel": "Gastransport in Kunststoffrohren",
+      "bereich": "gas",
+      "beschreibung": "Regeln fuer Kunststoffrohrleitungen in der Gasversorgung",
+      "wichtige_regeln": [
+        {
+          "regel": "Zugelassene Werkstoffe",
+          "inhalt": "PE, PE-X fuer Gasleitungen",
+          "abschnitt": "Abschnitt 3"
+        }
+      ],
+      "verweise": ["trgi_2018"]
+    },
+    {
+      "id": "din_1986_100",
+      "name": "DIN 1986-100",
+      "titel": "Entwaesserungsanlagen fuer Gebaeude und Grundstuecke",
+      "bereich": "abwasser",
+      "beschreibung": "Nationale Norm fuer Abwasserinstallationen",
+      "wichtige_regeln": [
+        {
+          "regel": "Nennweiten",
+          "inhalt": "Mindest-Nennweiten fuer Abflussleitungen",
+          "abschnitt": "Tabelle 4"
+        },
+        {
+          "regel": "Gefaelle",
+          "inhalt": "Min. 0,5% bis 1% Gefaelle je nach Nennweite",
+          "abschnitt": "Abschnitt 8"
+        },
+        {
+          "regel": "Belueftung",
+          "inhalt": "Hauptlueftung, Nebenlueftung, Umlauflueftung",
+          "abschnitt": "Abschnitt 7"
+        }
+      ],
+      "verweise": ["din_en_12056"]
+    },
+    {
+      "id": "din_en_12056",
+      "name": "DIN EN 12056",
+      "titel": "Schwerkraftentwaesserungsanlagen innerhalb von Gebaeuden",
+      "bereich": "abwasser",
+      "beschreibung": "Europaeische Norm fuer Abwasserinstallationen in Gebaeuden",
+      "wichtige_regeln": [
+        {
+          "regel": "Berechnungsdurchfluss",
+          "inhalt": "Ermittlung nach Anschlusswerten",
+          "abschnitt": "Teil 2, Abschnitt 5"
+        }
+      ],
+      "verweise": ["din_1986_100"]
+    }
+  ],
+  "bereiche": {
+    "trinkwasser": {
+      "name": "Trinkwasserinstallation",
+      "hauptnormen": ["DIN 1988-200", "DIN EN 806", "DVGW W 551", "VDI 6023"],
+      "themen": ["Hygiene", "Legionellen", "Dimensionierung", "Druckpruefung", "Werkstoffauswahl"]
+    },
+    "heizung": {
+      "name": "Heizungsinstallation",
+      "hauptnormen": ["VDI 2035", "DIN EN 12828"],
+      "themen": ["Heizungswasser", "Korrosion", "Steinbildung", "Ausdehnungsgefaesse"]
+    },
+    "gas": {
+      "name": "Gasinstallation",
+      "hauptnormen": ["TRGI 2018"],
+      "themen": ["Leitungsdimensionierung", "Verbrennungsluft", "Abgasfuehrung", "Druckpruefung"]
+    },
+    "abwasser": {
+      "name": "Abwasserinstallation",
+      "hauptnormen": ["DIN 1986-100", "DIN EN 12056"],
+      "themen": ["Dimensionierung", "Gefaelle", "Belueftung"]
+    }
+  }
+}
