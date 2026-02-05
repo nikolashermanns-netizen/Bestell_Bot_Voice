@@ -543,18 +543,44 @@ class AIClient:
         try:
             if name == "finde_produkt_katalog":
                 suchbegriff = arguments.get("suchbegriff", "")
-                logger.info(f"Suche Kataloge fuer: {suchbegriff}")
+                logger.info(f"[KEYWORD-SUCHE] Suchbegriff: '{suchbegriff}'")
+                
+                # Debug an GUI senden
+                if self.on_transcript:
+                    await self.on_transcript("system", f"[Keyword-Suche] Suche nach: {suchbegriff}", True)
                 
                 # Im Keyword-Index suchen
                 result = catalog.search_keyword_index(suchbegriff)
+                
+                # Detailliertes Logging
+                logger.info(f"[KEYWORD-SUCHE] Ergebnis:\n{result}")
+                
+                # Ergebnis an GUI senden
+                if self.on_transcript:
+                    # Gekürzte Version für GUI
+                    lines = result.split('\n')
+                    short_result = '\n'.join(lines[:10]) if len(lines) > 10 else result
+                    await self.on_transcript("system", f"[Keyword-Suche Ergebnis]\n{short_result}", True)
+                
                 return result
             
             elif name == "internet_recherche":
                 suchbegriff = arguments.get("suchbegriff", "")
-                logger.info(f"Internet-Recherche fuer: {suchbegriff}")
+                logger.info(f"[INTERNET-RECHERCHE] Suchbegriff: '{suchbegriff}'")
+                
+                # Debug an GUI senden
+                if self.on_transcript:
+                    await self.on_transcript("system", f"[Internet-Recherche] Suche nach: {suchbegriff}", True)
                 
                 # Internet-Recherche durchführen
                 result = await self._internet_search(suchbegriff)
+                
+                logger.info(f"[INTERNET-RECHERCHE] Ergebnis:\n{result}")
+                
+                # Ergebnis an GUI senden
+                if self.on_transcript:
+                    await self.on_transcript("system", f"[Internet-Recherche Ergebnis]\n{result}", True)
+                
                 return result
             
             elif name == "zeige_hersteller":

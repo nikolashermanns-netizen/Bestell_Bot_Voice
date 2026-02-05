@@ -781,12 +781,24 @@ class MainWindow(QMainWindow):
         if is_final:
             # Finalen Text mit Zeitstempel hinzufügen
             time_str = datetime.now().strftime("%H:%M:%S")
-            speaker_label = "Anrufer" if speaker == "caller" else "Assistent"
+            
+            # Speaker-Label bestimmen
+            if speaker == "caller":
+                speaker_label = "Anrufer"
+            elif speaker == "system":
+                speaker_label = "SYSTEM"
+            else:
+                speaker_label = "Assistent"
+            
             self._transcript_text += f"[{time_str}] [{speaker_label}] {text}\n"
-            self._current_partial[speaker] = ""
+            
+            # Partial nur für caller/assistant
+            if speaker in self._current_partial:
+                self._current_partial[speaker] = ""
         else:
-            # Partial Update
-            self._current_partial[speaker] = text
+            # Partial Update (nur für caller/assistant)
+            if speaker in self._current_partial:
+                self._current_partial[speaker] = text
         
         self._update_transcript_display()
     
@@ -794,9 +806,9 @@ class MainWindow(QMainWindow):
         """Aktualisiert die Transkript-Anzeige."""
         display_text = self._transcript_text
         
-        # Partials anhängen
+        # Partials anhängen (nur caller/assistant, nicht system)
         for speaker, partial in self._current_partial.items():
-            if partial:
+            if partial and speaker in ["caller", "assistant"]:
                 speaker_label = "Anrufer" if speaker == "caller" else "Assistent"
                 display_text += f"[{speaker_label}] {partial}...\n"
         
