@@ -48,13 +48,8 @@ SCHRITT 2: KATALOG LADEN
 - Nutze 'lade_hersteller_katalog' mit dem gefundenen Hersteller
 - Durchsuche die Produkte und finde das passende
 
-SCHRITT 3: INTERNET-RECHERCHE (nur wenn nichts gefunden)
-- Falls 'finde_produkt_katalog' nichts findet und dir der Begriff unbekannt ist
-- Nutze 'internet_recherche' um herauszufinden was es ist
-- Dann nochmal im Katalog suchen falls Hersteller genannt wird
-
-ABSOLUT VERBOTEN: Sage NIEMALS "Das haben wir nicht" oder "Das fuehren wir nicht"!
-Suche IMMER erst mit allen drei Schritten bevor du aufgibst.
+Falls nichts gefunden: Frag den Kunden ob er das Produkt genauer beschreiben kann.
+Sage NIEMALS "Das haben wir nicht" - suche erst gruendlich!
 
 === BESTELLABLAUF ===
 So laeuft eine typische Bestellung:
@@ -259,21 +254,6 @@ CATALOG_TOOLS = [
                 }
             },
             "required": ["frage", "dringlichkeit"]
-        }
-    },
-    {
-        "type": "function",
-        "name": "internet_recherche",
-        "description": "Recherchiert im Internet nach einem Produkt oder Begriff. Nutze diese Funktion NUR wenn du im Keyword-Index nichts gefunden hast und der Kunde nach einem dir unbekannten Produkt fragt. Sucht nach SHK-Produkten und Herstellern.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "suchbegriff": {
-                    "type": "string",
-                    "description": "Produkt oder Begriff der recherchiert werden soll"
-                }
-            },
-            "required": ["suchbegriff"]
         }
     }
 ]
