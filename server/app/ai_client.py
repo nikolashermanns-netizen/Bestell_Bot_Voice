@@ -40,16 +40,35 @@ BASE_INSTRUCTIONS = """Du bist der automatische Telefonservice von Heinrich Schm
 - Bei komplexen Fachfragen hast du einen Experten-Kollegen
 
 === PRODUKTBEREICHE (AUTOMATISCHES ROUTING) ===
-Du bist spezialisiert auf verschiedene Bereiche. Das System erkennt AUTOMATISCH den richtigen Bereich:
-- rohrsysteme: Pressfittings (Viega, Geberit) - Temponox, Sanpress, Profipress
-- armaturen: Wasserhähne (Grohe, Hansgrohe) - Einhebelmischer, Thermostat
-- keramik: Bad/WC (Duravit, Villeroy Boch) - Waschtisch, WC, Urinal
-- heizung: Kessel/Brenner (Viessmann, Buderus, Vaillant)
-- heizkoerper: Radiatoren (Kermi, Purmo)
-- pumpen: Heizungspumpen (Grundfos, Wilo)
+Du bist spezialisiert auf 18 Bereiche. Das System erkennt AUTOMATISCH den richtigen Bereich:
+
+SANITAER:
+- armaturen: Wasserhähne (Grohe, Hansgrohe, Hansa)
+- keramik: Bad/WC (Duravit, Villeroy Boch, Ideal Standard)
+- wc_technik: Vorwand (Geberit Duofix, TECE, Sanit)
+- kueche: Spuelen (Franke, Blanco)
+
+INSTALLATION:
+- rohrsysteme: Pressfittings (Viega, Geberit, Uponor)
+- wasseraufbereitung: Filter (BWT, Gruenbeck, Judo)
+- befestigung: Duebel/Schellen (Fischer, Hilti)
+
+HEIZUNG:
+- heizung: Kessel (Viessmann, Buderus, Vaillant, Wolf)
+- heizkoerper: Radiatoren (Kermi, Purmo, Zehnder)
+- warmwasser: Speicher/DLE (Stiebel Eltron, AEG)
+- druckhaltung: Ausdehnungsgefaesse (Reflex, Flamco)
+
+TECHNIK:
+- pumpen: Umwaelzpumpen (Grundfos, Wilo, DAB)
+- regelungstechnik: Steuerung (Siemens, Esbe, Danfoss)
+- klima: Klimaanlagen (Daikin, LG, Mitsubishi)
+- lueftung: Ventilatoren (Helios, Maico, Systemair)
+
+SONSTIGES:
 - werkzeuge: SHK-Werkzeug (Rothenberger, REMS, Makita)
-- wasseraufbereitung: Filter (BWT, Gruenbeck)
-- warmwasser: Speicher/Durchlauferhitzer
+- isolierung: Daemmung (Armacell, Rockwool)
+- solar: Photovoltaik (SMA)
 
 BEREICHSWECHSEL:
 - AUTOMATISCH: Wenn du 'finde_produkt_katalog' nutzt, wird der Bereich automatisch erkannt
@@ -285,8 +304,8 @@ CATALOG_TOOLS = [
             "properties": {
                 "bereich": {
                     "type": "string",
-                    "enum": ["rohrsysteme", "armaturen", "keramik", "heizung", "heizkoerper", "pumpen", "werkzeuge", "wasseraufbereitung", "warmwasser"],
-                    "description": "Der Produktbereich: rohrsysteme (Pressfittings, Viega), armaturen (Grohe, Hansgrohe), keramik (WC, Waschtisch), heizung (Kessel, Viessmann), heizkoerper (Radiator, Kermi), pumpen (Grundfos, Wilo), werkzeuge (Rothenberger, REMS), wasseraufbereitung (BWT, Filter), warmwasser (Durchlauferhitzer, Speicher)"
+                    "enum": ["rohrsysteme", "armaturen", "keramik", "wc_technik", "heizung", "heizkoerper", "klima", "pumpen", "regelungstechnik", "druckhaltung", "werkzeuge", "befestigung", "wasseraufbereitung", "warmwasser", "lueftung", "isolierung", "solar", "kueche"],
+                    "description": "Der Produktbereich: rohrsysteme (Viega, Geberit), armaturen (Grohe, Hansgrohe), keramik (Duravit, Villeroy), wc_technik (Geberit Duofix, TECE), heizung (Viessmann, Buderus), heizkoerper (Kermi, Purmo), klima (Daikin, LG), pumpen (Grundfos, Wilo), regelungstechnik (Siemens, Esbe), druckhaltung (Reflex, Flamco), werkzeuge (Rothenberger, REMS), befestigung (Fischer, Hilti), wasseraufbereitung (BWT, Gruenbeck), warmwasser (Stiebel Eltron, AEG), lueftung (Helios, Maico), isolierung (Armacell, Rockwool), solar (SMA), kueche (Franke, Blanco)"
                 }
             },
             "required": ["bereich"]
@@ -783,12 +802,7 @@ class AIClient:
                 for p in results[:15]:  # Max 15 Ergebnisse
                     bezeichnung = p.get("bezeichnung", "")
                     artikel = p.get("artikel", "")
-                    hersteller_nr = p.get("hersteller_nr", "")
-                    
-                    if hersteller_nr:
-                        lines.append(f"- {bezeichnung} | Art: {artikel} (H-Nr: {hersteller_nr})")
-                    else:
-                        lines.append(f"- {bezeichnung} | Art: {artikel}")
+                    lines.append(f"- {bezeichnung} | Art: {artikel}")
                 
                 if len(results) > 15:
                     lines.append(f"\n... und {len(results) - 15} weitere Treffer. Verfeinere die Suche.")

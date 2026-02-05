@@ -6,6 +6,8 @@ Jeder Bereich hat:
 - keywords: Schluesselwoerter zur Erkennung
 - catalogs: Zugehoerige Katalog-Keys
 - instructions: Bereichsspezifisches Fachwissen fuer die AI
+
+ABDECKUNG: 109 Kataloge / 157.520 Produkte (100%)
 """
 
 PRODUCT_DOMAINS = {
@@ -18,15 +20,16 @@ PRODUCT_DOMAINS = {
             # Produkttypen
             "bogen", "muffe", "rohr", "fitting", "verschraubung", "uebergangsstueck",
             "uebergangsmuffe", "reduzierstueck", "kappe", "flansch", "winkel",
-            "t-stueck", "tstueck",
+            "t-stueck", "tstueck", "kupplung",
             # Material
-            "kupfer", "edelstahl", "rotguss", "stahl",
+            "kupfer", "edelstahl", "rotguss", "stahl", "verbundrohr", "mehrschicht",
             # Hersteller
-            "viega", "geberit",
+            "viega", "geberit", "uponor", "rehau", "wavin", "aquatherm", "comap",
         ],
         "catalogs": [
             "edelstahl_press", "cu_press", "viega", "viega_profipress", 
-            "viega_sanpress", "viega_megapress", "geberit_mapress", "geberit_mepla"
+            "viega_sanpress", "viega_megapress", "geberit_mapress", "geberit_mepla",
+            "uponor", "rehau", "wavin", "aquatherm", "comap"
         ],
         "instructions": """=== FACHWISSEN: ROHRSYSTEME UND PRESSFITTINGS ===
 
@@ -53,6 +56,7 @@ PRESSSYSTEME:
 - Profipress = Kupfer fuer Heizung
 - Megapress = Stahl mit Gewinde (fuer Altbausanierung)
 - Mapress/Mepla = Geberit Systeme
+- Uponor/Rehau = Mehrschicht-Verbundrohre
 
 PRODUKTTYPEN:
 - Bogen: 45 oder 90 Grad, IxI oder IxA
@@ -138,15 +142,17 @@ SUCHSTRATEGIE:
             "einbauwaschtisch", "unterschrank", "waschtischunterschrank",
             # Badewanne/Dusche
             "badewanne", "wanne", "duschwanne", "dusche", "duschtasse",
-            "bodengleich", "ablaufrinne",
+            "bodengleich", "ablaufrinne", "duschrinne",
             # Spuelkasten
             "spuelkasten", "druckerplatte", "betaetigungsplatte",
             # Hersteller
             "duravit", "villeroy", "ideal", "keramag", "laufen", "kaldewei", "bette",
+            "hoesch", "koralle", "hsk",
         ],
         "catalogs": [
             "duravit", "villeroy_boch", "ideal_standard", "keramag", 
-            "laufen", "kaldewei", "bette", "geberit", "tece", "koralle", "hoesch"
+            "laufen", "kaldewei", "bette", "geberit", "tece", "koralle", "hoesch",
+            "hsk", "sanitaer_komplett"
         ],
         "instructions": """=== FACHWISSEN: SANITAERKERAMIK UND BAD ===
 
@@ -194,6 +200,57 @@ SUCHSTRATEGIE:
 3. Bei Ersatzteilen: WC-Sitz oft separat"""
     },
     
+    "wc_technik": {
+        "name": "WC-Technik und Vorwandinstallation",
+        "keywords": [
+            # Produkte
+            "vorwand", "installationselement", "spuelkasten", "unterputz",
+            "betaetigungsplatte", "druckerplatte", "sigma", "omega",
+            "geberit duofix", "tece", "sanit", "mepa", "schwab", "wisa", "friatec",
+            # Teile
+            "fuellventil", "ablaufventil", "heberglocke", "druckerspuelung",
+        ],
+        "catalogs": [
+            "geberit", "tece", "sanit", "friatec", "mepa", "schwab", "wisa"
+        ],
+        "instructions": """=== FACHWISSEN: WC-TECHNIK UND VORWANDINSTALLATION ===
+
+VORWANDSYSTEME:
+- Geberit Duofix: Marktfuehrer, viele Varianten
+- TECE: Alternative, modernes Design
+- Sanit: Guenstigere Alternative
+- Mepa/Schwab/Wisa: Weitere Hersteller
+
+INSTALLATIONSELEMENTE:
+- WC-Element: Fuer Wand-WC mit Spuelkasten
+- Waschtisch-Element: Fuer Waschtisch-Montage
+- Urinal-Element: Fuer Urinal
+- Bidet-Element: Fuer Bidet
+
+SPUELKASTEN-TYPEN:
+- UP320: Geberit Universal (8cm Tiefe)
+- UP720: Geberit fuer geringe Tiefen
+- Omega: Geberit mit anderem Betaetigungssystem
+- Sigma: Geberit Standard-System
+
+BETAETIGUNGSPLATTEN:
+- 1-Mengen: Nur eine Taste
+- 2-Mengen: Kleine und grosse Spuelung
+- Pneumatisch: Druckknopf mit Schlauch
+- Elektrisch: Beruehrungslos/Sensor
+
+ERSATZTEILE (haeufig gefragt):
+- Fuellventil: Laesst Wasser einlaufen
+- Ablaufventil/Heberglocke: Spuelvorgang
+- Dichtungen: Fuer Spuelkasten
+- Druckerplatte: Ausloesung
+
+SUCHSTRATEGIE:
+1. Hersteller + Element-Typ
+2. Beispiel: "geberit duofix wc element"
+3. Ersatzteile: Spuelkasten-Typ erfragen (UP320, etc.)"""
+    },
+    
     "heizung": {
         "name": "Heizung und Kessel",
         "keywords": [
@@ -207,11 +264,11 @@ SUCHSTRATEGIE:
             "ausdehnungsgefaess", "sicherheitsventil",
             # Hersteller
             "viessmann", "buderus", "vaillant", "wolf", "junkers", 
-            "weishaupt", "broetje",
+            "weishaupt", "broetje", "rotex", "bosch",
         ],
         "catalogs": [
-            "viessmann", "buderus", "vaillant", "wolf_heizung", "junkers",
-            "weishaupt", "broetje", "heizung_komplett"
+            "viessmann", "buderus", "vaillant", "wolf_heizung", "wolf", "junkers",
+            "weishaupt", "broetje", "rotex", "bosch", "heizung_komplett"
         ],
         "instructions": """=== FACHWISSEN: HEIZUNG UND KESSEL ===
 
@@ -272,10 +329,11 @@ SUCHSTRATEGIE:
             "ruecklaufverschraubung",
             # Hersteller
             "kermi", "purmo", "zehnder", "buderus", "viessmann",
+            "arbonia", "bemm", "cosmo", "schulte",
         ],
         "catalogs": [
             "kermi", "purmo", "zehnder", "oventrop", "danfoss", "heimeier",
-            "heizung_komplett"
+            "arbonia", "bemm", "cosmo", "schulte", "heizung_komplett"
         ],
         "instructions": """=== FACHWISSEN: HEIZKOERPER UND FLAECHENHEIZUNG ===
 
@@ -322,6 +380,56 @@ SUCHSTRATEGIE:
 3. Bei Ventilen: Hersteller beachten (nicht kompatibel)"""
     },
     
+    "klima": {
+        "name": "Klimaanlagen und Waermepumpen",
+        "keywords": [
+            # Produkte
+            "klimaanlage", "klima", "split", "multisplit", "monoblock",
+            "kaeltemittel", "r32", "r410a",
+            # Waermepumpe
+            "waermepumpe", "luft-luft", "luft-wasser", "inverter",
+            # Hersteller
+            "daikin", "mitsubishi", "panasonic", "lg", "samsung",
+        ],
+        "catalogs": [
+            "daikin", "mitsubishi", "panasonic", "lg"
+        ],
+        "instructions": """=== FACHWISSEN: KLIMAANLAGEN UND WAERMEPUMPEN ===
+
+KLIMAANLAGEN-TYPEN:
+- Split-Klimageraet: Innen- und Ausseneinheit getrennt
+- Multisplit: Ein Aussengeraet, mehrere Innengeraete
+- Monoblock: Alles in einem Geraet
+- VRF/VRV: Grossanlagen fuer Gewerbe
+
+INNENGERAETE:
+- Wandgeraet: An der Wand montiert (Standard)
+- Deckengeraet: In/an der Decke
+- Truhengeraet: Am Boden stehend
+- Kanalgeraet: In Lueftungskanal
+
+WICHTIGE KENNWERTE:
+- Kuehlleistung: in kW (z.B. 2.5kW, 3.5kW)
+- SEER: Effizienz Kuehlen (hoeher = besser)
+- SCOP: Effizienz Heizen (hoeher = besser)
+- Kaeltemittel: R32 (neu), R410A (aelter)
+
+WAERMEPUMPEN:
+- Luft-Wasser: Fuer Heizung und Warmwasser
+- Luft-Luft: Nur Raumklimatisierung
+- Inverter: Variable Leistung (effizienter)
+
+INSTALLATION:
+- Kaeltemittelleitung: Verbindung Innen-/Aussen
+- Kondensatleitung: Wasserablauf
+- Elektrik: Meist 230V, groessere 400V
+
+SUCHSTRATEGIE:
+1. Hersteller + Kuehlleistung + Typ
+2. Beispiel: "daikin 3.5 kw wandgeraet"
+3. Bei Ersatzteilen: Geraetemodell erfragen"""
+    },
+    
     "pumpen": {
         "name": "Pumpen und Regelungstechnik",
         "keywords": [
@@ -333,10 +441,11 @@ SUCHSTRATEGIE:
             # Regelung
             "stellantrieb", "mischer", "dreiwegeventil", "zonenventil",
             # Hersteller
-            "grundfos", "wilo", "ksb",
+            "grundfos", "wilo", "ksb", "dab", "lowara",
         ],
         "catalogs": [
-            "grundfos", "wilo", "oventrop", "danfoss", "honeywell", "resideo"
+            "grundfos", "wilo", "oventrop", "danfoss", "honeywell", "resideo",
+            "dab", "lowara", "perma"
         ],
         "instructions": """=== FACHWISSEN: PUMPEN UND REGELUNGSTECHNIK ===
 
@@ -366,6 +475,7 @@ EINBAU:
 BELIEBTE SERIEN:
 - Grundfos: Alpha, Magna, UPS
 - Wilo: Stratos, Yonos, Star-Z
+- DAB: Evosta, Evoplus
 
 REGELUNGSTECHNIK:
 - Mischer: 3-Wege oder 4-Wege
@@ -376,6 +486,109 @@ SUCHSTRATEGIE:
 1. Typ + Einbaulaenge + Anschluss
 2. Beispiel: "grundfos alpha2 25-60 180"
 3. Ersatzteile: Pumpentyp erfragen"""
+    },
+    
+    "regelungstechnik": {
+        "name": "Regelungs- und Steuerungstechnik",
+        "keywords": [
+            # Produkte
+            "regler", "steuerung", "thermostat", "raumthermostat",
+            "stellantrieb", "stellmotor", "mischer", "mischerventil",
+            "dreiwegeventil", "vierwegeventil", "zonenventil", "motorventil",
+            # Hersteller
+            "siemens", "esbe", "meibes", "paw", "caleffi",
+            "honeywell", "resideo", "danfoss", "oventrop",
+        ],
+        "catalogs": [
+            "siemens", "esbe", "meibes", "paw", "caleffi",
+            "honeywell", "resideo", "danfoss", "oventrop"
+        ],
+        "instructions": """=== FACHWISSEN: REGELUNGS- UND STEUERUNGSTECHNIK ===
+
+REGLER:
+- Witterungsgefuehrter Regler: Steuert nach Aussentemperatur
+- Raumthermostat: Steuert nach Raumtemperatur
+- Mischerregler: Steuert Mischventile
+- Zonenregler: Steuert einzelne Heizkreise
+
+MISCHER:
+- 3-Wege-Mischer: Beimischschaltung
+- 4-Wege-Mischer: Umlenkschaltung
+- Rotierend oder Hub-Mischer
+- Kvs-Wert: Durchflusskennzahl
+
+STELLANTRIEBE:
+- Thermisch: Langsam, leise, guenstig
+- Motorisch: Schnell, praezise
+- 230V AC oder 24V AC/DC
+- Stromlos auf oder stromlos zu
+
+ANWENDUNGEN:
+- Heizkreisregelung: Vorlauftemperatur steuern
+- Fussbodenheizung: Einzelraumregelung
+- Pufferspeicher: Be-/Entladung steuern
+- Solar: Speicherbeladung
+
+BUSSYSTEME:
+- KNX: Gebaeudeautomation
+- Modbus: Industriestandard
+- 0-10V: Analoge Steuerung
+- OpenTherm: Heizungsregelung
+
+SUCHSTRATEGIE:
+1. Funktion + Anschluss/Leistung
+2. Beispiel: "esbe 3-wege-mischer dn25"
+3. Bei Stellantrieben: Spannung und Hub angeben"""
+    },
+    
+    "druckhaltung": {
+        "name": "Druckhaltung und Sicherheit",
+        "keywords": [
+            # Produkte
+            "ausdehnungsgefaess", "mag", "druckhaltung", "membranausdehnungsgefaess",
+            "sicherheitsventil", "sicherheitsgruppe", "druckminderer",
+            "rueckflussverhinderer", "systemtrenner",
+            # Hersteller
+            "reflex", "flamco", "afriso", "watts", "caleffi",
+        ],
+        "catalogs": [
+            "reflex", "flamco", "afriso", "watts", "caleffi"
+        ],
+        "instructions": """=== FACHWISSEN: DRUCKHALTUNG UND SICHERHEIT ===
+
+AUSDEHNUNGSGEFAESSE:
+- Heizung: Rot, 1.5 bar Vordruck
+- Trinkwasser: Weiss/blau, 4 bar Vordruck
+- Solar: Orange, hoehere Temperaturbestaendigkeit
+- Groesse: Nach Anlageninhalt berechnen
+
+SICHERHEITSVENTILE:
+- Heizung: 2.5 oder 3 bar Ansprechdruck
+- Trinkwasser: 6 oder 10 bar
+- Membrane oder Kolben
+- Mit Hebelvorrichtung zur Pruefung
+
+DRUCKMINDERER:
+- Reduziert Leitungsdruck auf Haushaltsniveau
+- Einstellbar: z.B. 2-6 bar
+- Mit Manometer zur Kontrolle
+- Regelmassig warten!
+
+SYSTEMTRENNER:
+- Schuetzen Trinkwasser vor Rueckfliessen
+- BA = Rueckflussverhinderer (einfach)
+- CA = Systemtrenner (zertifiziert)
+- EA = Freier Auslauf (hoechste Sicherheit)
+
+WEITERE ARMATUREN:
+- Entluefter: Automatisch oder manuell
+- Schmutzfaenger: Vor empfindlichen Komponenten
+- Absperrventile: Kugelhahn, Schieber
+
+SUCHSTRATEGIE:
+1. Produkt + Volumen/Druck + Anschluss
+2. Beispiel: "reflex ausdehnungsgefaess 50 liter"
+3. Bei Sicherheitsventilen: Ansprechdruck angeben"""
     },
     
     "werkzeuge": {
@@ -442,6 +655,50 @@ SUCHSTRATEGIE:
 3. Bei Akkuwerkzeug: Spannung/System erfragen"""
     },
     
+    "befestigung": {
+        "name": "Befestigungstechnik",
+        "keywords": [
+            # Produkte
+            "duebel", "anker", "schraube", "stockschraube", "gewindestange",
+            "rohrschelle", "rohrhalter", "schallschutz", "schiene",
+            "montageschiene", "lochband",
+            # Hersteller
+            "fischer", "hilti", "wuerth",
+        ],
+        "catalogs": [
+            "fischer", "hilti"
+        ],
+        "instructions": """=== FACHWISSEN: BEFESTIGUNGSTECHNIK ===
+
+DUEBEL:
+- Spreizdübel: Standard für Vollbaustoffe
+- Hohlraumdübel: Für Gipskarton, Hohlziegel
+- Schwerlastanker: Hohe Traglasten
+- Injektionsanker: Chemische Verankerung
+
+ROHRSCHELLEN:
+- Zweischraub-Schelle: Standard
+- Gelenkschelle: Flexibler Winkel
+- Schwingungsdämpfend: Mit Gummi-Einlage
+- Schallschutz: Reduziert Körperschall
+
+MONTAGESCHIENEN:
+- C-Schiene: Universal
+- Lochschiene: Für Rohrhalter
+- Halteklemmen: Befestigung an Schiene
+
+TRAGLASTEN:
+- Immer auf Untergrund achten!
+- Beton: Höchste Traglasten
+- Mauerwerk: Mittlere Traglasten
+- Gipskarton: Nur leichte Lasten
+
+SUCHSTRATEGIE:
+1. Dübeltyp + Durchmesser + Länge
+2. Beispiel: "fischer duebel 10x80"
+3. Bei Schellen: Rohrdurchmesser angeben"""
+    },
+    
     "wasseraufbereitung": {
         "name": "Wasseraufbereitung und Filter",
         "keywords": [
@@ -451,7 +708,7 @@ SUCHSTRATEGIE:
             "dosierung", "dosieranlage", "mineralstoffe",
             "enthaeertung", "kalkschutz", "kalk",
             # Hersteller
-            "bwt", "gruenbeck", "judo", "syr", "honeywell",
+            "bwt", "gruenbeck", "judo", "syr", "honeywell", "kemper",
         ],
         "catalogs": [
             "bwt", "gruenbeck", "judo", "syr", "kemper", "honeywell"
@@ -543,6 +800,200 @@ SUCHSTRATEGIE:
 2. Speicher oder Durchlauferhitzer?
 3. Beispiel: "stiebel eltron dhe 21" """
     },
+    
+    "lueftung": {
+        "name": "Lueftung und Ventilatoren",
+        "keywords": [
+            # Produkte
+            "luefter", "ventilator", "lueftung", "abluft", "zuluft",
+            "waermerueckgewinnung", "wrg", "kwl", "kontrollierte wohnraumlueftung",
+            "badluefter", "kanalventilator", "axialluefter", "radialluefter",
+            # Hersteller
+            "helios", "maico", "systemair", "pluggit",
+        ],
+        "catalogs": [
+            "helios", "maico", "systemair", "pluggit"
+        ],
+        "instructions": """=== FACHWISSEN: LUEFTUNG UND VENTILATOREN ===
+
+LUEFTUNGSSYSTEME:
+- Kontrollierte Wohnraumlueftung (KWL): Zentral mit WRG
+- Dezentrale Lueftung: Einzelgeraete in jedem Raum
+- Abluftanlage: Nur Abluft (Bad, Kueche)
+- Zu-/Abluftanlage: Beides mit Waermerueckgewinnung
+
+VENTILATOR-TYPEN:
+- Badluefter: Fuer Feuchtraeume
+- Kanalventilator: In Lueftungsrohr eingebaut
+- Axialluefter: Hoher Volumenstrom, geringer Druck
+- Radialluefter: Hoeherer Druck, leiser
+
+WAERMERUECKGEWINNUNG (WRG):
+- Plattenwaermetauscher: 70-90% Effizienz
+- Rotationswaermetauscher: 80-95% Effizienz
+- Kreuzstrom/Gegenstrom: Verschiedene Bauarten
+
+KENNWERTE:
+- Volumenstrom: m³/h (Kubikmeter pro Stunde)
+- Schallpegel: dB(A) - niedriger ist leiser
+- WRG-Grad: Waermerueckgewinnungseffizienz
+
+STEUERUNG:
+- Feuchtesensor: Startet bei hoher Luftfeuchte
+- CO2-Sensor: Bedarfsgerecht nach Luftqualitaet
+- Timer: Zeitgesteuert
+- Nachlauf: Laeuft nach Lichtausschalten weiter
+
+SUCHSTRATEGIE:
+1. Anwendung + Volumenstrom/Rohr-Durchmesser
+2. Beispiel: "helios badluefter 100"
+3. Bei KWL: Wohnflaeche erfragen"""
+    },
+    
+    "isolierung": {
+        "name": "Isolierung und Daemmung",
+        "keywords": [
+            # Produkte
+            "isolierung", "daemmung", "rohrisolierung", "rohrschale",
+            "armaflex", "steinwolle", "mineralwolle", "kaeltebruecke",
+            "brandschutz", "schalldaemmung",
+            # Hersteller
+            "armacell", "rockwool", "isover",
+        ],
+        "catalogs": [
+            "armacell", "rockwool", "isover"
+        ],
+        "instructions": """=== FACHWISSEN: ISOLIERUNG UND DAEMMUNG ===
+
+ROHRISOLIERUNG:
+- Armaflex: Flexibel, fuer Kaelte und Waerme
+- Steinwolle: Fuer hohe Temperaturen, Brandschutz
+- PU-Schale: Hart, fuer Heizung
+- Schlauch vs. Schale: Schlauch bei Montage, Schale nachtraeglich
+
+MATERIALIEN:
+- Elastomer (Armaflex): -50 bis +105°C
+- Mineralwolle: bis +250°C (Heizung)
+- PU-Schaum: gute Daemmung, guenstig
+- PE-Schaum: Einfache Anwendung
+
+DICKEN:
+- Heizung: mind. 100% der Rohrdicke
+- Kaltwasser: je nach Taupunkt
+- EnEV/GEG: Mindestdicken vorgeschrieben
+
+BRANDSCHUTZ:
+- B1: Schwer entflammbar
+- B2: Normal entflammbar
+- A1/A2: Nicht brennbar (Mineralwolle)
+
+ANWENDUNGEN:
+- Heizungsrohre: Waermeverlust reduzieren
+- Kaltwasser: Kondensat verhindern
+- Lueftung: Schall und Waerme
+- Sanitaer: Schallschutz (Abwasser)
+
+SUCHSTRATEGIE:
+1. Material + Rohrdurchmesser + Dicke
+2. Beispiel: "armaflex 22mm 13mm"
+3. Bei Brandschutz: Klasse angeben"""
+    },
+    
+    "solar": {
+        "name": "Solar und Photovoltaik",
+        "keywords": [
+            # Produkte
+            "solar", "photovoltaik", "pv", "wechselrichter", "modul",
+            "solarmodul", "solarpanel", "kollektor", "solarthermie",
+            "speicher", "batteriespeicher",
+            # Hersteller
+            "sma", "fronius", "kostal",
+        ],
+        "catalogs": [
+            "sma_solar"
+        ],
+        "instructions": """=== FACHWISSEN: SOLAR UND PHOTOVOLTAIK ===
+
+PHOTOVOLTAIK:
+- Solarmodul: Erzeugt Gleichstrom (DC)
+- Wechselrichter: Wandelt DC in Wechselstrom (AC)
+- Speicher: Puffert Strom fuer spaeter
+
+WECHSELRICHTER-TYPEN:
+- String-Wechselrichter: Mehrere Module in Reihe
+- Mikro-Wechselrichter: Pro Modul einer
+- Hybrid-Wechselrichter: Mit Speicheranschluss
+
+KENNWERTE:
+- kWp: Spitzenleistung der Anlage
+- kWh: Erzeugte/gespeicherte Energie
+- Wirkungsgrad: Effizienz der Umwandlung
+
+SOLARTHERMIE:
+- Flachkollektor: Standard fuer Warmwasser
+- Roehrenkollektor: Hoehere Effizienz, teurer
+- Speicher: Bivalent (Solar + Heizung)
+
+MONTAGE:
+- Aufdach: Auf bestehende Dachziegel
+- Indach: In die Dachhaut integriert
+- Flachdach: Mit Aufstaenderung
+
+SUCHSTRATEGIE:
+1. Produkt + Leistung
+2. Beispiel: "sma sunny boy 5.0"
+3. Bei Speichern: Kapazitaet in kWh"""
+    },
+    
+    "kueche": {
+        "name": "Kueche und Spuelen",
+        "keywords": [
+            # Produkte
+            "spuele", "einbauspuele", "unterbauspuele", "spuelbecken",
+            "kuechenarmatur", "spueltischarmatur", "brause",
+            "abfallsammler", "abfalltrennung",
+            # Hersteller
+            "franke", "blanco", "grohe", "hansgrohe",
+        ],
+        "catalogs": [
+            "franke", "blanco"
+        ],
+        "instructions": """=== FACHWISSEN: KUECHE UND SPUELEN ===
+
+SPUELEN-TYPEN:
+- Einbauspuele: Von oben eingesetzt
+- Unterbauspuele: Von unten montiert (flächenbündig)
+- Auflagespuele: Liegt auf Unterschrank
+- Flächenbündig: In Arbeitsplatte integriert
+
+MATERIALIEN:
+- Edelstahl: Robust, hygienisch, Standard
+- Silgranit/Fragranit: Granit-Verbund, viele Farben
+- Keramik: Hochwertig, kratzfest
+- Glas: Designvariante
+
+BECKENFORMEN:
+- Einzelbecken: Ein grosses Becken
+- 1.5-Becken: Haupt- + Nebenbecken
+- Doppelbecken: Zwei gleiche Becken
+- Mit Abtropfflaeche: Seitlicher Bereich
+
+ARMATUREN:
+- Hoher Auslauf: Fuer grosse Toepfe
+- Schwenkbar: 180° oder 360°
+- Mit Brause: Ausziehbare Brause
+- Sensor: Beruehrungslos
+
+MASSE:
+- Ausschnitt: Loch in Arbeitsplatte
+- Beckentiefe: Meist 150-200mm
+- Einbaubreite: z.B. 60cm, 80cm, 100cm
+
+SUCHSTRATEGIE:
+1. Hersteller + Beckenzahl + Masse
+2. Beispiel: "blanco 1.5 becken 80cm"
+3. Bei Armaturen: Mit/ohne Brause"""
+    },
 }
 
 
@@ -595,3 +1046,58 @@ def get_domain_instructions(domain_key: str) -> str:
 def get_all_domain_names() -> dict:
     """Gibt alle Bereichsnamen zurueck."""
     return {key: domain["name"] for key, domain in PRODUCT_DOMAINS.items()}
+
+
+def get_all_catalogs() -> set:
+    """Gibt alle in Domains definierten Kataloge zurueck."""
+    all_catalogs = set()
+    for domain in PRODUCT_DOMAINS.values():
+        all_catalogs.update(domain.get("catalogs", []))
+    return all_catalogs
+
+
+def validate_coverage(index_file: str = None) -> dict:
+    """
+    Prueft ob alle Kataloge aus dem Index abgedeckt sind.
+    
+    Returns:
+        Dict mit covered, missing, extra Listen
+    """
+    import json
+    import os
+    
+    if not index_file:
+        # Standard-Pfad
+        base_dir = os.path.dirname(os.path.dirname(__file__))
+        index_file = os.path.join(base_dir, "system_katalog", "_index.json")
+    
+    try:
+        with open(index_file, "r", encoding="utf-8") as f:
+            index_data = json.load(f)
+    except Exception:
+        return {"error": "Could not load index file"}
+    
+    # Alle Katalog-Keys aus dem Index
+    index_catalogs = set()
+    for system in index_data.get("systems", []):
+        filename = system.get("file", "")
+        if filename:
+            key = filename.replace(".json", "")
+            index_catalogs.add(key)
+    
+    # Alle Katalog-Keys aus den Domains
+    domain_catalogs = get_all_catalogs()
+    
+    # Vergleich
+    covered = index_catalogs & domain_catalogs
+    missing = index_catalogs - domain_catalogs
+    extra = domain_catalogs - index_catalogs
+    
+    return {
+        "total_in_index": len(index_catalogs),
+        "total_in_domains": len(domain_catalogs),
+        "covered": len(covered),
+        "coverage_percent": round(len(covered) / len(index_catalogs) * 100, 1) if index_catalogs else 0,
+        "missing": sorted(list(missing)),
+        "extra": sorted(list(extra))
+    }
