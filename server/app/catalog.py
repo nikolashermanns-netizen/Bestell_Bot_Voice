@@ -277,27 +277,30 @@ def search_keyword_index(query: str) -> str:
     if not all_similar:
         return f"Kein Schlagwort gefunden fuer '{query}'. Versuche eine Internet-Recherche."
     
-    lines = [f"=== Suche nach '{query}' ===\n"]
+    lines = [f"=== Keyword-Suche: '{query}' ==="]
     
-    # Gefundene ähnliche Schlagwörter anzeigen
-    lines.append("GEFUNDENE SCHLAGWOERTER (du entscheidest welches passt):")
-    for item in all_similar[:15]:
-        dist_info = "" if item["distance"] == 0 else f" (aehnlich zu '{item['search_word']}')"
-        lines.append(f"  - {item['keyword']}{dist_info}")
-    
-    lines.append("")
-    
-    # Kataloge anzeigen
-    lines.append("PASSENDE KATALOGE:")
+    # KATALOGE ZUERST anzeigen (wichtigste Info!)
     sorted_kataloge = sorted(all_kataloge.items(), key=lambda x: x[1]["count"], reverse=True)
-    for katalog, data in sorted_kataloge[:8]:
+    
+    lines.append("\nPASSENDE KATALOGE (lade einen davon):")
+    for katalog, data in sorted_kataloge[:5]:
         info = _hersteller_index.get(katalog, {})
         name = info.get("name", katalog)
         products = info.get("products", 0)
         keywords = ", ".join(list(data["keywords"])[:3])
-        lines.append(f"  - {name}: {products} Produkte (Keywords: {keywords})")
+        lines.append(f"  -> {katalog}: {name} ({products} Produkte) - Match: {keywords}")
     
-    lines.append("\nEntscheide welches Schlagwort/Katalog am besten passt und lade den Katalog.")
+    # Exakte Treffer anzeigen (nur die wichtigsten)
+    exact_matches = [s for s in all_similar if s["distance"] == 0]
+    if exact_matches:
+        lines.append(f"\nEXAKTE TREFFER: {', '.join([s['keyword'] for s in exact_matches[:5]])}")
+    
+    # Ähnliche nur kurz erwähnen
+    similar_matches = [s for s in all_similar if s["distance"] > 0][:5]
+    if similar_matches:
+        lines.append(f"AEHNLICH: {', '.join([s['keyword'] for s in similar_matches])}")
+    
+    lines.append("\nNutze 'lade_hersteller_katalog' mit dem Katalog-Key (z.B. edelstahl_press, viega).")
     return "\n".join(lines)
 
 

@@ -557,10 +557,10 @@ class AIClient:
                 
                 # Ergebnis an GUI senden
                 if self.on_transcript:
-                    # Gekürzte Version für GUI
+                    # Gekürzte Version für GUI - mehr Zeilen anzeigen
                     lines = result.split('\n')
-                    short_result = '\n'.join(lines[:10]) if len(lines) > 10 else result
-                    await self.on_transcript("system", f"[Keyword-Suche Ergebnis]\n{short_result}", True)
+                    short_result = '\n'.join(lines[:15]) if len(lines) > 15 else result
+                    await self.on_transcript("system", f"[Keyword-Suche]\n{short_result}", True)
                 
                 return result
             
