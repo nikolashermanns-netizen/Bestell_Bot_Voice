@@ -41,12 +41,16 @@ DEFAULT_INSTRUCTIONS = """Du bist der automatische Telefonservice von Heinrich S
 
 SCHRITT 1: KEYWORD-SUCHE (wenn Hersteller unbekannt)
 - Nutze 'finde_produkt_katalog' mit dem Produktnamen (z.B. "temponox", "waschtisch")
-- Zeigt dir SOFORT welche Hersteller das Produkt fuehren
-- Funktioniert mit Produktnamen, Kategorien und Fachbegriffen
+- Zeigt dir welche Kataloge das Produkt fuehren (z.B. edelstahl_press, viega)
 
-SCHRITT 2: KATALOG LADEN
-- Nutze 'lade_hersteller_katalog' mit dem gefundenen Hersteller
-- Durchsuche die Produkte und finde das passende
+SCHRITT 2: IM KATALOG SUCHEN
+- Nutze 'suche_im_katalog' mit Katalog-Key UND Suchbegriff
+- Beispiel: suche_im_katalog("edelstahl_press", "temponox bogen 22")
+- Du bekommst NUR passende Produkte zurueck (kompakt)
+
+WICHTIG: Gib bei der Suche moeglichst genaue Suchbegriffe an!
+- "temponox bogen 22" statt nur "bogen"
+- "waschtischarmatur einhand" statt nur "armatur"
 
 Falls nichts gefunden: Frag den Kunden ob er das Produkt genauer beschreiben kann.
 Sage NIEMALS "Das haben wir nicht" - suche erst gruendlich!
@@ -152,36 +156,21 @@ CATALOG_TOOLS = [
     },
     {
         "type": "function",
-        "name": "lade_hersteller_katalog",
-        "description": "Laedt den kompletten Katalog eines Herstellers. Danach hast du alle Produkte und kannst selbst durchsuchen. Beispiele: 'grohe', 'villeroy_boch', 'viega_sanpress', 'buderus'",
+        "name": "suche_im_katalog",
+        "description": "Sucht Produkte in einem Hersteller-Katalog. Gibt NUR passende Produkte zurueck (nicht den ganzen Katalog). Nutze Suchbegriffe wie Produktname, Dimension, Typ. Beispiele: suche_im_katalog('edelstahl_press', 'temponox bogen 22') oder suche_im_katalog('grohe', 'eurosmart waschtisch')",
         "parameters": {
             "type": "object",
             "properties": {
                 "hersteller": {
                     "type": "string",
-                    "description": "Name oder Key des Herstellers (z.B. 'Grohe', 'Villeroy Boch', 'Viega Sanpress', 'Buderus')"
-                }
-            },
-            "required": ["hersteller"]
-        }
-    },
-    {
-        "type": "function",
-        "name": "suche_produkt",
-        "description": "Sucht nach Produkten in den geladenen Katalogen. Sucht nach Bezeichnung, Artikel-Nummer oder Hersteller-Nummer. WICHTIG: Lade zuerst den passenden Hersteller-Katalog bevor du suchst!",
-        "parameters": {
-            "type": "object",
-            "properties": {
+                    "description": "Katalog-Key des Herstellers (z.B. 'edelstahl_press', 'viega', 'grohe', 'geberit')"
+                },
                 "suchbegriff": {
                     "type": "string",
-                    "description": "Wonach gesucht werden soll (Produktname, Artikelnummer oder Herstellernummer)"
-                },
-                "hersteller": {
-                    "type": "string",
-                    "description": "Optional: Nur in diesem Hersteller-Katalog suchen"
+                    "description": "Wonach im Katalog gesucht werden soll (Produktname, Dimension, Typ)"
                 }
             },
-            "required": ["suchbegriff"]
+            "required": ["hersteller", "suchbegriff"]
         }
     },
     {
@@ -613,55 +602,63 @@ class AIClient:
                 
                 return "\n".join(lines)
             
-            elif name == "lade_hersteller_katalog":
+            elif name == "suche_im_katalog":
                 hersteller = arguments.get("hersteller", "")
+                suchbegriff = arguments.get("suchbegriff", "")
                 
-                logger.info(f"Lade Hersteller-Katalog: {hersteller}")
+                logger.info(f"[KATALOG-SUCHE] Hersteller: {hersteller}, Suchbegriff: {suchbegriff}")
+                
+                # Debug an GUI senden
+                if self.on_transcript:
+                    await self.on_transcript("system", f"[Katalog-Suche] {hersteller}: '{suchbegriff}'", True)
                 
                 # Key ermitteln
                 key = catalog.get_manufacturer_key(hersteller)
                 if not key:
-                    # Verfügbare Hersteller vorschlagen
                     manufacturers = catalog.get_available_manufacturers()
-                    vorschlaege = [m["name"] for m in manufacturers[:10]]
-                    return f"Hersteller '{hersteller}' nicht gefunden. Verfuegbare Hersteller (Auszug): {', '.join(vorschlaege)}. Nutze 'zeige_hersteller' fuer die komplette Liste."
+                    vorschlaege = [m["key"] for m in manufacturers[:10]]
+                    return f"Katalog '{hersteller}' nicht gefunden. Verfuegbar: {', '.join(vorschlaege)}"
                 
-                # Katalog laden und aktivieren
+                # Katalog laden falls nicht geladen
                 if not catalog.activate_catalog(key):
                     return f"Fehler beim Laden des Katalogs '{hersteller}'."
                 
-                # Katalog für AI formatieren
-                katalog_text = catalog.get_catalog_for_ai(key)
-                
-                logger.info(f"Katalog '{key}' geladen, {len(katalog_text)} Zeichen für AI-Context")
-                
-                return katalog_text
-            
-            elif name == "suche_produkt":
-                suchbegriff = arguments.get("suchbegriff", "")
-                hersteller = arguments.get("hersteller", "")
-                
-                logger.info(f"Suche Produkt: '{suchbegriff}' (Hersteller: {hersteller or 'alle'})")
-                
-                # Hersteller-Key ermitteln falls angegeben
-                hersteller_key = None
-                if hersteller:
-                    hersteller_key = catalog.get_manufacturer_key(hersteller)
-                
-                # Suchen
+                # Im Katalog suchen
                 results = catalog.search_products(
                     query=suchbegriff,
-                    hersteller_key=hersteller_key,
+                    hersteller_key=key,
                     nur_aktive=True
                 )
                 
                 if not results:
-                    # Prüfen ob überhaupt Kataloge geladen sind
-                    if not catalog.get_active_products():
-                        return "Keine Kataloge geladen! Lade zuerst einen Hersteller-Katalog mit 'lade_hersteller_katalog'."
-                    return f"Keine Produkte gefunden fuer '{suchbegriff}'."
+                    return f"Keine Produkte gefunden fuer '{suchbegriff}' in {hersteller}."
                 
-                return catalog.format_search_results_for_ai(results)
+                # Kompakte Ergebnisse formatieren (nur Bezeichnung 1, 2 und Artikelnummer)
+                lines = [f"=== {len(results)} Treffer in {key} fuer '{suchbegriff}' ===\n"]
+                
+                for p in results[:15]:  # Max 15 Ergebnisse
+                    bez1 = p.get("bezeichnung1", "")
+                    bez2 = p.get("bezeichnung2", "")
+                    artikel = p.get("artikel_nummer", "")
+                    
+                    if bez2:
+                        lines.append(f"- {bez1} | {bez2} | Art: {artikel}")
+                    else:
+                        lines.append(f"- {bez1} | Art: {artikel}")
+                
+                if len(results) > 15:
+                    lines.append(f"\n... und {len(results) - 15} weitere Treffer. Verfeinere die Suche.")
+                
+                result_text = "\n".join(lines)
+                
+                # Ergebnisse an GUI senden
+                if self.on_transcript:
+                    short_result = '\n'.join(lines[:12]) if len(lines) > 12 else result_text
+                    await self.on_transcript("system", f"[Katalog-Treffer]\n{short_result}", True)
+                
+                logger.info(f"[KATALOG-SUCHE] {len(results)} Treffer gefunden")
+                
+                return result_text
             
             elif name == "zeige_produkt_details":
                 artikel_nummer = arguments.get("artikel_nummer", "")
