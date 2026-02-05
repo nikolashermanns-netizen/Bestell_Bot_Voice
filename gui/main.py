@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QTextEdit, QSplitter, QFrame, QStatusBar,
     QGroupBox, QMessageBox, QComboBox, QTableWidget, QTableWidgetItem,
-    QHeaderView
+    QHeaderView, QCheckBox, QSlider, QScrollArea
 )
 from PySide6.QtCore import Qt, QTimer, Signal, QObject, QThread
 from PySide6.QtGui import QFont, QTextCursor, QColor
@@ -182,6 +182,12 @@ class MainWindow(QMainWindow):
         
         self._debug_log = []  # Debug-Events speichern
         self._debug_window = None  # Debug-Fenster
+        
+        # Experten-Konfiguration
+        self._expert_models = {}  # {model_name: {info}}
+        self._enabled_expert_models = []
+        self._expert_checkboxes = {}  # {model_name: QCheckBox}
+        self._expert_stats = {}
         
         self._setup_ui()
         self._setup_timers()
@@ -377,6 +383,90 @@ class MainWindow(QMainWindow):
         model_group.setMaximumHeight(100)
         right_layout.addWidget(model_group)
         
+        # === Expert Models Panel ===
+        expert_group = QGroupBox("Experten-Modelle (Kollege)")
+        expert_layout = QVBoxLayout(expert_group)
+        
+        # Hinweis
+        expert_hint = QLabel(
+            "Konfiguriere welche Modelle der 'Kollege' für komplexe Fragen nutzen darf. "
+            "Die AI wählt automatisch basierend auf Dringlichkeit."
+        )
+        expert_hint.setStyleSheet("color: #666; font-size: 11px;")
+        expert_hint.setWordWrap(True)
+        expert_layout.addWidget(expert_hint)
+        
+        # Modell-Checkboxen in ScrollArea
+        expert_scroll = QScrollArea()
+        expert_scroll.setWidgetResizable(True)
+        expert_scroll.setMaximumHeight(120)
+        expert_scroll.setStyleSheet("QScrollArea { border: none; }")
+        
+        expert_models_widget = QWidget()
+        expert_models_layout = QVBoxLayout(expert_models_widget)
+        expert_models_layout.setContentsMargins(0, 0, 0, 0)
+        expert_models_layout.setSpacing(2)
+        
+        # Platzhalter für Modell-Checkboxen (werden dynamisch geladen)
+        self._expert_models_container = expert_models_layout
+        self._expert_loading_label = QLabel("Lade Modelle vom Server...")
+        self._expert_loading_label.setStyleSheet("color: #888; font-style: italic;")
+        expert_models_layout.addWidget(self._expert_loading_label)
+        
+        expert_scroll.setWidget(expert_models_widget)
+        expert_layout.addWidget(expert_scroll)
+        
+        # Konfidenz-Slider
+        confidence_row = QHBoxLayout()
+        confidence_row.addWidget(QLabel("Min. Konfidenz:"))
+        
+        self._confidence_slider = QSlider(Qt.Orientation.Horizontal)
+        self._confidence_slider.setMinimum(50)
+        self._confidence_slider.setMaximum(100)
+        self._confidence_slider.setValue(90)
+        self._confidence_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
+        self._confidence_slider.setTickInterval(10)
+        self._confidence_slider.valueChanged.connect(self._on_confidence_changed)
+        confidence_row.addWidget(self._confidence_slider)
+        
+        self._confidence_label = QLabel("90%")
+        self._confidence_label.setMinimumWidth(40)
+        confidence_row.addWidget(self._confidence_label)
+        
+        expert_layout.addLayout(confidence_row)
+        
+        # Status und Speichern
+        expert_btn_row = QHBoxLayout()
+        
+        self._expert_status_label = QLabel("")
+        self._expert_status_label.setStyleSheet("color: #666; font-size: 11px;")
+        expert_btn_row.addWidget(self._expert_status_label)
+        
+        expert_btn_row.addStretch()
+        
+        self._save_expert_btn = QPushButton("Speichern")
+        self._save_expert_btn.setStyleSheet(
+            "QPushButton { background-color: #28a745; color: white; padding: 5px 15px; }"
+        )
+        self._save_expert_btn.clicked.connect(self._on_save_expert_config)
+        self._save_expert_btn.setEnabled(False)
+        expert_btn_row.addWidget(self._save_expert_btn)
+        
+        expert_layout.addLayout(expert_btn_row)
+        
+        # Experten-Anfrage Anzeige
+        self._expert_query_label = QLabel("")
+        self._expert_query_label.setStyleSheet(
+            "color: #17a2b8; font-size: 11px; padding: 5px; "
+            "background-color: #1a3a4a; border-radius: 3px;"
+        )
+        self._expert_query_label.setWordWrap(True)
+        self._expert_query_label.setVisible(False)
+        expert_layout.addWidget(self._expert_query_label)
+        
+        expert_group.setMaximumHeight(280)
+        right_layout.addWidget(expert_group)
+        
         # === Instructions Panel ===
         instructions_group = QGroupBox("AI-Instruktionen (System-Prompt)")
         instructions_layout = QVBoxLayout(instructions_group)
@@ -469,9 +559,10 @@ class MainWindow(QMainWindow):
         self._reconnect_btn.setText("Neu verbinden")
         self._status_bar.showMessage(f"Mit {self.server_url} verbunden")
         
-        # Model und Instructions laden
+        # Model, Instructions und Expert-Config laden
         self._load_model()
         self._load_instructions()
+        self._load_expert_config()
         
         # Polling stoppen (WebSocket ist besser)
         self._poll_timer.stop()
@@ -539,6 +630,15 @@ class MainWindow(QMainWindow):
         
         elif msg_type == "debug_event":
             self._on_debug_event(data.get("event", {}))
+        
+        elif msg_type == "expert_query_start":
+            self._on_expert_query_start(
+                data.get("question", ""),
+                data.get("model", "")
+            )
+        
+        elif msg_type == "expert_query_done":
+            self._on_expert_query_done(data)
     
     def _update_status_display(self):
         """Aktualisiert die Status-Anzeigen."""
@@ -842,6 +942,147 @@ class MainWindow(QMainWindow):
         if self._debug_window and self._debug_window.isVisible():
             self._debug_window.add_event(entry)
     
+    def _load_expert_config(self):
+        """Lädt Experten-Konfiguration vom Server."""
+        import requests
+        try:
+            response = requests.get(f"{self.server_url}/expert/config", timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                
+                self._expert_models = data.get("available_models", {})
+                self._enabled_expert_models = data.get("enabled_models", [])
+                min_confidence = data.get("min_confidence", 0.9)
+                
+                # Slider aktualisieren
+                self._confidence_slider.blockSignals(True)
+                self._confidence_slider.setValue(int(min_confidence * 100))
+                self._confidence_slider.blockSignals(False)
+                self._confidence_label.setText(f"{int(min_confidence * 100)}%")
+                
+                # Lade-Label entfernen
+                if self._expert_loading_label:
+                    self._expert_loading_label.setVisible(False)
+                
+                # Checkboxen erstellen
+                self._create_expert_checkboxes()
+                
+                self._expert_status_label.setText(f"{len(self._enabled_expert_models)} aktiv")
+                self._expert_status_label.setStyleSheet("color: #28a745; font-size: 11px;")
+                self._save_expert_btn.setEnabled(False)
+                
+        except Exception as e:
+            logger.error(f"Fehler beim Laden der Expert-Config: {e}")
+            self._expert_status_label.setText("Fehler beim Laden")
+            self._expert_status_label.setStyleSheet("color: red; font-size: 11px;")
+    
+    def _create_expert_checkboxes(self):
+        """Erstellt Checkboxen für alle Experten-Modelle."""
+        # Alte Checkboxen entfernen
+        for checkbox in self._expert_checkboxes.values():
+            checkbox.setParent(None)
+        self._expert_checkboxes.clear()
+        
+        # Neue Checkboxen erstellen
+        for model_name, model_info in sorted(self._expert_models.items()):
+            base = model_info.get("base", "?")
+            speed = model_info.get("speed", "?")
+            latency = model_info.get("latency_sec", "?")
+            model_type = model_info.get("type", "standard")
+            
+            # Label mit Infos
+            type_icon = "🧠" if model_type == "reasoning" else "⚡"
+            label = f"{type_icon} {model_name} ({base}, ~{latency}s)"
+            
+            checkbox = QCheckBox(label)
+            checkbox.setChecked(model_name in self._enabled_expert_models)
+            checkbox.stateChanged.connect(self._on_expert_checkbox_changed)
+            checkbox.setStyleSheet("font-size: 11px;")
+            
+            self._expert_checkboxes[model_name] = checkbox
+            self._expert_models_container.addWidget(checkbox)
+    
+    def _on_expert_checkbox_changed(self):
+        """Handler wenn eine Checkbox geändert wird."""
+        self._save_expert_btn.setEnabled(True)
+        self._expert_status_label.setText("Ungespeichert")
+        self._expert_status_label.setStyleSheet("color: #ffc107; font-size: 11px;")
+    
+    def _on_confidence_changed(self, value: int):
+        """Handler für Konfidenz-Slider."""
+        self._confidence_label.setText(f"{value}%")
+        self._save_expert_btn.setEnabled(True)
+        self._expert_status_label.setText("Ungespeichert")
+        self._expert_status_label.setStyleSheet("color: #ffc107; font-size: 11px;")
+    
+    def _on_save_expert_config(self):
+        """Speichert Experten-Konfiguration auf dem Server."""
+        import requests
+        
+        # Aktivierte Modelle sammeln
+        enabled_models = [
+            model for model, checkbox in self._expert_checkboxes.items()
+            if checkbox.isChecked()
+        ]
+        
+        min_confidence = self._confidence_slider.value() / 100.0
+        
+        try:
+            response = requests.post(
+                f"{self.server_url}/expert/config",
+                json={
+                    "enabled_models": enabled_models,
+                    "min_confidence": min_confidence
+                },
+                timeout=5
+            )
+            
+            if response.status_code == 200:
+                self._enabled_expert_models = enabled_models
+                self._save_expert_btn.setEnabled(False)
+                self._expert_status_label.setText(f"Gespeichert! ({len(enabled_models)} aktiv)")
+                self._expert_status_label.setStyleSheet("color: #28a745; font-size: 11px;")
+                self._status_bar.showMessage("Experten-Konfiguration gespeichert")
+            else:
+                raise Exception(f"Server-Fehler: {response.status_code}")
+        
+        except Exception as e:
+            logger.error(f"Fehler beim Speichern der Expert-Config: {e}")
+            QMessageBox.warning(self, "Fehler", f"Konnte nicht speichern: {e}")
+    
+    def _on_expert_query_start(self, question: str, model: str):
+        """Zeigt an, dass eine Experten-Anfrage läuft."""
+        self._expert_query_label.setText(f"🔍 Frage Kollegen ({model}): {question[:80]}...")
+        self._expert_query_label.setVisible(True)
+        self._status_bar.showMessage(f"Experten-Anfrage an {model}...")
+    
+    def _on_expert_query_done(self, data: dict):
+        """Zeigt das Ergebnis einer Experten-Anfrage."""
+        success = data.get("success", False)
+        model = data.get("model", "?")
+        model_base = data.get("model_base", "?")
+        confidence = data.get("confidence", 0)
+        latency_ms = data.get("latency_ms", 0)
+        
+        if success:
+            icon = "✅"
+            color = "#28a745"
+            msg = f"Antwort von {model} ({confidence:.0%} Konfidenz, {latency_ms}ms)"
+        else:
+            icon = "⚠️"
+            color = "#ffc107"
+            msg = f"Keine sichere Antwort ({confidence:.0%} < Minimum)"
+        
+        self._expert_query_label.setText(f"{icon} {msg}")
+        self._expert_query_label.setStyleSheet(
+            f"color: {color}; font-size: 11px; padding: 5px; "
+            "background-color: #1a3a4a; border-radius: 3px;"
+        )
+        self._status_bar.showMessage(msg)
+        
+        # Nach 5 Sekunden ausblenden
+        QTimer.singleShot(5000, lambda: self._expert_query_label.setVisible(False))
+
     def _poll_status(self):
         """Pollt den Server-Status (Fallback wenn kein WebSocket)."""
         import requests

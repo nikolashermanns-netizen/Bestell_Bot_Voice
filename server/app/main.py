@@ -16,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from config import settings
 from sip_client import SIPClient
 from ai_client import AIClient, AVAILABLE_MODELS
+from expert_client import ExpertClient, EXPERT_MODELS
 from connection_manager import ConnectionManager
 from catalog import load_catalog, get_systems_overview
 from order_manager import order_manager
@@ -31,13 +32,14 @@ logger = logging.getLogger(__name__)
 # Global instances
 sip_client: SIPClient = None
 ai_client: AIClient = None
+expert_client: ExpertClient = None
 manager = ConnectionManager()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifecycle management."""
-    global sip_client, ai_client
+    global sip_client, ai_client, expert_client
     
     logger.info("=== Bestell Bot Voice Server startet ===")
     
@@ -52,7 +54,17 @@ async def lifespan(app: FastAPI):
     # AI Client initialisieren
     ai_client = AIClient(api_key=settings.OPENAI_API_KEY)
     
-    # Gespeicherte Instructions und Model laden
+    # Expert Client initialisieren
+    expert_client = ExpertClient(api_key=settings.OPENAI_API_KEY)
+    ai_client.set_expert_client(expert_client)
+    
+    # Expert Client Callbacks
+    expert_client.on_expert_start = on_expert_start
+    expert_client.on_expert_done = on_expert_done
+    
+    logger.info(f"Expert Client initialisiert mit {len(EXPERT_MODELS)} Modellen")
+    
+    # Gespeicherte Instructions, Model und Expert-Config laden
     try:
         import json
         with open("/app/config/config.json", "r", encoding="utf-8") as f:
@@ -63,6 +75,9 @@ async def lifespan(app: FastAPI):
             if "model" in data:
                 ai_client.set_model(data["model"])
                 logger.info(f"Gespeichertes Model geladen: {data['model']}")
+            if "expert_config" in data:
+                expert_client.set_config(data["expert_config"])
+                logger.info("Gespeicherte Expert-Konfiguration geladen")
     except FileNotFoundError:
         logger.info("Keine gespeicherte Konfiguration gefunden, verwende Defaults")
     except Exception as e:
@@ -159,6 +174,28 @@ def on_order_update(order_data: dict):
     }))
 
 
+async def on_expert_start(question: str, model: str):
+    """Callback wenn eine Experten-Anfrage gestartet wird."""
+    await manager.broadcast({
+        "type": "expert_query_start",
+        "question": question[:200],
+        "model": model
+    })
+
+
+async def on_expert_done(result: dict):
+    """Callback wenn eine Experten-Anfrage abgeschlossen ist."""
+    await manager.broadcast({
+        "type": "expert_query_done",
+        "success": result.get("success", False),
+        "model": result.get("model", "?"),
+        "model_base": result.get("model_base", "?"),
+        "confidence": result.get("konfidenz", 0),
+        "latency_ms": result.get("latency_ms", 0),
+        "answer_preview": result.get("antwort", "")[:100]
+    })
+
+
 async def on_incoming_call(caller_id: str):
     """Wird aufgerufen wenn ein Anruf eingeht."""
     logger.info(f"Eingehender Anruf von: {caller_id}")
@@ -181,6 +218,13 @@ async def on_incoming_call(caller_id: str):
     # Auto-Accept: Anruf annehmen und AI verbinden
     await sip_client.accept_call()
     await ai_client.connect()
+    
+    # AI startet nach 1 Sekunde Verzögerung mit der Begrüßung
+    async def delayed_greeting():
+        await asyncio.sleep(1.0)
+        await ai_client.trigger_greeting()
+    
+    asyncio.create_task(delayed_greeting())
     
     await manager.broadcast({
         "type": "call_active",
@@ -456,6 +500,101 @@ async def clear_current_order():
     """Aktuelle Bestellung löschen."""
     order_manager.clear_order()
     return {"status": "cleared"}
+
+
+# ============== Expert Endpoints ==============
+
+@app.get("/expert/config")
+async def get_expert_config():
+    """Experten-Konfiguration abrufen."""
+    if expert_client:
+        return expert_client.get_config()
+    return {"error": "Expert Client nicht verfügbar"}
+
+
+@app.post("/expert/config")
+async def set_expert_config(data: dict):
+    """Experten-Konfiguration setzen."""
+    if expert_client:
+        expert_client.set_config(data)
+        
+        # Persistieren in Datei
+        try:
+            import json
+            import os
+            os.makedirs("/app/config", exist_ok=True)
+            
+            # Lade bestehende Config
+            config_data = {}
+            try:
+                with open("/app/config/config.json", "r", encoding="utf-8") as f:
+                    config_data = json.load(f)
+            except FileNotFoundError:
+                pass
+            
+            config_data["expert_config"] = expert_client.get_config()
+            
+            with open("/app/config/config.json", "w", encoding="utf-8") as f:
+                json.dump(config_data, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            logger.warning(f"Konnte Expert-Config nicht speichern: {e}")
+        
+        return {"status": "ok", "config": expert_client.get_config()}
+    return {"status": "error"}
+
+
+@app.get("/expert/models")
+async def get_expert_models():
+    """Verfügbare Experten-Modelle abrufen."""
+    if expert_client:
+        config = expert_client.get_config()
+        return {
+            "available_models": config.get("available_models", {}),
+            "enabled_models": config.get("enabled_models", []),
+            "default_model": config.get("default_model", "")
+        }
+    return {"available_models": EXPERT_MODELS, "enabled_models": [], "default_model": ""}
+
+
+@app.post("/expert/models")
+async def set_expert_models(data: dict):
+    """Experten-Modelle aktivieren/deaktivieren."""
+    if expert_client:
+        if "enabled_models" in data:
+            expert_client.set_enabled_models(data["enabled_models"])
+        if "default_model" in data:
+            expert_client.set_default_model(data["default_model"])
+        
+        # Persistieren
+        try:
+            import json
+            import os
+            os.makedirs("/app/config", exist_ok=True)
+            
+            config_data = {}
+            try:
+                with open("/app/config/config.json", "r", encoding="utf-8") as f:
+                    config_data = json.load(f)
+            except FileNotFoundError:
+                pass
+            
+            config_data["expert_config"] = expert_client.get_config()
+            
+            with open("/app/config/config.json", "w", encoding="utf-8") as f:
+                json.dump(config_data, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            logger.warning(f"Konnte Expert-Models nicht speichern: {e}")
+        
+        return {"status": "ok", "enabled_models": expert_client.enabled_models}
+    return {"status": "error"}
+
+
+@app.get("/expert/stats")
+async def get_expert_stats():
+    """Experten-Statistiken abrufen."""
+    if expert_client:
+        return expert_client.stats
+    return {"error": "Expert Client nicht verfügbar"}
 
 
 # ============== WebSocket für Live-Updates ==============

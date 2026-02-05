@@ -2,7 +2,7 @@
 OpenAI Realtime API Client für Voice Bot.
 
 Streamt Audio bidirektional zur OpenAI API via WebSocket.
-Unterstützt Function Calling für Katalog-Suche und Bestellungen.
+Unterstützt Function Calling für Katalog-Suche, Bestellungen und Experten-Anfragen.
 """
 
 import asyncio
@@ -10,10 +10,13 @@ import base64
 import json
 import logging
 import os
-from typing import Callable, Optional
+from typing import Callable, Optional, TYPE_CHECKING
 
 import catalog
 from order_manager import order_manager
+
+if TYPE_CHECKING:
+    from expert_client import ExpertClient
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +55,29 @@ Wenn der Kunde etwas bestellt, bestaetige so:
 Beispiel: "10x Temponox Bogen 90 Grad 22mm (Artikel Nummer: 102036) - notiert!"
 
 Nutze 'bestellung_hinzufuegen' nach jeder bestaetigten Position.
-Nutze 'zeige_bestellung' wenn der Kunde die Bestellung zusammenfassen will."""
+Nutze 'zeige_bestellung' wenn der Kunde die Bestellung zusammenfassen will.
+
+EXPERTEN-KOLLEGE - FUER KOMPLEXE FRAGEN:
+Bei komplexen technischen Fragen, die du nicht sicher beantworten kannst, nutze 'frage_experten'.
+Der Kollege hat tiefgehendes Fachwissen und Zugriff auf den kompletten Katalog.
+
+WANN DEN KOLLEGEN FRAGEN:
+- Technische Detailfragen (z.B. "Welches Material fuer Trinkwasser?")
+- Normen und Vorschriften (z.B. "Was sagt die DIN?")
+- Produktvergleiche (z.B. "Was ist der Unterschied zwischen Sanpress und Sanpress Inox?")
+- Anwendungsempfehlungen (z.B. "Was brauche ich fuer eine Fussbodenheizung?")
+
+SO FRAGST DU DEN KOLLEGEN:
+1. Sage dem Kunden: "Moment, da frag ich mal kurz einen Kollegen"
+2. Rufe 'frage_experten' auf mit der Frage und dem relevanten Kontext
+3. Waehle die Dringlichkeit:
+   - "schnell": Einfache Frage, Kunde wartet
+   - "normal": Standard-Frage
+   - "gruendlich": Komplexe technische Frage, Genauigkeit wichtig
+4. Gib die Antwort des Kollegen in eigenen Worten an den Kunden weiter
+5. Wenn der Kollege unsicher war, sage ehrlich: "Da bin ich mir leider nicht ganz sicher"
+
+WICHTIG: Erfinde KEINE technischen Details! Bei Unsicherheit lieber den Kollegen fragen."""
 
 
 # Verfügbare OpenAI Realtime Modelle
@@ -115,6 +140,30 @@ VIEGA_TOOLS = [
             "properties": {},
             "required": []
         }
+    },
+    {
+        "type": "function",
+        "name": "frage_experten",
+        "description": "Fragt einen Fachkollegen bei komplexen technischen Fragen, die du nicht sicher beantworten kannst. WICHTIG: Sage VOR dem Aufruf 'Moment, da frag ich mal kurz einen Kollegen'. Der Kollege hat Zugriff auf den kompletten Produktkatalog und tiefgehendes Fachwissen.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "frage": {
+                    "type": "string",
+                    "description": "Die Frage des Kunden, klar und praezise formuliert"
+                },
+                "kontext": {
+                    "type": "string",
+                    "description": "Relevanter Kontext aus dem bisherigen Gespraech (welches System, Groesse, etc.)"
+                },
+                "dringlichkeit": {
+                    "type": "string",
+                    "enum": ["schnell", "normal", "gruendlich"],
+                    "description": "Wie schnell braucht der Kunde die Antwort? 'schnell' fuer einfache Fragen, 'gruendlich' fuer komplexe technische Fragen wo Genauigkeit wichtig ist"
+                }
+            },
+            "required": ["frage", "dringlichkeit"]
+        }
     }
 ]
 
@@ -140,11 +189,15 @@ class AIClient:
         self.instructions = DEFAULT_INSTRUCTIONS
         self._model = model if model in AVAILABLE_MODELS else DEFAULT_MODEL
         
+        # Expert Client Referenz (wird von main.py gesetzt)
+        self._expert_client: Optional["ExpertClient"] = None
+        
         # Event Callbacks
         self.on_audio_response: Optional[Callable[[bytes], None]] = None
         self.on_transcript: Optional[Callable[[str, str, bool], None]] = None
         self.on_interruption: Optional[Callable[[], None]] = None  # Barge-in callback
         self.on_debug_event: Optional[Callable[[str, dict], None]] = None  # Debug callback für GUI
+        self.on_expert_query: Optional[Callable[[str, str], None]] = None  # Callback wenn Experte gefragt wird (frage, model)
     
     @property
     def model(self) -> str:
@@ -232,6 +285,19 @@ class AIClient:
         
         await self._ws.send_str(json.dumps(config))
         logger.info(f"Session konfiguriert mit {len(VIEGA_TOOLS)} Tools")
+    
+    async def trigger_greeting(self):
+        """Löst die initiale Begrüßung aus, ohne auf Spracheingabe zu warten."""
+        if not self._ws or not self._running:
+            return
+        
+        try:
+            await self._ws.send_str(json.dumps({
+                "type": "response.create"
+            }))
+            logger.info("[OpenAI] Begrüßung ausgelöst")
+        except Exception as e:
+            logger.error(f"Fehler beim Auslösen der Begrüßung: {e}")
     
     async def _receive_loop(self):
         """Empfängt Events von der Realtime API."""
@@ -429,6 +495,51 @@ class AIClient:
                 logger.info("Zeige aktuelle Bestellung")
                 return order_manager.get_order_summary()
             
+            elif name == "frage_experten":
+                frage = arguments.get("frage", "")
+                kontext = arguments.get("kontext", "")
+                dringlichkeit = arguments.get("dringlichkeit", "normal")
+                
+                logger.info(f"[Expert] Frage an Kollegen: {frage[:100]}... (Dringlichkeit: {dringlichkeit})")
+                
+                if not self._expert_client:
+                    logger.warning("[Expert] Kein Expert Client konfiguriert")
+                    return "Leider ist gerade kein Kollege verfuegbar. Bitte versuchen Sie es spaeter noch einmal."
+                
+                # Experten fragen (async)
+                try:
+                    result = await self._expert_client.ask_expert(
+                        question=frage,
+                        context=kontext,
+                        urgency=dringlichkeit
+                    )
+                    
+                    # Callback für GUI
+                    if self.on_expert_query:
+                        try:
+                            await self.on_expert_query(frage, result.get("model", "?"))
+                        except Exception as e:
+                            logger.warning(f"on_expert_query callback error: {e}")
+                    
+                    if result.get("success"):
+                        antwort = result.get("antwort", "")
+                        konfidenz = result.get("konfidenz", 0)
+                        model = result.get("model", "?")
+                        model_base = result.get("model_base", "?")
+                        latency = result.get("latency_ms", 0)
+                        
+                        logger.info(f"[Expert] Antwort von {model} ({model_base}): {antwort[:100]}... (Konfidenz: {konfidenz:.0%}, {latency}ms)")
+                        
+                        return f"ANTWORT VOM KOLLEGEN ({model_base}):\n{antwort}\n\n(Konfidenz: {konfidenz:.0%})"
+                    else:
+                        # Experte war sich nicht sicher
+                        logger.info(f"[Expert] Keine sichere Antwort: {result.get('begruendung', '?')}")
+                        return result.get("antwort", "Das kann ich leider nicht sicher beantworten.")
+                
+                except Exception as e:
+                    logger.error(f"[Expert] Fehler: {e}")
+                    return "Entschuldigung, ich konnte meinen Kollegen gerade nicht erreichen."
+            
             else:
                 logger.warning(f"Unbekannte Funktion: {name}")
                 return f"Funktion '{name}' nicht verfügbar."
@@ -520,6 +631,11 @@ class AIClient:
         """Setzt neue Instruktionen (werden beim nächsten Anruf aktiv)."""
         self.instructions = instructions
         logger.info(f"Instruktionen aktualisiert ({len(instructions)} Zeichen)")
+    
+    def set_expert_client(self, expert_client: "ExpertClient"):
+        """Setzt den Expert Client für Fachfragen."""
+        self._expert_client = expert_client
+        logger.info("Expert Client verbunden")
     
     async def disconnect(self):
         """Verbindung trennen."""
