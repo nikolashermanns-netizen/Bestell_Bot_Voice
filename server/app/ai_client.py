@@ -37,15 +37,34 @@ DEFAULT_INSTRUCTIONS = """Du bist der automatische Telefonservice von Heinrich S
 - DU findest das richtige Produkt - der Kunde muss keine Nummern kennen
 - Bei komplexen Fachfragen hast du einen Experten-Kollegen
 
+=== PRODUKTSUCHE - SO FINDEST DU ALLES ===
+
+SCHRITT 1: KEYWORD-SUCHE (wenn Hersteller unbekannt)
+- Nutze 'finde_produkt_katalog' mit dem Produktnamen (z.B. "temponox", "waschtisch")
+- Zeigt dir SOFORT welche Hersteller das Produkt fuehren
+- Funktioniert mit Produktnamen, Kategorien und Fachbegriffen
+
+SCHRITT 2: KATALOG LADEN
+- Nutze 'lade_hersteller_katalog' mit dem gefundenen Hersteller
+- Durchsuche die Produkte und finde das passende
+
+SCHRITT 3: INTERNET-RECHERCHE (nur wenn nichts gefunden)
+- Falls 'finde_produkt_katalog' nichts findet und dir der Begriff unbekannt ist
+- Nutze 'internet_recherche' um herauszufinden was es ist
+- Dann nochmal im Katalog suchen falls Hersteller genannt wird
+
+ABSOLUT VERBOTEN: Sage NIEMALS "Das haben wir nicht" oder "Das fuehren wir nicht"!
+Suche IMMER erst mit allen drei Schritten bevor du aufgibst.
+
 === BESTELLABLAUF ===
 So laeuft eine typische Bestellung:
 
-1. KUNDE NENNT HERSTELLER UND PRODUKT
-   - "Ich brauch eine Grohe Waschtischarmatur" oder "Viega Sanpress Bogen 22mm"
-   - Falls Hersteller unklar: Frag freundlich nach
+1. KUNDE NENNT PRODUKT
+   - "Ich brauch Temponox Fittings" oder "Grohe Waschtischarmatur"
+   - Hersteller unklar? -> 'finde_produkt_katalog' nutzen!
 
 2. DU FINDEST DAS PRODUKT (im Hintergrund, ohne es zu erwaehnen!)
-   - Nutze 'lade_hersteller_katalog' OHNE es dem Kunden zu sagen
+   - Nutze die Suche OHNE es dem Kunden zu sagen
    - Das geht schnell - kein "Moment" oder "ich schau mal" noetig
    - Durchsuche die Produkte und finde das passende
 
@@ -60,7 +79,7 @@ Das passiert im Hintergrund - der Kunde merkt davon nichts.
 === VERFUEGBARE HERSTELLER ===
 SANITAER: Grohe, Hansgrohe, Geberit, Duravit, Villeroy & Boch, Ideal Standard
 HEIZUNG: Viessmann, Buderus, Vaillant, Wolf, Junkers, Broetje
-ROHRSYSTEME: Viega (Profipress, Sanpress, Megapress), Geberit (Mapress, Mepla)
+ROHRSYSTEME: Viega (Profipress, Sanpress, Megapress, Temponox), Geberit (Mapress, Mepla)
 PUMPEN: Grundfos, Wilo, Oventrop, Danfoss, Honeywell
 WERKZEUGE: Rothenberger, REMS, Knipex, Makita, Milwaukee
 
@@ -86,6 +105,7 @@ SO GEHST DU VOR:
 - Wiederhole die Bestellung zur Bestaetigung
 - Sage IMMER "Artikel Nummer" ausgesprochen (nie "Art.Nr.")
 - Erfinde NIEMALS Artikelnummern oder Preise!
+- NIEMALS sagen "Das haben wir nicht" - IMMER erst suchen!
 - Im Zweifel: Im Katalog nachschauen oder Kollegen fragen"""
 
 
@@ -103,8 +123,23 @@ DEFAULT_MODEL = "gpt-realtime"
 CATALOG_TOOLS = [
     {
         "type": "function",
+        "name": "finde_produkt_katalog",
+        "description": "Findet welche Kataloge ein Produkt/Schlagwort enthalten. Nutze diese Funktion ZUERST wenn du nicht weisst welcher Hersteller das Produkt fuehrt! Beispiele: 'temponox', 'waschtisch', 'bogen 22mm', 'thermostat'. Gibt zurueck in welchen Katalogen das Produkt zu finden ist.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "suchbegriff": {
+                    "type": "string",
+                    "description": "Produktname, Schlagwort oder Beschreibung (z.B. 'temponox', 'waschtischarmatur', 'pressfitting')"
+                }
+            },
+            "required": ["suchbegriff"]
+        }
+    },
+    {
+        "type": "function",
         "name": "zeige_hersteller",
-        "description": "Zeigt alle verfuegbaren Hersteller im Katalog. Nutze diese Funktion wenn der Kunde wissen will welche Hersteller verfuegbar sind oder wenn du nicht weisst welchen Hersteller er braucht.",
+        "description": "Zeigt alle verfuegbaren Hersteller im Katalog. Nutze diese Funktion wenn der Kunde wissen will welche Hersteller verfuegbar sind.",
         "parameters": {
             "type": "object",
             "properties": {},
@@ -114,7 +149,7 @@ CATALOG_TOOLS = [
     {
         "type": "function",
         "name": "lade_hersteller_katalog",
-        "description": "Laedt den kompletten Katalog eines Herstellers in deinen Kontext. WICHTIG: Rufe diese Funktion auf sobald du weisst welchen Hersteller der Kunde braucht! Danach hast du alle Produkte mit Artikelnummern und Preisen und kannst direkt helfen. Beispiele: 'grohe', 'villeroy_boch', 'viega_sanpress', 'buderus'",
+        "description": "Laedt den kompletten Katalog eines Herstellers. Danach hast du alle Produkte und kannst selbst durchsuchen. Beispiele: 'grohe', 'villeroy_boch', 'viega_sanpress', 'buderus'",
         "parameters": {
             "type": "object",
             "properties": {
@@ -215,6 +250,21 @@ CATALOG_TOOLS = [
                 }
             },
             "required": ["frage", "dringlichkeit"]
+        }
+    },
+    {
+        "type": "function",
+        "name": "internet_recherche",
+        "description": "Recherchiert im Internet nach einem Produkt oder Begriff. Nutze diese Funktion NUR wenn du im Keyword-Index nichts gefunden hast und der Kunde nach einem dir unbekannten Produkt fragt. Sucht nach SHK-Produkten und Herstellern.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "suchbegriff": {
+                    "type": "string",
+                    "description": "Produkt oder Begriff der recherchiert werden soll"
+                }
+            },
+            "required": ["suchbegriff"]
         }
     }
 ]
@@ -491,7 +541,23 @@ class AIClient:
             Ergebnis als String für AI Context
         """
         try:
-            if name == "zeige_hersteller":
+            if name == "finde_produkt_katalog":
+                suchbegriff = arguments.get("suchbegriff", "")
+                logger.info(f"Suche Kataloge fuer: {suchbegriff}")
+                
+                # Im Keyword-Index suchen
+                result = catalog.search_keyword_index(suchbegriff)
+                return result
+            
+            elif name == "internet_recherche":
+                suchbegriff = arguments.get("suchbegriff", "")
+                logger.info(f"Internet-Recherche fuer: {suchbegriff}")
+                
+                # Internet-Recherche durchführen
+                result = await self._internet_search(suchbegriff)
+                return result
+            
+            elif name == "zeige_hersteller":
                 logger.info("Zeige verfügbare Hersteller")
                 
                 manufacturers = catalog.get_available_manufacturers()
@@ -690,6 +756,67 @@ class AIClient:
         except Exception as e:
             logger.error(f"Fehler bei Funktionsausführung {name}: {e}")
             return f"Fehler bei der Verarbeitung: {e}"
+    
+    async def _internet_search(self, query: str) -> str:
+        """
+        Führt eine Internet-Recherche durch um unbekannte Produkte zu finden.
+        
+        Args:
+            query: Suchbegriff
+        
+        Returns:
+            Recherche-Ergebnis mit Hinweis auf Kataloge
+        """
+        import httpx
+        
+        try:
+            # OpenAI für Recherche nutzen (einfache Chat-Anfrage)
+            async with httpx.AsyncClient(timeout=15.0) as http_client:
+                response = await http_client.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "model": "gpt-4o-mini",
+                        "messages": [
+                            {
+                                "role": "system",
+                                "content": "Du bist ein SHK-Experte. Beantworte kurz: Was ist das Produkt, welcher Hersteller produziert es? Antworte in maximal 2 Saetzen."
+                            },
+                            {
+                                "role": "user",
+                                "content": f"Was ist '{query}' im SHK-Bereich? Welcher Hersteller?"
+                            }
+                        ],
+                        "max_tokens": 150
+                    }
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    answer = data["choices"][0]["message"]["content"]
+                    
+                    # Prüfen ob genannter Hersteller im Katalog ist
+                    lines = [f"=== Internet-Recherche: {query} ===\n"]
+                    lines.append(f"Ergebnis: {answer}\n")
+                    
+                    # Nochmal im Keyword-Index suchen mit Kontext
+                    keyword_result = catalog.find_catalogs_by_keyword(query)
+                    if keyword_result.get("kataloge"):
+                        lines.append(f"\nGefunden in Katalogen: {', '.join(keyword_result['kataloge'][:5])}")
+                        lines.append("Lade den passenden Katalog um Produkte anzuzeigen.")
+                    else:
+                        lines.append("\nDieses Produkt ist nicht in unserem Katalog. Empfehle dem Kunden Rueckfrage bei einem Kollegen.")
+                    
+                    return "\n".join(lines)
+                else:
+                    return f"Internet-Recherche fehlgeschlagen: {response.status_code}"
+                    
+        except Exception as e:
+            logger.error(f"Internet-Recherche Fehler: {e}")
+            return f"Recherche-Fehler: {e}"
     
     async def _send_function_result(self, call_id: str, result: str):
         """

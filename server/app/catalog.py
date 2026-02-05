@@ -37,6 +37,9 @@ _loaded_catalogs: Dict[str, List[Dict]] = {}
 # Aktiv geladene Kataloge für die aktuelle Session (für AI Context)
 _active_catalogs: List[str] = []
 
+# Keyword-Index für schnelle Produktsuche (Keyword -> Kataloge)
+_keyword_index: Dict[str, Dict] = {}
+
 
 def load_index() -> bool:
     """
@@ -68,6 +71,10 @@ def load_index() -> bool:
                 }
         
         logger.info(f"Katalog-Index geladen: {len(_hersteller_index)} Hersteller, {index_data.get('total_products', 0)} Produkte gesamt")
+        
+        # Keyword-Index laden
+        load_keyword_index()
+        
         return True
         
     except FileNotFoundError:
@@ -76,6 +83,111 @@ def load_index() -> bool:
     except json.JSONDecodeError as e:
         logger.error(f"Katalog-Index JSON Fehler: {e}")
         return False
+
+
+def load_keyword_index() -> bool:
+    """
+    Lädt den Keyword-Index für schnelle Produktsuche.
+    
+    Returns:
+        True wenn erfolgreich
+    """
+    global _keyword_index
+    
+    keyword_path = os.path.join(CATALOG_DIR, "_keywords.json")
+    
+    try:
+        with open(keyword_path, "r", encoding="utf-8") as f:
+            _keyword_index = json.load(f)
+        
+        logger.info(f"Keyword-Index geladen: {len(_keyword_index)} Schlagwoerter")
+        return True
+        
+    except FileNotFoundError:
+        logger.warning(f"Keyword-Index nicht gefunden: {keyword_path}")
+        return False
+    except json.JSONDecodeError as e:
+        logger.error(f"Keyword-Index JSON Fehler: {e}")
+        return False
+
+
+def find_catalogs_by_keyword(keyword: str) -> Dict:
+    """
+    Findet welche Kataloge ein bestimmtes Schlagwort enthalten.
+    
+    Args:
+        keyword: Suchbegriff (z.B. "temponox", "waschtisch", "bogen")
+    
+    Returns:
+        Dict mit kataloge und count, oder leeres Dict
+    """
+    import re
+    
+    # Normalisieren
+    keyword = keyword.lower().strip()
+    keyword = keyword.replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
+    keyword = re.sub(r'[^a-z0-9]', '', keyword)
+    
+    if not keyword or len(keyword) < 3:
+        return {"kataloge": [], "count": 0}
+    
+    # Exakter Match
+    if keyword in _keyword_index:
+        return _keyword_index[keyword]
+    
+    # Partial Match (Keyword ist Teil eines indexierten Keywords)
+    matches = {}
+    for indexed_kw, data in _keyword_index.items():
+        if keyword in indexed_kw or indexed_kw in keyword:
+            for katalog in data["kataloge"]:
+                if katalog not in matches:
+                    matches[katalog] = 0
+                matches[katalog] += data["count"]
+    
+    if matches:
+        sorted_kataloge = sorted(matches.keys(), key=lambda k: matches[k], reverse=True)
+        return {"kataloge": sorted_kataloge[:10], "count": sum(matches.values())}
+    
+    return {"kataloge": [], "count": 0}
+
+
+def search_keyword_index(query: str) -> str:
+    """
+    Sucht im Keyword-Index nach einem Begriff und gibt formatierte Ergebnisse zurück.
+    Diese Funktion ist für die AI gedacht.
+    
+    Args:
+        query: Suchbegriff (kann mehrere Woerter enthalten)
+    
+    Returns:
+        Formatierter String mit gefundenen Katalogen
+    """
+    words = query.lower().split()
+    all_matches = {}
+    
+    for word in words:
+        result = find_catalogs_by_keyword(word)
+        for katalog in result.get("kataloge", []):
+            if katalog not in all_matches:
+                all_matches[katalog] = {"count": 0, "keywords": []}
+            all_matches[katalog]["count"] += 1
+            all_matches[katalog]["keywords"].append(word)
+    
+    if not all_matches:
+        return f"Kein Katalog gefunden fuer '{query}'. Versuche eine Internet-Recherche oder frag den Experten."
+    
+    # Nach Relevanz sortieren (mehr Keywords = relevanter)
+    sorted_matches = sorted(all_matches.items(), key=lambda x: x[1]["count"], reverse=True)
+    
+    lines = [f"=== Gefundene Kataloge fuer '{query}' ===\n"]
+    for katalog, data in sorted_matches[:5]:
+        info = _hersteller_index.get(katalog, {})
+        name = info.get("name", katalog)
+        products = info.get("products", 0)
+        lines.append(f"- {name}: {products} Produkte (Match: {', '.join(data['keywords'])})")
+    
+    lines.append(f"\nNutze 'lade_hersteller_katalog' mit dem passenden Hersteller.")
+    return "\n".join(lines)
 
 
 def get_available_manufacturers() -> List[Dict]:
