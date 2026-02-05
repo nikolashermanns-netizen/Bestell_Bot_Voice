@@ -597,9 +597,10 @@ def search_products(
 ) -> List[Dict]:
     """
     Sucht Produkte nach Bezeichnung oder Artikelnummer.
+    Sucht nach JEDEM WORT einzeln - Produkt muss alle Suchwoerter enthalten.
     
     Args:
-        query: Suchbegriff
+        query: Suchbegriff (kann mehrere Woerter enthalten)
         hersteller_key: Optional - nur in diesem Katalog suchen
         nur_aktive: True = nur in aktiven Katalogen suchen
         max_results: Maximale Ergebnisse
@@ -607,7 +608,12 @@ def search_products(
     Returns:
         Liste gefundener Produkte
     """
+    import re
+    
     query_lower = query.lower().strip()
+    
+    # Query in einzelne Suchwoerter aufteilen (mind. 2 Zeichen)
+    search_words = [w for w in re.split(r'[\s,\-\.]+', query_lower) if len(w) >= 2]
     
     # Suchpool bestimmen
     if hersteller_key and hersteller_key in _loaded_catalogs:
@@ -623,28 +629,38 @@ def search_products(
     results = []
     
     for product in search_pool:
-        # Nach Bezeichnung suchen
-        if query_lower in product["bezeichnung"].lower():
-            results.append(product)
-            continue
+        bez_lower = product["bezeichnung"].lower()
+        artikel_lower = product["artikel"].lower()
+        hnr_lower = (product["hersteller_nr"] or "").lower()
         
-        # Nach Artikelnummer suchen
-        if query_lower in product["artikel"].lower():
-            results.append(product)
-            continue
+        # Alle Suchfelder kombinieren
+        search_text = f"{bez_lower} {artikel_lower} {hnr_lower}"
         
-        # Nach Hersteller-Nr suchen
-        if product["hersteller_nr"] and query_lower in product["hersteller_nr"].lower():
-            results.append(product)
-            continue
+        # Zaehle wieviele Suchwoerter gefunden werden
+        matches = sum(1 for word in search_words if word in search_text)
+        
+        # Mindestens die Haelfte der wichtigen Woerter muessen matchen
+        # Oder bei nur 1-2 Woertern: alle muessen matchen
+        min_matches = len(search_words) if len(search_words) <= 2 else max(2, len(search_words) // 2)
+        
+        if matches >= min_matches:
+            results.append({
+                **product,
+                "_score": matches,
+                "_exact": query_lower in search_text
+            })
     
-    # Nach Relevanz sortieren (exakte Treffer zuerst, dann nach Bezeichnung)
+    # Nach Relevanz sortieren (mehr Matches = besser, exakte zuerst)
     results.sort(key=lambda x: (
-        0 if query_lower == x["artikel"].lower() else
-        1 if query_lower in x["artikel"].lower() else
-        2 if query_lower in x["bezeichnung"].lower() else 3,
-        x["bezeichnung"]
+        -x.get("_exact", False),  # Exakte zuerst
+        -x.get("_score", 0),      # Mehr Matches = besser
+        x["bezeichnung"]           # Alphabetisch
     ))
+    
+    # Score-Felder entfernen
+    for r in results:
+        r.pop("_score", None)
+        r.pop("_exact", None)
     
     return results[:max_results]
 
