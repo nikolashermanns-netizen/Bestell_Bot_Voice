@@ -1,0 +1,321 @@
+{
+  "total_products": 87985,
+  "total_systems": 63,
+  "systems": [
+    {
+      "name": "CU-Press",
+      "file": "cu_press.json",
+      "products": 2692
+    },
+    {
+      "name": "Edelstahl-Press",
+      "file": "edelstahl_press.json",
+      "products": 1998
+    },
+    {
+      "name": "Viega Profipress",
+      "file": "viega_profipress.json",
+      "products": 661
+    },
+    {
+      "name": "Viega Sanpress",
+      "file": "viega_sanpress.json",
+      "products": 1478
+    },
+    {
+      "name": "Viega Megapress",
+      "file": "viega_megapress.json",
+      "products": 562
+    },
+    {
+      "name": "Geberit Mapress",
+      "file": "geberit_mapress.json",
+      "products": 1998
+    },
+    {
+      "name": "Geberit Mepla",
+      "file": "geberit_mepla.json",
+      "products": 511
+    },
+    {
+      "name": "Grohe",
+      "file": "grohe.json",
+      "products": 1974
+    },
+    {
+      "name": "Hansgrohe",
+      "file": "hansgrohe.json",
+      "products": 1983
+    },
+    {
+      "name": "Geberit",
+      "file": "geberit.json",
+      "products": 1993
+    },
+    {
+      "name": "Duravit",
+      "file": "duravit.json",
+      "products": 1996
+    },
+    {
+      "name": "Villeroy Boch",
+      "file": "villeroy_boch.json",
+      "products": 1981
+    },
+    {
+      "name": "Ideal Standard",
+      "file": "ideal_standard.json",
+      "products": 1993
+    },
+    {
+      "name": "Keramag",
+      "file": "keramag.json",
+      "products": 1993
+    },
+    {
+      "name": "TECE",
+      "file": "tece.json",
+      "products": 1876
+    },
+    {
+      "name": "Viessmann",
+      "file": "viessmann.json",
+      "products": 5
+    },
+    {
+      "name": "Buderus",
+      "file": "buderus.json",
+      "products": 1826
+    },
+    {
+      "name": "Vaillant",
+      "file": "vaillant.json",
+      "products": 1822
+    },
+    {
+      "name": "Wolf",
+      "file": "wolf_heizung.json",
+      "products": 1958
+    },
+    {
+      "name": "Junkers",
+      "file": "junkers.json",
+      "products": 1825
+    },
+    {
+      "name": "Weishaupt",
+      "file": "weishaupt.json",
+      "products": 1437
+    },
+    {
+      "name": "Brötje",
+      "file": "broetje.json",
+      "products": 3
+    },
+    {
+      "name": "Kermi",
+      "file": "kermi.json",
+      "products": 1997
+    },
+    {
+      "name": "Purmo",
+      "file": "purmo.json",
+      "products": 1986
+    },
+    {
+      "name": "Oventrop",
+      "file": "oventrop.json",
+      "products": 1970
+    },
+    {
+      "name": "Danfoss",
+      "file": "danfoss.json",
+      "products": 1463
+    },
+    {
+      "name": "Honeywell",
+      "file": "honeywell.json",
+      "products": 1075
+    },
+    {
+      "name": "Grundfos",
+      "file": "grundfos.json",
+      "products": 1986
+    },
+    {
+      "name": "Wilo",
+      "file": "wilo.json",
+      "products": 1998
+    },
+    {
+      "name": "Zehnder",
+      "file": "zehnder.json",
+      "products": 1981
+    },
+    {
+      "name": "Helios",
+      "file": "helios.json",
+      "products": 2862
+    },
+    {
+      "name": "Maico",
+      "file": "maico.json",
+      "products": 1850
+    },
+    {
+      "name": "Rothenberger",
+      "file": "rothenberger.json",
+      "products": 1997
+    },
+    {
+      "name": "REMS",
+      "file": "rems.json",
+      "products": 1989
+    },
+    {
+      "name": "Ridgid",
+      "file": "ridgid.json",
+      "products": 2027
+    },
+    {
+      "name": "Knipex",
+      "file": "knipex.json",
+      "products": 1624
+    },
+    {
+      "name": "Wera",
+      "file": "wera.json",
+      "products": 1999
+    },
+    {
+      "name": "Wiha",
+      "file": "wiha.json",
+      "products": 671
+    },
+    {
+      "name": "Makita",
+      "file": "makita.json",
+      "products": 1999
+    },
+    {
+      "name": "Bosch",
+      "file": "bosch_werkzeug.json",
+      "products": 1915
+    },
+    {
+      "name": "Milwaukee",
+      "file": "milwaukee.json",
+      "products": 1994
+    },
+    {
+      "name": "Metabo",
+      "file": "metabo.json",
+      "products": 295
+    },
+    {
+      "name": "Hilti",
+      "file": "hilti.json",
+      "products": 19
+    },
+    {
+      "name": "Fischer",
+      "file": "fischer.json",
+      "products": 1954
+    },
+    {
+      "name": "SMA",
+      "file": "sma_solar.json",
+      "products": 1961
+    },
+    {
+      "name": "Stiebel Eltron",
+      "file": "stiebel_eltron.json",
+      "products": 1107
+    },
+    {
+      "name": "AEG",
+      "file": "aeg.json",
+      "products": 1951
+    },
+    {
+      "name": "Clage",
+      "file": "clage.json",
+      "products": 87
+    },
+    {
+      "name": "Caleffi",
+      "file": "caleffi.json",
+      "products": 116
+    },
+    {
+      "name": "Reflex",
+      "file": "reflex.json",
+      "products": 1375
+    },
+    {
+      "name": "Flamco",
+      "file": "flamco.json",
+      "products": 419
+    },
+    {
+      "name": "Heimeier",
+      "file": "heimeier.json",
+      "products": 1375
+    },
+    {
+      "name": "Resideo",
+      "file": "resideo.json",
+      "products": 1033
+    },
+    {
+      "name": "Afriso",
+      "file": "afriso.json",
+      "products": 77
+    },
+    {
+      "name": "Watts",
+      "file": "watts.json",
+      "products": 31
+    },
+    {
+      "name": "Kemper",
+      "file": "kemper.json",
+      "products": 1301
+    },
+    {
+      "name": "Schell",
+      "file": "schell.json",
+      "products": 1933
+    },
+    {
+      "name": "Syr",
+      "file": "syr.json",
+      "products": 565
+    },
+    {
+      "name": "BWT",
+      "file": "bwt.json",
+      "products": 366
+    },
+    {
+      "name": "Grünbeck",
+      "file": "gruenbeck.json",
+      "products": 265
+    },
+    {
+      "name": "Judo",
+      "file": "judo.json",
+      "products": 650
+    },
+    {
+      "name": "Armacell",
+      "file": "armacell.json",
+      "products": 688
+    },
+    {
+      "name": "Rockwool",
+      "file": "rockwool.json",
+      "products": 469
+    }
+  ]
+}

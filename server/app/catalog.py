@@ -23,7 +23,10 @@ from typing import Optional, List, Dict, Any
 logger = logging.getLogger(__name__)
 
 # Pfad zum Katalog-Ordner
-CATALOG_DIR = os.path.join(os.path.dirname(__file__), "..", "system_katalog")
+# Im Docker: /app/system_katalog, lokal: ../system_katalog relativ zur App
+_local_path = os.path.join(os.path.dirname(__file__), "..", "system_katalog")
+_docker_path = os.path.join(os.path.dirname(__file__), "system_katalog")
+CATALOG_DIR = _docker_path if os.path.exists(_docker_path) else _local_path
 
 # Index der verfügbaren Hersteller (wird beim Start geladen)
 _hersteller_index: Dict[str, Dict] = {}

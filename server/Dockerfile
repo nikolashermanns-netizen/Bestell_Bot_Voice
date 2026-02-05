@@ -47,6 +47,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # App Code
 COPY app/ .
 
+# Katalog-Daten (Multi-Hersteller)
+COPY system_katalog/ ./system_katalog/
+
 # SIP Port (UDP + TCP) und API Port
 EXPOSE 5060/udp
 EXPOSE 5060/tcp

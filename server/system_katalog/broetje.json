@@ -1,0 +1,60 @@
+{
+  "products": [
+    {
+      "Artikel": "OAG+UST110150D",
+      "Menge": "1",
+      "Bezeichnung 1": "Optima T Abgassyst.PolyClassic Uebergang",
+      "Bezeichnung 2": "D110/160-DN100/150 (Broetje 50-110kW)",
+      "Werksnummer": "",
+      "EAN": "",
+      "ME": "Stück",
+      "PE": "1",
+      "EK-Preis": "39,06",
+      "VK-Preis": "63,00",
+      "EK-Preis (gesamt)": "39,06",
+      "VK-Preis (gesamt)": "63,00",
+      "Eigene Artikel-Nr": "",
+      "Kommentar": "",
+      "": ""
+    },
+    {
+      "Artikel": "SA+DMSBJ20AI",
+      "Menge": "1",
+      "Bezeichnung 1": "Caleffi Schlammabscheider DIRTMAGSLIM UP",
+      "Bezeichnung 2": "3/4\" AG x 3/4\" IG UeW, Broetje Version",
+      "Werksnummer": "545555 003",
+      "EAN": "8016615584486",
+      "ME": "Stück",
+      "PE": "1",
+      "EK-Preis": "109,59",
+      "VK-Preis": "281,00",
+      "EK-Preis (gesamt)": "109,59",
+      "VK-Preis (gesamt)": "281,00",
+      "Eigene Artikel-Nr": "",
+      "Kommentar": "",
+      "": ""
+    },
+    {
+      "Artikel": "UNI+EN8B",
+      "Menge": "1",
+      "Bezeichnung 1": "Nippel 1/4\" x Broetje",
+      "Bezeichnung 2": "Nr. 236680",
+      "Werksnummer": "",
+      "EAN": "",
+      "ME": "Stück",
+      "PE": "1",
+      "EK-Preis": "4,73",
+      "VK-Preis": "9,10",
+      "EK-Preis (gesamt)": "4,73",
+      "VK-Preis (gesamt)": "9,10",
+      "Eigene Artikel-Nr": "",
+      "Kommentar": "",
+      "": ""
+    }
+  ],
+  "metadata": {
+    "total": 3,
+    "source": "Heinrich Schmidt OnlinePro (CSV Export)",
+    "exported_at": "2026-02-05 06:44:58"
+  }
+}

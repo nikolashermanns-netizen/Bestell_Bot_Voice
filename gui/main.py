@@ -10,6 +10,7 @@ import asyncio
 import logging
 from pathlib import Path
 from typing import Optional
+from datetime import datetime
 
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -778,9 +779,10 @@ class MainWindow(QMainWindow):
     def _on_transcript_update(self, speaker: str, text: str, is_final: bool):
         """Verarbeitet Transkript-Updates."""
         if is_final:
-            # Finalen Text hinzufügen
+            # Finalen Text mit Zeitstempel hinzufügen
+            time_str = datetime.now().strftime("%H:%M:%S")
             speaker_label = "Anrufer" if speaker == "caller" else "Assistent"
-            self._transcript_text += f"[{speaker_label}] {text}\n"
+            self._transcript_text += f"[{time_str}] [{speaker_label}] {text}\n"
             self._current_partial[speaker] = ""
         else:
             # Partial Update
@@ -927,6 +929,13 @@ class MainWindow(QMainWindow):
                     self._model_status.setText("Gespeichert!")
                     self._model_status.setStyleSheet("color: #28a745; font-size: 11px;")
                     self._status_bar.showMessage(f"Modell '{model}' gespeichert")
+                elif result.get("status") == "error":
+                    # Server meldet Fehler beim persistenten Speichern
+                    error_msg = result.get("message", "Unbekannter Fehler")
+                    self._model_status.setText("Speicherfehler!")
+                    self._model_status.setStyleSheet("color: #dc3545; font-size: 11px;")
+                    QMessageBox.warning(self, "Speicherfehler", 
+                        f"Das Modell wurde gesetzt, aber nicht persistent gespeichert:\n{error_msg}")
                 else:
                     raise Exception(result.get("message", "Unbekannter Fehler"))
             else:
@@ -1245,11 +1254,20 @@ class MainWindow(QMainWindow):
             )
             
             if response.status_code == 200:
-                self._enabled_expert_models = enabled_models
-                self._save_expert_btn.setEnabled(False)
-                self._expert_status_label.setText(f"Gespeichert! ({len(enabled_models)} aktiv)")
-                self._expert_status_label.setStyleSheet("color: #28a745; font-size: 11px;")
-                self._status_bar.showMessage("Experten-Konfiguration gespeichert")
+                result = response.json()
+                if result.get("status") == "ok":
+                    self._enabled_expert_models = enabled_models
+                    self._save_expert_btn.setEnabled(False)
+                    self._expert_status_label.setText(f"Gespeichert! ({len(enabled_models)} aktiv)")
+                    self._expert_status_label.setStyleSheet("color: #28a745; font-size: 11px;")
+                    self._status_bar.showMessage("Experten-Konfiguration gespeichert")
+                elif result.get("status") == "error":
+                    # Server meldet Fehler beim persistenten Speichern
+                    error_msg = result.get("message", "Unbekannter Fehler")
+                    self._expert_status_label.setText("Speicherfehler!")
+                    self._expert_status_label.setStyleSheet("color: #dc3545; font-size: 11px;")
+                    QMessageBox.warning(self, "Speicherfehler", 
+                        f"Die Konfiguration wurde gesetzt, aber nicht persistent gespeichert:\n{error_msg}")
             else:
                 raise Exception(f"Server-Fehler: {response.status_code}")
         
@@ -1262,6 +1280,11 @@ class MainWindow(QMainWindow):
         self._expert_query_label.setText(f"🔍 Frage Kollegen ({model}): {question[:80]}...")
         self._expert_query_label.setVisible(True)
         self._status_bar.showMessage(f"Experten-Anfrage an {model}...")
+        
+        # Ins Transkript einfügen
+        time_str = datetime.now().strftime("%H:%M:%S")
+        self._transcript_text += f"\n[{time_str}] [EXPERTE] Frage an {model}: {question}\n"
+        self._update_transcript_display()
     
     def _on_expert_query_done(self, data: dict):
         """Zeigt das Ergebnis einer Experten-Anfrage."""
@@ -1270,6 +1293,7 @@ class MainWindow(QMainWindow):
         model_base = data.get("model_base", "?")
         confidence = data.get("confidence", 0)
         latency_ms = data.get("latency_ms", 0)
+        answer = data.get("answer", "")
         
         if success:
             icon = "✅"
@@ -1286,6 +1310,14 @@ class MainWindow(QMainWindow):
             "background-color: #1a3a4a; border-radius: 3px;"
         )
         self._status_bar.showMessage(msg)
+        
+        # Ins Transkript einfügen
+        time_str = datetime.now().strftime("%H:%M:%S")
+        if success and answer:
+            self._transcript_text += f"[{time_str}] [EXPERTE] Antwort ({confidence:.0%}): {answer}\n\n"
+        else:
+            self._transcript_text += f"[{time_str}] [EXPERTE] Keine sichere Antwort ({confidence:.0%})\n\n"
+        self._update_transcript_display()
         
         # Nach 5 Sekunden ausblenden
         QTimer.singleShot(5000, lambda: self._expert_query_label.setVisible(False))

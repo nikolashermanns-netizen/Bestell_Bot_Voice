@@ -298,7 +298,7 @@ class ExpertClient:
                 tool_choice="auto",
                 response_format={"type": "json_object"},
                 temperature=0.3,  # Niedrig für konsistente Antworten
-                max_tokens=1000
+                max_completion_tokens=1000  # GPT-5/O-Serie benötigt diesen Parameter
             )
             
             # Tool Calls verarbeiten
@@ -325,7 +325,7 @@ class ExpertClient:
                     tool_choice="auto",
                     response_format={"type": "json_object"},
                     temperature=0.3,
-                    max_tokens=1000
+                    max_completion_tokens=1000  # GPT-5/O-Serie benötigt diesen Parameter
                 )
                 message = response.choices[0].message
             
