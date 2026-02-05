@@ -242,10 +242,23 @@ class AccountCallback(pj.Account if PJSUA2_AVAILABLE else object):
         """Eingehender Anruf."""
         call = CallCallback(self, prm.callId)
         ci = call.getInfo()
-        logger.info(f"Eingehender Anruf von: {ci.remoteUri}")
+        
+        # Remote IP aus remoteContact extrahieren (Format: <sip:user@IP:port>)
+        remote_ip = None
+        remote_contact = ci.remoteContact
+        try:
+            # Parse: <sip:user@IP:port;...> oder <sip:user@IP>
+            import re
+            match = re.search(r'@([\d\.]+)', remote_contact)
+            if match:
+                remote_ip = match.group(1)
+        except Exception as e:
+            logger.warning(f"Konnte Remote-IP nicht extrahieren: {e}")
+        
+        logger.info(f"Eingehender Anruf von: {ci.remoteUri} (IP: {remote_ip})")
         self.current_call = call
         if self.on_incoming_call:
-            self.on_incoming_call(ci.remoteUri, call)
+            self.on_incoming_call(ci.remoteUri, call, remote_ip)
 
 
 class SIPClient:
@@ -271,6 +284,7 @@ class SIPClient:
         self._registered = False
         self._in_call = False
         self._current_caller = None
+        self._current_remote_ip = None
         
         # Event Callbacks (thread-safe via asyncio.Queue)
         self._event_queue: asyncio.Queue = None
@@ -296,6 +310,10 @@ class SIPClient:
     @property
     def current_caller_id(self) -> Optional[str]:
         return self._current_caller
+    
+    @property
+    def current_remote_ip(self) -> Optional[str]:
+        return self._current_remote_ip
     
     async def start(self):
         """SIP Client starten."""
@@ -419,9 +437,10 @@ class SIPClient:
         self._registered = is_registered
         self._emit_event("reg_state", {"registered": is_registered})
     
-    def _on_incoming_call(self, caller_uri: str, call: CallCallback):
+    def _on_incoming_call(self, caller_uri: str, call: CallCallback, remote_ip: str = None):
         """Incoming Call Callback (im PJSIP Thread)."""
         self._current_caller = caller_uri
+        self._current_remote_ip = remote_ip
         call.on_state_changed = self._on_call_state
         call.on_media_state = self._on_media_state
         
@@ -436,7 +455,7 @@ class SIPClient:
         except Exception as e:
             logger.error(f"AudioMediaPort Erstellung fehlgeschlagen: {e}")
         
-        self._emit_event("incoming_call", {"caller_id": caller_uri})
+        self._emit_event("incoming_call", {"caller_id": caller_uri, "remote_ip": remote_ip})
     
     def _on_call_state(self, state: int, state_text: str):
         """Call State Callback (im PJSIP Thread)."""
@@ -480,7 +499,7 @@ class SIPClient:
                 
                 if event_type == "incoming_call":
                     if self.on_incoming_call:
-                        await self.on_incoming_call(event.get("caller_id"))
+                        await self.on_incoming_call(event.get("caller_id"), event.get("remote_ip"))
                 elif event_type == "call_ended":
                     if self.on_call_ended:
                         await self.on_call_ended(event.get("reason"))
@@ -504,6 +523,8 @@ class SIPClient:
                     self._do_accept_call()
                 elif cmd_type == "hangup":
                     self._do_hangup()
+                elif cmd_type == "reject":
+                    self._do_reject_call(cmd.get("status_code", 403))
                     
         except queue.Empty:
             pass
@@ -516,6 +537,15 @@ class SIPClient:
             self._account.current_call.answer(prm)
             logger.info("Anruf angenommen")
     
+    def _do_reject_call(self, status_code: int = 403):
+        """Anruf ablehnen (im PJSIP Thread)."""
+        if self._account and self._account.current_call:
+            prm = pj.CallOpParam()
+            prm.statusCode = status_code  # 403 = Forbidden, 486 = Busy
+            self._account.current_call.hangup(prm)
+            self._account.current_call = None
+            logger.info(f"Anruf abgelehnt mit Status {status_code}")
+    
     def _do_hangup(self):
         """Anruf beenden (im PJSIP Thread)."""
         if self._account and self._account.current_call:
@@ -526,6 +556,10 @@ class SIPClient:
     async def accept_call(self):
         """Anruf annehmen (thread-safe)."""
         self._command_queue.put({"type": "accept"})
+    
+    async def reject_call(self, status_code: int = 403):
+        """Anruf ablehnen (thread-safe). 403=Forbidden, 486=Busy."""
+        self._command_queue.put({"type": "reject", "status_code": status_code})
     
     async def hangup(self):
         """Anruf beenden (thread-safe)."""

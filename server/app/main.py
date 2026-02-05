@@ -18,7 +18,7 @@ from sip_client import SIPClient
 from ai_client import AIClient, AVAILABLE_MODELS
 from expert_client import ExpertClient, EXPERT_MODELS
 from connection_manager import ConnectionManager
-from catalog import load_catalog, get_systems_overview
+from catalog import load_index, get_available_manufacturers, clear_active_catalogs
 from order_manager import order_manager
 import ipaddress
 
@@ -46,9 +46,19 @@ ALLOWED_SIP_NETWORKS = [
     ipaddress.ip_network("2001:ab7::/32"),      # Sipgate IPv6
 ]
 
+# Firewall Status (kann zur Laufzeit geändert werden)
+sip_firewall_enabled = True
+
 
 def is_ip_allowed(ip_str: str) -> bool:
     """Prüft ob eine IP-Adresse von einem erlaubten SIP-Provider stammt."""
+    global sip_firewall_enabled
+    
+    # Wenn Firewall deaktiviert, alle IPs erlauben
+    if not sip_firewall_enabled:
+        logger.info(f"Firewall deaktiviert - IP {ip_str} wird akzeptiert")
+        return True
+    
     if not ip_str:
         logger.warning("Keine Remote-IP verfügbar - Anruf wird abgelehnt")
         return False
@@ -111,12 +121,12 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Fehler beim Laden der Konfiguration: {e}")
     
-    # Viega Katalog laden
-    if load_catalog():
-        overview = get_systems_overview()
-        logger.info(f"Viega Katalog: {overview.get('total_products', 0)} Produkte geladen")
+    # Katalog-Index laden (Hersteller-Übersicht)
+    if load_index():
+        manufacturers = get_available_manufacturers()
+        logger.info(f"Katalog-Index: {len(manufacturers)} Hersteller verfügbar")
     else:
-        logger.warning("Viega Katalog konnte nicht geladen werden")
+        logger.warning("Katalog-Index konnte nicht geladen werden")
     
     # Order Manager Callback für GUI-Updates
     order_manager.on_order_update = on_order_update
@@ -373,6 +383,9 @@ async def on_call_ended(reason: str):
     # Bestellung löschen (wird nur im Speicher gehalten)
     order_manager.clear_order()
     
+    # Aktive Kataloge zurücksetzen für nächsten Anruf
+    clear_active_catalogs()
+    
     await ai_client.disconnect()
     
     await manager.broadcast({
@@ -406,6 +419,9 @@ async def get_status():
         },
         "ai": {
             "connected": ai_client.is_connected if ai_client else False
+        },
+        "firewall": {
+            "enabled": sip_firewall_enabled
         }
     }
 
@@ -444,6 +460,38 @@ async def unmute_ai():
         ai_client.muted = False
         return {"status": "unmuted"}
     return {"status": "error"}
+
+
+# ============== Firewall Endpoints ==============
+
+@app.get("/firewall")
+async def get_firewall_status():
+    """SIP Firewall Status abrufen."""
+    return {
+        "enabled": sip_firewall_enabled,
+        "allowed_networks": [str(n) for n in ALLOWED_SIP_NETWORKS]
+    }
+
+
+@app.post("/firewall")
+async def set_firewall_status(data: dict):
+    """SIP Firewall aktivieren/deaktivieren."""
+    global sip_firewall_enabled
+    
+    enabled = data.get("enabled")
+    if enabled is None:
+        return {"status": "error", "message": "Parameter 'enabled' fehlt"}
+    
+    sip_firewall_enabled = bool(enabled)
+    logger.info(f"SIP Firewall {'aktiviert' if sip_firewall_enabled else 'DEAKTIVIERT'}")
+    
+    # An alle GUI Clients broadcasten
+    await manager.broadcast({
+        "type": "firewall_status",
+        "enabled": sip_firewall_enabled
+    })
+    
+    return {"status": "ok", "enabled": sip_firewall_enabled}
 
 
 @app.get("/instructions")

@@ -251,6 +251,30 @@ class MainWindow(QMainWindow):
         self._sip_status_label.setStyleSheet("color: gray;")
         sip_layout.addWidget(self._sip_status_label)
         sip_layout.addStretch()
+        
+        # Firewall Toggle
+        sip_layout.addWidget(QLabel("Firewall:"))
+        self._firewall_btn = QPushButton("Aktiv")
+        self._firewall_btn.setCheckable(True)
+        self._firewall_btn.setChecked(True)
+        self._firewall_btn.setStyleSheet("""
+            QPushButton { 
+                background-color: #28a745; 
+                color: white; 
+                padding: 3px 10px; 
+                border-radius: 3px;
+                font-weight: bold;
+            }
+            QPushButton:checked { 
+                background-color: #28a745; 
+            }
+            QPushButton:!checked { 
+                background-color: #dc3545; 
+            }
+        """)
+        self._firewall_btn.clicked.connect(self._on_firewall_toggle)
+        sip_layout.addWidget(self._firewall_btn)
+        
         status_layout.addLayout(sip_layout)
         
         # Call-Status
@@ -721,6 +745,15 @@ class MainWindow(QMainWindow):
         
         elif msg_type == "expert_query_done":
             self._on_expert_query_done(data)
+        
+        elif msg_type == "firewall_status":
+            self._update_firewall_button(data.get("enabled", True))
+        
+        elif msg_type == "call_rejected":
+            # Anruf wurde wegen Firewall abgelehnt
+            remote_ip = data.get("remote_ip", "?")
+            caller_id = data.get("caller_id", "?")
+            self._status_bar.showMessage(f"Anruf abgelehnt: {caller_id} (IP: {remote_ip})")
     
     def _update_status_display(self):
         """Aktualisiert die Status-Anzeigen."""
@@ -1059,6 +1092,36 @@ class MainWindow(QMainWindow):
         except Exception as e:
             logger.error(f"Mute Fehler: {e}")
     
+    def _on_firewall_toggle(self):
+        """Schaltet SIP-Firewall an/aus."""
+        import requests
+        try:
+            enabled = self._firewall_btn.isChecked()
+            response = requests.post(
+                f"{self.server_url}/firewall",
+                json={"enabled": enabled},
+                timeout=5
+            )
+            if response.status_code == 200:
+                self._update_firewall_button(enabled)
+                status = "aktiviert" if enabled else "DEAKTIVIERT"
+                self._status_bar.showMessage(f"SIP-Firewall {status}")
+            else:
+                # Fehler - Button zurücksetzen
+                self._firewall_btn.setChecked(not enabled)
+        except Exception as e:
+            logger.error(f"Firewall Toggle Fehler: {e}")
+            # Button zurücksetzen bei Fehler
+            self._firewall_btn.setChecked(not self._firewall_btn.isChecked())
+    
+    def _update_firewall_button(self, enabled: bool):
+        """Aktualisiert den Firewall-Button-Status."""
+        self._firewall_btn.setChecked(enabled)
+        if enabled:
+            self._firewall_btn.setText("Aktiv")
+        else:
+            self._firewall_btn.setText("AUS!")
+    
     def _on_toggle_debug(self):
         """Debug-Log Fenster ein/ausblenden."""
         if self._debug_btn.isChecked():
@@ -1239,6 +1302,11 @@ class MainWindow(QMainWindow):
                 self._call_active = sip.get("in_call", False)
                 self._caller_id = sip.get("caller_id")
                 self._update_status_display()
+                
+                # Firewall Status
+                firewall = data.get("firewall", {})
+                firewall_enabled = firewall.get("enabled", True)
+                self._update_firewall_button(firewall_enabled)
                 
                 if not self._connected:
                     self._connected = True
