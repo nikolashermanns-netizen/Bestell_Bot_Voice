@@ -47,11 +47,17 @@ PUMPEN & REGELUNG: Grundfos, Wilo, Oventrop, Danfoss, Honeywell, Heimeier, Calef
 WASSERAUFBEREITUNG: BWT, Gruenbeck, Judo, SYR, Kemper
 WERKZEUGE: Rothenberger, REMS, Ridgid, Knipex, Wera, Makita, Milwaukee
 
-DEINE AUFGABE:
-- Beantworte technische Fachfragen praezise und korrekt
-- Nutze die Katalog-Funktionen wenn du konkrete Produktempfehlungen geben sollst
-- Lade erst den passenden Hersteller-Katalog bevor du Produkte suchst
-- Sei ehrlich wenn du dir unsicher bist
+ABLAUF - SO ARBEITEST DU:
+1. Nutze "zeige_hersteller" um zu sehen welche Hersteller verfuegbar sind
+2. Nutze "lade_hersteller_katalog" um den GESAMTEN Katalog eines Herstellers zu laden
+3. Nach dem Laden hast du ALLE Produkte im Kontext - durchsuche sie SELBST
+4. Finde passende Produkte durch Lesen der geladenen Produktdaten
+5. Empfehle konkrete Produkte mit Artikelnummer und Preis
+
+WICHTIG: Du suchst SELBST durch die Katalogdaten!
+- Kein separates Suchwerkzeug - du liest und analysierst die geladenen Daten
+- Du kannst mehrere Hersteller nacheinander laden falls noetig
+- Nach dem Laden siehst du: Bezeichnung, Artikelnummer, Hersteller-Nr, Preise
 
 WICHTIGE REGELN:
 1. Antworte NUR wenn du dir sehr sicher bist (>90% Konfidenz)
@@ -59,11 +65,12 @@ WICHTIGE REGELN:
 3. Nenne bei Produktempfehlungen IMMER die Heinrich Schmidt Artikel-Nummer
 4. Halte deine Antwort kurz und praegnant (max 2-3 Saetze fuer Sprachausgabe)
 5. Keine Vermutungen - nur gesichertes Fachwissen
+6. Lade IMMER den Katalog wenn nach konkreten Produkten gefragt wird!
 
 ARTIKELNUMMERN - WICHTIG:
 - "Artikel-Nummer" = Heinrich Schmidt Bestellnummer (z.B. "WT+VERL80")
 - "Hersteller-Nummer" = Werksnummer des Herstellers (z.B. "4A128L01")
-- Nenne IMMER die Heinrich Schmidt Artikel-Nummer!
+- Nenne IMMER die Heinrich Schmidt Artikel-Nummer zum Bestellen!
 
 ANTWORT-FORMAT:
 Du MUSST immer in diesem JSON-Format antworten:
@@ -87,6 +94,7 @@ PREISINFORMATIONEN:
 """
 
 # Tools für Katalog-Zugriff (Multi-Hersteller)
+# Der Experte lädt den Katalog und sucht dann SELBST durch die Daten
 EXPERT_TOOLS = [
     {
         "type": "function",
@@ -104,7 +112,7 @@ EXPERT_TOOLS = [
         "type": "function",
         "function": {
             "name": "lade_hersteller_katalog",
-            "description": "Laedt den Katalog eines Herstellers. WICHTIG: Rufe diese Funktion auf bevor du Produkte suchst! Beispiele: 'grohe', 'viega_sanpress', 'buderus', 'villeroy_boch'",
+            "description": "Laedt den GESAMTEN Katalog eines Herstellers in deinen Kontext. Danach hast du alle Produkte mit Artikelnummern und Preisen und kannst selbst durchsuchen. Beispiele: 'grohe', 'viega_sanpress', 'buderus', 'villeroy_boch'",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -114,44 +122,6 @@ EXPERT_TOOLS = [
                     }
                 },
                 "required": ["hersteller"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "suche_produkt",
-            "description": "Sucht nach Produkten in den geladenen Katalogen. Sucht nach Bezeichnung, Artikel-Nummer oder Hersteller-Nummer.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "suchbegriff": {
-                        "type": "string",
-                        "description": "Wonach gesucht werden soll (Produktname, Artikelnummer)"
-                    },
-                    "hersteller": {
-                        "type": "string",
-                        "description": "Optional: Nur in diesem Hersteller-Katalog suchen"
-                    }
-                },
-                "required": ["suchbegriff"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "produkt_details",
-            "description": "Zeigt alle Details zu einem Produkt inklusive Preise anhand der Heinrich Schmidt Artikel-Nummer.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "artikel_nummer": {
-                        "type": "string",
-                        "description": "Heinrich Schmidt Artikel-Nummer (z.B. 'WT+VERL80')"
-                    }
-                },
-                "required": ["artikel_nummer"]
             }
         }
     }
@@ -478,10 +448,36 @@ class ExpertClient:
                     if not manufacturers:
                         result = "Fehler: Keine Hersteller verfuegbar."
                     else:
+                        # Nach Kategorien gruppieren für bessere Übersicht
+                        kategorien = {
+                            "Sanitaer": ["grohe", "hansgrohe", "geberit", "duravit", "villeroy_boch", "ideal_standard", "keramag", "tece", "schell"],
+                            "Heizung": ["viessmann", "buderus", "vaillant", "wolf_heizung", "junkers", "weishaupt", "broetje"],
+                            "Rohrsysteme": ["viega_profipress", "viega_sanpress", "viega_megapress", "geberit_mapress", "geberit_mepla", "cu_press", "edelstahl_press"],
+                            "Pumpen & Regelung": ["grundfos", "wilo", "oventrop", "danfoss", "honeywell", "heimeier", "caleffi"],
+                            "Wasseraufbereitung": ["bwt", "gruenbeck", "judo", "syr", "kemper"],
+                            "Werkzeuge": ["rothenberger", "rems", "ridgid", "knipex", "wera", "wiha", "makita", "milwaukee", "bosch_werkzeug", "hilti", "fischer"],
+                        }
+                        
                         lines = ["=== VERFUEGBARE HERSTELLER ===\n"]
-                        for m in manufacturers:
-                            lines.append(f"- {m['name']} ({m['produkte']} Produkte) [Key: {m['key']}]")
+                        
+                        zugeordnet = set()
+                        for kat, keys in kategorien.items():
+                            kat_hersteller = [m for m in manufacturers if m["key"] in keys]
+                            if kat_hersteller:
+                                lines.append(f"\n{kat}:")
+                                for m in kat_hersteller:
+                                    lines.append(f"  - {m['name']} ({m['produkte']} Produkte)")
+                                    zugeordnet.add(m["key"])
+                        
+                        # Restliche Hersteller
+                        sonstige = [m for m in manufacturers if m["key"] not in zugeordnet]
+                        if sonstige:
+                            lines.append("\nSonstige:")
+                            for m in sonstige:
+                                lines.append(f"  - {m['name']} ({m['produkte']} Produkte)")
+                        
                         lines.append(f"\nGesamt: {len(manufacturers)} Hersteller")
+                        lines.append("\nNutze 'lade_hersteller_katalog' mit dem Herstellernamen.")
                         result = "\n".join(lines)
                 
                 elif name == "lade_hersteller_katalog":
@@ -490,50 +486,17 @@ class ExpertClient:
                     # Key ermitteln
                     key = catalog.get_manufacturer_key(hersteller)
                     if not key:
-                        result = f"Hersteller '{hersteller}' nicht gefunden. Nutze 'zeige_hersteller' fuer die Liste."
+                        # Verfügbare Hersteller vorschlagen
+                        manufacturers = catalog.get_available_manufacturers()
+                        vorschlaege = [m["name"] for m in manufacturers[:10]]
+                        result = f"Hersteller '{hersteller}' nicht gefunden. Verfuegbare Hersteller (Auszug): {', '.join(vorschlaege)}. Nutze 'zeige_hersteller' fuer die komplette Liste."
                     else:
                         # Katalog laden und aktivieren
                         if catalog.activate_catalog(key):
-                            result = catalog.get_catalog_for_ai(key, max_products=300)
+                            # Gesamter Katalog für AI (mehr Produkte für Experte)
+                            result = catalog.get_catalog_for_ai(key, max_products=500)
                         else:
                             result = f"Fehler beim Laden des Katalogs '{hersteller}'."
-                
-                elif name == "suche_produkt":
-                    suchbegriff = args.get("suchbegriff", "")
-                    hersteller = args.get("hersteller", "")
-                    
-                    # Hersteller-Key ermitteln falls angegeben
-                    hersteller_key = None
-                    if hersteller:
-                        hersteller_key = catalog.get_manufacturer_key(hersteller)
-                    
-                    # Suchen
-                    products = catalog.search_products(
-                        query=suchbegriff,
-                        hersteller_key=hersteller_key,
-                        nur_aktive=True,
-                        max_results=15
-                    )
-                    
-                    if not products:
-                        result = f"Keine Produkte gefunden fuer '{suchbegriff}'."
-                    else:
-                        result = catalog.format_search_results_for_ai(products, show_prices=True)
-                
-                elif name == "produkt_details":
-                    artikel_nummer = args.get("artikel_nummer", "")
-                    
-                    # Produkt suchen
-                    product = catalog.get_product_by_artikel(artikel_nummer)
-                    
-                    if not product:
-                        # Vielleicht Hersteller-Nummer?
-                        product = catalog.get_product_by_hersteller_nr(artikel_nummer)
-                    
-                    if product:
-                        result = catalog.format_product_for_ai(product, show_prices=True)
-                    else:
-                        result = f"Produkt mit Nummer '{artikel_nummer}' nicht gefunden."
                 
                 else:
                     result = f"Unbekannte Funktion: {name}"
