@@ -612,8 +612,16 @@ def search_products(
     
     query_lower = query.lower().strip()
     
-    # Query in einzelne Suchwoerter aufteilen (mind. 2 Zeichen)
-    search_words = [w for w in re.split(r'[\s,\-\.]+', query_lower) if len(w) >= 2]
+    # Zahlen von Text trennen (z.B. "28mm" -> "28", "mm")
+    # Erst nach Leerzeichen/Trennzeichen splitten, dann Zahlen von Buchstaben trennen
+    raw_parts = re.split(r'[\s,\-\.]+', query_lower)
+    search_words = []
+    for part in raw_parts:
+        # Trenne Zahlen von Buchstaben: "28mm" -> ["28", "mm"], "dn50" -> ["dn", "50"]
+        sub_parts = re.split(r'(\d+)', part)
+        for sp in sub_parts:
+            if len(sp) >= 2:  # Mindestens 2 Zeichen
+                search_words.append(sp)
     
     # Suchpool bestimmen
     if hersteller_key and hersteller_key in _loaded_catalogs:
