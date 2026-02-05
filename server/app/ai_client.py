@@ -14,13 +14,15 @@ from typing import Callable, Optional, TYPE_CHECKING
 
 import catalog
 from order_manager import order_manager
+import product_domains
 
 if TYPE_CHECKING:
     from expert_client import ExpertClient
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_INSTRUCTIONS = """Du bist der automatische Telefonservice von Heinrich Schmidt, einem Fachgrosshandel fuer SHK.
+# Basis-Instruktionen (allgemein, ohne bereichsspezifisches Fachwissen)
+BASE_INSTRUCTIONS = """Du bist der automatische Telefonservice von Heinrich Schmidt, einem Fachgrosshandel fuer SHK.
 
 === DEIN STIL ===
 - Verhalte dich menschlich und natuerlich, nicht wie eine Maschine
@@ -33,80 +35,45 @@ DEFAULT_INSTRUCTIONS = """Du bist der automatische Telefonservice von Heinrich S
 
 === DEINE ROLLE ===
 - Du nimmst Bestellungen von SHK-Profis entgegen (Installateure, Heizungsbauer)
-- Du hast Zugriff auf 63 Hersteller mit tausenden Produkten
+- Du hast Zugriff auf 109 Systeme mit ueber 150.000 Produkten
 - DU findest das richtige Produkt - der Kunde muss keine Nummern kennen
 - Bei komplexen Fachfragen hast du einen Experten-Kollegen
 
-=== SHK-FACHWISSEN (WICHTIG!) ===
+=== PRODUKTBEREICHE (AUTOMATISCHES ROUTING) ===
+Du bist spezialisiert auf verschiedene Bereiche. Das System erkennt AUTOMATISCH den richtigen Bereich:
+- rohrsysteme: Pressfittings (Viega, Geberit) - Temponox, Sanpress, Profipress
+- armaturen: Wasserhähne (Grohe, Hansgrohe) - Einhebelmischer, Thermostat
+- keramik: Bad/WC (Duravit, Villeroy Boch) - Waschtisch, WC, Urinal
+- heizung: Kessel/Brenner (Viessmann, Buderus, Vaillant)
+- heizkoerper: Radiatoren (Kermi, Purmo)
+- pumpen: Heizungspumpen (Grundfos, Wilo)
+- werkzeuge: SHK-Werkzeug (Rothenberger, REMS, Makita)
+- wasseraufbereitung: Filter (BWT, Gruenbeck)
+- warmwasser: Speicher/Durchlauferhitzer
 
-Du musst die Fachsprache der Kataloge kennen um richtig zu suchen:
+BEREICHSWECHSEL:
+- AUTOMATISCH: Wenn du 'finde_produkt_katalog' nutzt, wird der Bereich automatisch erkannt
+- MANUELL: Nutze 'wechsel_produktbereich' wenn du explizit wechseln willst
+- Das System laedt dann automatisch das passende Fachwissen
 
-GEWINDE-BEZEICHNUNGEN:
-- Rp = Innengewinde (zylindrisch) -> Kunde sagt "Innengewinde", suche "Rp"
-- R = Aussengewinde (konisch) -> Kunde sagt "Aussengewinde", suche "R"  
-- G = Flachdichtend (mit Dichtring)
-
-Beispiele:
-- "1 Zoll Innengewinde" -> suche "Rp1"
-- "3/4 Zoll Aussengewinde" -> suche "R3/4"
-- "22mm auf 1 Zoll Innengewinde" -> suche "22 Rp1" oder "22mmxRp1"
-
-ZOLL-SCHREIBWEISE IN KATALOGEN:
-- 1/2, 3/4, 1, 11/4 (=1 1/4), 11/2 (=1 1/2), 2
-
-PRODUKTTYPEN ROHRSYSTEME:
-- Bogen (45 oder 90 Grad), T-Stueck, Muffe, Verschraubung
-- Uebergangsstueck (von Rohr auf Gewinde), Uebergangsmuffe
-- Rohr, Kappe, Reduzierstueck, Flansch
-
-SYSTEME (PRESSFITTINGS):
-- Temponox = Edelstahl fuer Heizung (in edelstahl_press)
-- Sanpress = Kupfer/Rotguss fuer Trinkwasser (in viega_sanpress)
-- Profipress = Kupfer fuer Heizung (in viega_profipress)
-- Megapress = Stahl mit Gewinde (in viega_megapress)
-- Mapress/Mepla = Geberit Systeme
-
-OPTIONEN IN BEZEICHNUNGEN:
-- SC = Sicherheitscontur (Standard bei Pressfittings)
-- IxA = Innen x Aussen (Pressende innen, Gewinde aussen)
-- IxI = beidseitig Press-Innen
-
-SANITAER-UNTERSCHEIDUNG (WICHTIG!):
-- "Waschtisch" allein = Keramik-Waschbecken
-- "Waschtischarmatur" oder "Waschtischbatterie" = Wasserhahn
-- "Waschtischunterschrank" = Moebel
--> Bei "Waschtisch" IMMER nachfragen: "Meinen Sie das Waschbecken oder eine Armatur?"
-
-=== PRODUKTSUCHE - SO FINDEST DU ALLES ===
+=== PRODUKTSUCHE ===
 
 SCHRITT 1: KEYWORD-SUCHE (wenn Hersteller unbekannt)
-- Nutze 'finde_produkt_katalog' mit dem Produktnamen (z.B. "temponox", "waschtisch")
-- Zeigt dir welche Kataloge das Produkt fuehren (z.B. edelstahl_press, viega)
+- Nutze 'finde_produkt_katalog' mit dem Produktnamen
+- Zeigt dir welche Kataloge das Produkt fuehren
 
 SCHRITT 2: IM KATALOG SUCHEN
 - Nutze 'suche_im_katalog' mit Katalog-Key UND Suchbegriff
 - WICHTIG: Uebersetze Kundensprache in Katalogsprache!
 
-SUCH-BEISPIELE:
-- Kunde: "Temponox Verschraubung 22mm auf 1 Zoll Innengewinde"
-  -> Suche: "temponox verschraubung 22 Rp1"
-
-- Kunde: "Bogen 28mm 90 Grad"
-  -> Suche: "bogen 28 90"
-
-- Kunde: "Uebergang von 22 auf Aussengewinde 3/4"
-  -> Suche: "uebergangsstueck 22 R3/4"
-
 BEI VIELEN TREFFERN:
-- Nicht alle auflisten! Stattdessen nachfragen:
-  "Da habe ich mehrere Varianten. Brauchen Sie Innen- oder Aussengewinde?"
-  "Soll das 45 oder 90 Grad sein?"
+- Nicht alle auflisten! Stattdessen nachfragen
+- "Da habe ich mehrere Varianten. Brauchen Sie Innen- oder Aussengewinde?"
 
 Falls nichts gefunden: Uebersetze die Begriffe und suche nochmal.
 Sage NIEMALS "Das haben wir nicht" - suche erst gruendlich!
 
 === BESTELLABLAUF ===
-So laeuft eine typische Bestellung:
 
 1. KUNDE NENNT PRODUKT
    - "Ich brauch Temponox Fittings" oder "Grohe Waschtischarmatur"
@@ -118,7 +85,6 @@ So laeuft eine typische Bestellung:
 
 3. PRODUKT NENNEN UND NACH MENGE FRAGEN
    - "Die Grohe Eurosmart, Artikel Nummer GR2339210E. Wieviel Stueck brauchen Sie?"
-   - Bei mehreren Optionen: "Da haette ich zwei Varianten..."
    - IMMER nach Menge fragen wenn nicht genannt!
 
 4. ERST NACH MENGENANGABE ZUR BESTELLUNG
@@ -126,16 +92,6 @@ So laeuft eine typische Bestellung:
    - NIEMALS vorher! NIEMALS mit menge=1 wenn Kunde keine Zahl genannt hat!
 
 WICHTIG: Erwähne NIEMALS technische Vorgaenge wie "Katalog laden" oder "System durchsuchen"!
-Das passiert im Hintergrund - der Kunde merkt davon nichts.
-
-=== VERFUEGBARE HERSTELLER ===
-SANITAER: Grohe, Hansgrohe, Geberit, Duravit, Villeroy & Boch, Ideal Standard
-HEIZUNG: Viessmann, Buderus, Vaillant, Wolf, Junkers, Broetje
-ROHRSYSTEME: Viega (Profipress, Sanpress, Megapress, Temponox), Geberit (Mapress, Mepla)
-PUMPEN: Grundfos, Wilo, Oventrop, Danfoss, Honeywell
-WERKZEUGE: Rothenberger, REMS, Knipex, Makita, Milwaukee
-
-Bei Unsicherheit: Nutze 'zeige_hersteller' fuer die komplette Liste.
 
 === EXPERTEN-KOLLEGE ===
 Bei komplexen Fachfragen die du nicht sicher beantworten kannst:
@@ -144,7 +100,6 @@ WANN KOLLEGEN FRAGEN:
 - Technische Detailfragen ("Welches Material fuer Trinkwasser?")
 - Normen und Vorschriften ("Was sagt die DIN dazu?")
 - Produktvergleiche ("Was ist besser, X oder Y?")
-- Anwendungsempfehlungen ("Was brauche ich fuer...?")
 
 SO GEHST DU VOR:
 1. Sage: "Moment, da frag ich kurz einen Kollegen"
@@ -164,10 +119,33 @@ BEVOR du 'bestellung_hinzufuegen' aufrufst, MUSS die Menge 100% klar sein!
 - Kunde sagt "10 Stueck Temponox Bogen" -> Menge klar (10), kannst hinzufuegen
 - Kunde sagt "Temponox Bogen 22mm" -> Menge UNKLAR! Frag: "Wieviel Stueck brauchen Sie?"
 - Kunde sagt "ein paar" oder "einige" -> Menge UNKLAR! Frag nach genauer Anzahl
-- Kunde sagt "die uebliche Menge" -> Frag: "Wieviel waeren das genau?"
 
-NIEMALS ohne explizite Mengenangabe zur Bestellung hinzufuegen!
-Lieber einmal mehr nachfragen als falsch bestellen."""
+NIEMALS ohne explizite Mengenangabe zur Bestellung hinzufuegen!"""
+
+
+def build_instructions_for_domain(domain_key: str = None) -> str:
+    """
+    Baut die vollstaendigen Instructions zusammen.
+    Basis + bereichsspezifisches Fachwissen.
+    
+    Args:
+        domain_key: Produktbereich (z.B. "rohrsysteme", "armaturen")
+        
+    Returns:
+        Vollstaendige Instructions
+    """
+    instructions = BASE_INSTRUCTIONS
+    
+    if domain_key:
+        domain_instructions = product_domains.get_domain_instructions(domain_key)
+        if domain_instructions:
+            instructions += "\n\n" + domain_instructions
+    
+    return instructions
+
+
+# Default: Rohrsysteme (haeufigster Bereich)
+DEFAULT_INSTRUCTIONS = build_instructions_for_domain("rohrsysteme")
 
 
 # Verfügbare OpenAI Realtime Modelle
@@ -297,6 +275,22 @@ CATALOG_TOOLS = [
             },
             "required": ["frage", "dringlichkeit"]
         }
+    },
+    {
+        "type": "function",
+        "name": "wechsel_produktbereich",
+        "description": "Wechselt zu einem spezialisierten Produktbereich mit passendem Fachwissen. Nutze diese Funktion wenn das Gespraech in einen anderen Bereich wechselt (z.B. von Rohrsystemen zu Armaturen). Das laedt automatisch das passende Fachwissen.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "bereich": {
+                    "type": "string",
+                    "enum": ["rohrsysteme", "armaturen", "keramik", "heizung", "heizkoerper", "pumpen", "werkzeuge", "wasseraufbereitung", "warmwasser"],
+                    "description": "Der Produktbereich: rohrsysteme (Pressfittings, Viega), armaturen (Grohe, Hansgrohe), keramik (WC, Waschtisch), heizung (Kessel, Viessmann), heizkoerper (Radiator, Kermi), pumpen (Grundfos, Wilo), werkzeuge (Rothenberger, REMS), wasseraufbereitung (BWT, Filter), warmwasser (Durchlauferhitzer, Speicher)"
+                }
+            },
+            "required": ["bereich"]
+        }
     }
 ]
 
@@ -319,7 +313,8 @@ class AIClient:
         self._receive_task: Optional[asyncio.Task] = None
         
         self.muted = False
-        self.instructions = DEFAULT_INSTRUCTIONS
+        self._current_domain = "rohrsysteme"  # Standard-Bereich
+        self.instructions = build_instructions_for_domain(self._current_domain)
         self._model = model if model in AVAILABLE_MODELS else DEFAULT_MODEL
         
         # Expert Client Referenz (wird von main.py gesetzt)
@@ -331,6 +326,57 @@ class AIClient:
         self.on_interruption: Optional[Callable[[], None]] = None  # Barge-in callback
         self.on_debug_event: Optional[Callable[[str, dict], None]] = None  # Debug callback für GUI
         self.on_expert_query: Optional[Callable[[str, str], None]] = None  # Callback wenn Experte gefragt wird (frage, model)
+        self.on_domain_change: Optional[Callable[[str, str], None]] = None  # Callback bei Bereichswechsel (old, new)
+    
+    @property
+    def current_domain(self) -> str:
+        """Aktueller Produktbereich."""
+        return self._current_domain
+    
+    def set_domain(self, domain_key: str) -> bool:
+        """
+        Wechselt den Produktbereich und laedt passendes Fachwissen.
+        
+        Args:
+            domain_key: Neuer Bereich (z.B. "rohrsysteme", "armaturen")
+            
+        Returns:
+            True wenn erfolgreich gewechselt
+        """
+        if domain_key not in product_domains.PRODUCT_DOMAINS:
+            logger.warning(f"Unbekannter Produktbereich: {domain_key}")
+            return False
+        
+        old_domain = self._current_domain
+        self._current_domain = domain_key
+        self.instructions = build_instructions_for_domain(domain_key)
+        
+        domain_name = product_domains.PRODUCT_DOMAINS[domain_key]["name"]
+        logger.info(f"Produktbereich gewechselt: {old_domain} -> {domain_key} ({domain_name})")
+        
+        if self.on_domain_change:
+            self.on_domain_change(old_domain, domain_key)
+        
+        return True
+    
+    async def update_session_instructions(self):
+        """
+        Aktualisiert die Instructions der laufenden Session.
+        Nutze diese Methode nach einem Bereichswechsel.
+        """
+        if not self._ws or not self._running:
+            logger.warning("Kann Session nicht aktualisieren - keine Verbindung")
+            return
+        
+        config = {
+            "type": "session.update",
+            "session": {
+                "instructions": self.instructions
+            }
+        }
+        
+        await self._ws.send_str(json.dumps(config))
+        logger.info(f"Session Instructions aktualisiert fuer Bereich: {self._current_domain}")
     
     @property
     def model(self) -> str:
@@ -580,6 +626,19 @@ class AIClient:
                 if self.on_transcript:
                     await self.on_transcript("system", f"[Keyword-Suche] Suche nach: {suchbegriff}", True)
                 
+                # Automatische Bereichserkennung
+                detected_domain = product_domains.get_domain_by_keyword(suchbegriff)
+                if detected_domain and detected_domain != self._current_domain:
+                    domain_name = product_domains.PRODUCT_DOMAINS[detected_domain]["name"]
+                    logger.info(f"[Bereichserkennung] Erkannt: {detected_domain} ({domain_name})")
+                    
+                    # Automatisch wechseln
+                    self.set_domain(detected_domain)
+                    await self.update_session_instructions()
+                    
+                    if self.on_transcript:
+                        await self.on_transcript("system", f"[Auto-Bereichswechsel] -> {detected_domain} ({domain_name})", True)
+                
                 # Im Keyword-Index suchen
                 result = catalog.search_keyword_index(suchbegriff)
                 
@@ -827,6 +886,37 @@ class AIClient:
                 except Exception as e:
                     logger.error(f"[Expert] Fehler: {e}")
                     return "Entschuldigung, ich konnte meinen Kollegen gerade nicht erreichen."
+            
+            elif name == "wechsel_produktbereich":
+                bereich = arguments.get("bereich", "")
+                
+                if bereich not in product_domains.PRODUCT_DOMAINS:
+                    logger.warning(f"[Bereichswechsel] Unbekannter Bereich: {bereich}")
+                    verfuegbar = ", ".join(product_domains.get_all_domain_names().keys())
+                    return f"Unbekannter Produktbereich. Verfuegbar: {verfuegbar}"
+                
+                old_domain = self._current_domain
+                domain_info = product_domains.PRODUCT_DOMAINS[bereich]
+                
+                # Bereich wechseln
+                success = self.set_domain(bereich)
+                
+                if success:
+                    logger.info(f"[Bereichswechsel] {old_domain} -> {bereich}")
+                    
+                    # Session-Instructions aktualisieren
+                    await self.update_session_instructions()
+                    
+                    # Debug an GUI senden
+                    if self.on_transcript:
+                        await self.on_transcript("system", f"[Bereichswechsel] {old_domain} -> {bereich} ({domain_info['name']})", True)
+                    
+                    # Passende Kataloge auflisten
+                    kataloge = domain_info.get("catalogs", [])
+                    
+                    return f"OK, ich bin jetzt auf {domain_info['name']} spezialisiert.\n\nPASSENDE KATALOGE:\n{chr(10).join('- ' + k for k in kataloge)}\n\nIch habe jetzt das entsprechende Fachwissen geladen."
+                else:
+                    return "Konnte Bereich nicht wechseln."
             
             # Legacy-Support für alten Funktionsnamen
             elif name == "lade_system_katalog":
