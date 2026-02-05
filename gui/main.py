@@ -204,9 +204,22 @@ class MainWindow(QMainWindow):
         central = QWidget()
         self.setCentralWidget(central)
         
-        main_layout = QHBoxLayout(central)
+        main_layout = QVBoxLayout(central)
         main_layout.setContentsMargins(10, 10, 10, 10)
         main_layout.setSpacing(10)
+        
+        # Horizontaler Splitter für Links/Rechts
+        main_splitter = QSplitter(Qt.Orientation.Horizontal)
+        main_splitter.setHandleWidth(5)
+        main_splitter.setStyleSheet("""
+            QSplitter::handle:horizontal {
+                background-color: #555;
+                border-radius: 2px;
+            }
+            QSplitter::handle:horizontal:hover {
+                background-color: #777;
+            }
+        """)
         
         # Linke Seite: Status + Transkript
         left_widget = QWidget()
@@ -338,7 +351,8 @@ class MainWindow(QMainWindow):
         
         left_layout.addWidget(left_splitter, stretch=1)
         
-        main_layout.addWidget(left_widget, stretch=2)
+        # Linke Seite zum Splitter hinzufügen
+        main_splitter.addWidget(left_widget)
         
         # Rechte Seite: Instructions
         right_widget = QWidget()
@@ -513,9 +527,15 @@ class MainWindow(QMainWindow):
         
         right_layout.addWidget(instructions_group)
         
-        right_widget.setMinimumWidth(350)
-        right_widget.setMaximumWidth(450)
-        main_layout.addWidget(right_widget)
+        # Rechte Seite zum Splitter hinzufügen
+        right_widget.setMinimumWidth(300)
+        main_splitter.addWidget(right_widget)
+        
+        # Splitter zum Hauptlayout
+        main_splitter.setSizes([700, 400])  # Startverhältnis ca. 2:1
+        main_splitter.setCollapsible(0, False)  # Linke Seite nicht einklappbar
+        main_splitter.setCollapsible(1, False)  # Rechte Seite nicht einklappbar
+        main_layout.addWidget(main_splitter)
         
         # Status Bar
         self._status_bar = QStatusBar()
