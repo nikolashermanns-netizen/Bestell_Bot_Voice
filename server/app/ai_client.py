@@ -20,64 +20,96 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_INSTRUCTIONS = """Du bist ein erfahrener SHK-Fachberater und Viega-Experte bei einem Fachgrosshandel.
+DEFAULT_INSTRUCTIONS = """Du bist der automatische Telefonservice von Heinrich Schmidt, einem Fachgrosshandel fuer Sanitaer, Heizung und Klima (SHK).
 
-BEGRUESSUNG:
-Sage am Anfang IMMER: "Sie sind verbunden mit dem Automatischen Bestellservice der Firma Heinrich Schmidt, wie kann ich Ihnen helfen?"
+=== BEGRUESSUNG ===
+Sage am Anfang IMMER:
+"Sie sind verbunden mit dem Automatischen Bestellservice der Firma Heinrich Schmidt, wie kann ich Ihnen helfen?"
 
-DEINE ROLLE:
-- Du nimmst telefonische Bestellungen von SHK-Profis (Installateure, Heizungsbauer) entgegen
-- Du kennst das komplette Viega-Sortiment (Temponox, Sanpress, Sanpress Inox)
-- Du hilfst bei der Produktauswahl und gibst technische Beratung
+=== DEINE ROLLE ===
+- Du nimmst telefonische Bestellungen von SHK-Profis entgegen (Installateure, Heizungsbauer)
+- Du hast Zugriff auf ueber 86.000 Produkte von 63 Herstellern
+- Bestellungen gehen SCHNELL - kein langes Suchen, direkt bestellen wenn Artikelnummer bekannt
+- Bei komplexen Fachfragen hast du einen Experten-Kollegen
 
-WICHTIGE REGELN:
-- Sprich immer auf Deutsch
-- Halte deine Antworten kurz und professionell
-- Frage nach Menge und Groesse wenn nicht angegeben
+=== WICHTIGE VERHALTENSREGELN ===
+- Sprich immer auf Deutsch, professionell aber freundlich
+- Halte Antworten KURZ - maximal 2-3 Saetze
+- Frage nach Menge wenn nicht angegeben
 - Wiederhole die Bestellung zur Bestaetigung
-- Sage IMMER "Artikel Nummer" statt "Art. Nr." oder "Art.Nr"
-- Wenn du etwas nachschauen musst, sage "Moment, ich schau mal nach"
+- Sage "Moment, ich schau mal nach" wenn du etwas suchst
+- Sage IMMER "Artikel Nummer" ausgesprochen (nie "Art. Nr.")
 
-KATALOG LADEN - SEHR WICHTIG:
-- Sobald du weisst welches System der Kunde braucht (Temponox, Sanpress oder Sanpress Inox), rufe SOFORT die Funktion 'lade_system_katalog' auf!
-- Danach hast du ALLE Produkte mit Artikelnummern im Kontext und kannst direkt helfen
-- Frag den Kunden welches System er braucht wenn unklar
+=== ARTIKELNUMMERN ===
+WICHTIG - Es gibt ZWEI verschiedene Nummern:
+- "Artikel-Nummer" = Heinrich Schmidt Bestellnummer (z.B. "WT+VERL80") - DIESE IMMER NUTZEN!
+- "Hersteller-Nummer" = Werksnummer des Herstellers (z.B. "4A128L01")
 
-VERFUEGBARE SYSTEME:
-- temponox: Fuer Heizung
-- sanpress: Trinkwasser Kupfer/Rotguss  
-- sanpress-inox: Trinkwasser Edelstahl
+Bei Bestellungen IMMER die Heinrich Schmidt Artikel-Nummer nennen!
 
-BESTELLFORMAT:
-Wenn der Kunde etwas bestellt, bestaetige so:
-"[MENGE]x [PRODUKTNAME] (Artikel Nummer: [KENNUNG]) - notiert!"
+=== BESTELLABLAUF (SCHNELL!) ===
 
-Beispiel: "10x Temponox Bogen 90 Grad 22mm (Artikel Nummer: 102036) - notiert!"
+FALL 1 - Kunde kennt Artikelnummer:
+- Sofort bestellen ohne langes Suchen
+- "10 Stueck Artikel Nummer ABC123? Alles klar, notiert!"
+- Nutze 'bestellung_hinzufuegen' direkt
 
-Nutze 'bestellung_hinzufuegen' nach jeder bestaetigten Position.
-Nutze 'zeige_bestellung' wenn der Kunde die Bestellung zusammenfassen will.
+FALL 2 - Kunde nennt Produkt ohne Nummer:
+1. Frag nach Hersteller falls unklar
+2. Lade Katalog mit 'lade_hersteller_katalog'
+3. Suche mit 'suche_produkt'
+4. Nenne Artikel-Nummer und bestaetige
 
-EXPERTEN-KOLLEGE - FUER KOMPLEXE FRAGEN:
-Bei komplexen technischen Fragen, die du nicht sicher beantworten kannst, nutze 'frage_experten'.
-Der Kollege hat tiefgehendes Fachwissen und Zugriff auf den kompletten Katalog.
+FALL 3 - Kunde will Bestellung sehen:
+- Nutze 'zeige_bestellung'
 
-WANN DEN KOLLEGEN FRAGEN:
-- Technische Detailfragen (z.B. "Welches Material fuer Trinkwasser?")
-- Normen und Vorschriften (z.B. "Was sagt die DIN?")
-- Produktvergleiche (z.B. "Was ist der Unterschied zwischen Sanpress und Sanpress Inox?")
-- Anwendungsempfehlungen (z.B. "Was brauche ich fuer eine Fussbodenheizung?")
+=== KATALOG-FUNKTIONEN ===
+- 'zeige_hersteller' - Liste aller 63 Hersteller
+- 'lade_hersteller_katalog' - Katalog eines Herstellers laden (MUSS VOR SUCHE!)
+- 'suche_produkt' - Produkt suchen (nach Bezeichnung oder Nummer)
+- 'zeige_produkt_details' - Details und Preise zu einem Produkt
 
-SO FRAGST DU DEN KOLLEGEN:
-1. Sage dem Kunden: "Moment, da frag ich mal kurz einen Kollegen"
-2. Rufe 'frage_experten' auf mit der Frage und dem relevanten Kontext
-3. Waehle die Dringlichkeit:
-   - "schnell": Einfache Frage, Kunde wartet
-   - "normal": Standard-Frage
-   - "gruendlich": Komplexe technische Frage, Genauigkeit wichtig
-4. Gib die Antwort des Kollegen in eigenen Worten an den Kunden weiter
-5. Wenn der Kollege unsicher war, sage ehrlich: "Da bin ich mir leider nicht ganz sicher"
+=== VERFUEGBARE HERSTELLER (Auszug) ===
+SANITAER: Grohe, Hansgrohe, Geberit, Duravit, Villeroy & Boch, Ideal Standard, TECE
+HEIZUNG: Viessmann, Buderus, Vaillant, Wolf, Junkers, Broetje, Weishaupt
+ROHRSYSTEME: Viega (Profipress/Sanpress/Megapress), Geberit (Mapress/Mepla)
+PUMPEN: Grundfos, Wilo, Oventrop, Danfoss, Honeywell, Caleffi
+WERKZEUGE: Rothenberger, REMS, Ridgid, Knipex, Wera, Makita, Milwaukee
 
-WICHTIG: Erfinde KEINE technischen Details! Bei Unsicherheit lieber den Kollegen fragen."""
+=== PREISE ===
+- EK-Preis = Einkaufspreis (Netto fuer den Kunden)
+- VK-Preis = Verkaufspreis (Brutto-Listenpreis)
+- Nenne Preise NUR wenn der Kunde danach fragt!
+
+=== BESTELLFORMAT ===
+So bestaetigst du eine Position:
+"[MENGE]x [PRODUKTNAME] (Artikel Nummer: [NUMMER]) - notiert!"
+
+Beispiel: "2x Grohe Eurosmart Waschtischarmatur (Artikel Nummer: GR2339210E) - notiert!"
+
+=== EXPERTEN-KOLLEGE ===
+Bei komplexen Fragen die du nicht sicher beantworten kannst:
+
+WANN KOLLEGEN FRAGEN:
+- Technische Detailfragen ("Welches Material fuer Trinkwasser?")
+- Normen und Vorschriften ("Was sagt die DIN dazu?")
+- Produktvergleiche ("Was ist besser, X oder Y?")
+- Anwendungsempfehlungen ("Was brauche ich fuer...?")
+
+SO GEHST DU VOR:
+1. Sage: "Moment, da frag ich mal kurz einen Kollegen"
+2. Rufe 'frage_experten' auf mit Frage und Kontext
+3. Dringlichkeit waehlen:
+   - "schnell" = Einfache Frage, Kunde wartet
+   - "normal" = Standard
+   - "gruendlich" = Komplexe technische Frage
+4. Gib Antwort des Kollegen in eigenen Worten weiter
+
+WICHTIG: Bei Bestellungen KEINEN Kollegen fragen - das geht direkt!
+
+=== GOLDENE REGEL ===
+Erfinde NIEMALS Artikelnummern, Preise oder technische Details!
+Im Zweifel: Nachschauen oder Kollegen fragen."""
 
 
 # Verfügbare OpenAI Realtime Modelle
@@ -90,22 +122,65 @@ AVAILABLE_MODELS = [
 
 DEFAULT_MODEL = "gpt-realtime"
 
-# Function Calling Tools für Viega Katalog
-VIEGA_TOOLS = [
+# Function Calling Tools für Multi-Hersteller Katalog
+CATALOG_TOOLS = [
     {
         "type": "function",
-        "name": "lade_system_katalog",
-        "description": "Laedt den kompletten Katalog eines Viega-Systems in deinen Kontext. WICHTIG: Rufe diese Funktion auf sobald du weisst welches System der Kunde braucht (Temponox, Sanpress, Sanpress Inox). Danach hast du alle Produkte mit Artikelnummern und kannst dem Kunden direkt helfen.",
+        "name": "zeige_hersteller",
+        "description": "Zeigt alle verfuegbaren Hersteller im Katalog. Nutze diese Funktion wenn der Kunde wissen will welche Hersteller verfuegbar sind oder wenn du nicht weisst welchen Hersteller er braucht.",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+        }
+    },
+    {
+        "type": "function",
+        "name": "lade_hersteller_katalog",
+        "description": "Laedt den kompletten Katalog eines Herstellers in deinen Kontext. WICHTIG: Rufe diese Funktion auf sobald du weisst welchen Hersteller der Kunde braucht! Danach hast du alle Produkte mit Artikelnummern und Preisen und kannst direkt helfen. Beispiele: 'grohe', 'villeroy_boch', 'viega_sanpress', 'buderus'",
         "parameters": {
             "type": "object",
             "properties": {
-                "system": {
+                "hersteller": {
                     "type": "string",
-                    "enum": ["temponox", "sanpress", "sanpress-inox"],
-                    "description": "Das Viega System das geladen werden soll"
+                    "description": "Name oder Key des Herstellers (z.B. 'Grohe', 'Villeroy Boch', 'Viega Sanpress', 'Buderus')"
                 }
             },
-            "required": ["system"]
+            "required": ["hersteller"]
+        }
+    },
+    {
+        "type": "function",
+        "name": "suche_produkt",
+        "description": "Sucht nach Produkten in den geladenen Katalogen. Sucht nach Bezeichnung, Artikel-Nummer oder Hersteller-Nummer. WICHTIG: Lade zuerst den passenden Hersteller-Katalog bevor du suchst!",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "suchbegriff": {
+                    "type": "string",
+                    "description": "Wonach gesucht werden soll (Produktname, Artikelnummer oder Herstellernummer)"
+                },
+                "hersteller": {
+                    "type": "string",
+                    "description": "Optional: Nur in diesem Hersteller-Katalog suchen"
+                }
+            },
+            "required": ["suchbegriff"]
+        }
+    },
+    {
+        "type": "function",
+        "name": "zeige_produkt_details",
+        "description": "Zeigt alle Details zu einem Produkt inklusive Preise. Nutze diese Funktion wenn der Kunde nach dem Preis fragt oder mehr Details zu einem Produkt braucht.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "artikel_nummer": {
+                    "type": "string",
+                    "description": "Heinrich Schmidt Artikel-Nummer (z.B. 'WT+VERL80')"
+                }
+            },
+            "required": ["artikel_nummer"]
         }
     },
     {
@@ -115,9 +190,9 @@ VIEGA_TOOLS = [
         "parameters": {
             "type": "object",
             "properties": {
-                "produkt_kennung": {
+                "artikel_nummer": {
                     "type": "string",
-                    "description": "Artikelnummer des Produkts"
+                    "description": "Heinrich Schmidt Artikel-Nummer des Produkts"
                 },
                 "menge": {
                     "type": "integer",
@@ -128,7 +203,7 @@ VIEGA_TOOLS = [
                     "description": "Name des Produkts fuer die Bestaetigung"
                 }
             },
-            "required": ["produkt_kennung", "menge", "produktname"]
+            "required": ["artikel_nummer", "menge", "produktname"]
         }
     },
     {
@@ -154,7 +229,7 @@ VIEGA_TOOLS = [
                 },
                 "kontext": {
                     "type": "string",
-                    "description": "Relevanter Kontext aus dem bisherigen Gespraech (welches System, Groesse, etc.)"
+                    "description": "Relevanter Kontext aus dem bisherigen Gespraech (Hersteller, Produkt, etc.)"
                 },
                 "dringlichkeit": {
                     "type": "string",
@@ -278,13 +353,13 @@ class AIClient:
                     "silence_duration_ms": 400,
                     "create_response": True  # Automatisch neue Antwort nach Interruption
                 },
-                "tools": VIEGA_TOOLS,
+                "tools": CATALOG_TOOLS,
                 "tool_choice": "auto"
             }
         }
         
         await self._ws.send_str(json.dumps(config))
-        logger.info(f"Session konfiguriert mit {len(VIEGA_TOOLS)} Tools")
+        logger.info(f"Session konfiguriert mit {len(CATALOG_TOOLS)} Tools")
     
     async def trigger_greeting(self):
         """Löst die initiale Begrüßung aus, ohne auf Spracheingabe zu warten."""
@@ -439,57 +514,130 @@ class AIClient:
             Ergebnis als String für AI Context
         """
         try:
-            if name == "lade_system_katalog":
-                system = arguments.get("system", "")
+            if name == "zeige_hersteller":
+                logger.info("Zeige verfügbare Hersteller")
                 
-                logger.info(f"Lade kompletten System-Katalog: {system}")
+                manufacturers = catalog.get_available_manufacturers()
                 
-                # Alle Produkte des Systems laden
-                products = catalog.get_system_products(system)
+                if not manufacturers:
+                    return "Fehler: Keine Hersteller verfügbar. Katalog-Index nicht geladen?"
                 
-                if not products:
-                    return f"System '{system}' nicht gefunden. Verfuegbare Systeme: temponox, sanpress, sanpress-inox"
+                # Nach Kategorien gruppieren für bessere Übersicht
+                kategorien = {
+                    "Sanitaer": ["grohe", "hansgrohe", "geberit", "duravit", "villeroy_boch", "ideal_standard", "keramag", "tece", "schell"],
+                    "Heizung": ["viessmann", "buderus", "vaillant", "wolf_heizung", "junkers", "weishaupt", "broetje"],
+                    "Rohrsysteme": ["viega_profipress", "viega_sanpress", "viega_megapress", "geberit_mapress", "geberit_mepla", "cu_press", "edelstahl_press"],
+                    "Pumpen & Regelung": ["grundfos", "wilo", "oventrop", "danfoss", "honeywell", "heimeier", "caleffi"],
+                    "Wasseraufbereitung": ["bwt", "gruenbeck", "judo", "syr", "kemper"],
+                    "Werkzeuge": ["rothenberger", "rems", "ridgid", "knipex", "wera", "wiha", "makita", "milwaukee", "bosch_werkzeug", "hilti", "fischer"],
+                }
                 
-                # Kompletten Katalog formatieren
-                lines = [f"=== KATALOG {system.upper()} - {len(products)} Produkte ===\n"]
+                lines = ["=== VERFUEGBARE HERSTELLER ===\n"]
                 
-                # Nach Größe gruppieren
-                by_size = {}
-                for p in products:
-                    size = p.get("size", "unbekannt")
-                    if size not in by_size:
-                        by_size[size] = []
-                    by_size[size].append(p)
+                zugeordnet = set()
+                for kat, keys in kategorien.items():
+                    kat_hersteller = [m for m in manufacturers if m["key"] in keys]
+                    if kat_hersteller:
+                        lines.append(f"\n{kat}:")
+                        for m in kat_hersteller:
+                            lines.append(f"  - {m['name']} ({m['produkte']} Produkte)")
+                            zugeordnet.add(m["key"])
                 
-                for size in sorted(by_size.keys()):
-                    lines.append(f"\n--- {size} ---")
-                    for p in by_size[size]:
-                        lines.append(f"- {p['name']} | Artikel Nummer: {p['kennung']}")
+                # Restliche Hersteller
+                sonstige = [m for m in manufacturers if m["key"] not in zugeordnet]
+                if sonstige:
+                    lines.append("\nSonstige:")
+                    for m in sonstige:
+                        lines.append(f"  - {m['name']} ({m['produkte']} Produkte)")
                 
-                lines.append(f"\n=== ENDE KATALOG ===")
-                lines.append("Du hast jetzt alle Produkte. Hilf dem Kunden das richtige zu finden und nenne immer die Artikel Nummer.")
+                lines.append(f"\nGesamt: {len(manufacturers)} Hersteller")
+                lines.append("\nNutze 'lade_hersteller_katalog' mit dem Herstellernamen um den Katalog zu laden.")
                 
-                katalog_text = "\n".join(lines)
-                logger.info(f"Katalog geladen: {len(products)} Produkte, {len(katalog_text)} Zeichen")
+                return "\n".join(lines)
+            
+            elif name == "lade_hersteller_katalog":
+                hersteller = arguments.get("hersteller", "")
+                
+                logger.info(f"Lade Hersteller-Katalog: {hersteller}")
+                
+                # Key ermitteln
+                key = catalog.get_manufacturer_key(hersteller)
+                if not key:
+                    # Verfügbare Hersteller vorschlagen
+                    manufacturers = catalog.get_available_manufacturers()
+                    vorschlaege = [m["name"] for m in manufacturers[:10]]
+                    return f"Hersteller '{hersteller}' nicht gefunden. Verfuegbare Hersteller (Auszug): {', '.join(vorschlaege)}. Nutze 'zeige_hersteller' fuer die komplette Liste."
+                
+                # Katalog laden und aktivieren
+                if not catalog.activate_catalog(key):
+                    return f"Fehler beim Laden des Katalogs '{hersteller}'."
+                
+                # Katalog für AI formatieren
+                katalog_text = catalog.get_catalog_for_ai(key)
+                
+                logger.info(f"Katalog '{key}' geladen, {len(katalog_text)} Zeichen für AI-Context")
                 
                 return katalog_text
             
+            elif name == "suche_produkt":
+                suchbegriff = arguments.get("suchbegriff", "")
+                hersteller = arguments.get("hersteller", "")
+                
+                logger.info(f"Suche Produkt: '{suchbegriff}' (Hersteller: {hersteller or 'alle'})")
+                
+                # Hersteller-Key ermitteln falls angegeben
+                hersteller_key = None
+                if hersteller:
+                    hersteller_key = catalog.get_manufacturer_key(hersteller)
+                
+                # Suchen
+                results = catalog.search_products(
+                    query=suchbegriff,
+                    hersteller_key=hersteller_key,
+                    nur_aktive=True
+                )
+                
+                if not results:
+                    # Prüfen ob überhaupt Kataloge geladen sind
+                    if not catalog.get_active_products():
+                        return "Keine Kataloge geladen! Lade zuerst einen Hersteller-Katalog mit 'lade_hersteller_katalog'."
+                    return f"Keine Produkte gefunden fuer '{suchbegriff}'."
+                
+                return catalog.format_search_results_for_ai(results)
+            
+            elif name == "zeige_produkt_details":
+                artikel_nummer = arguments.get("artikel_nummer", "")
+                
+                logger.info(f"Zeige Produkt-Details: {artikel_nummer}")
+                
+                # Produkt suchen
+                product = catalog.get_product_by_artikel(artikel_nummer)
+                
+                if not product:
+                    # Vielleicht Hersteller-Nummer?
+                    product = catalog.get_product_by_hersteller_nr(artikel_nummer)
+                
+                if not product:
+                    return f"Produkt mit Nummer '{artikel_nummer}' nicht gefunden. Ist der passende Katalog geladen?"
+                
+                return catalog.format_product_for_ai(product, show_prices=True)
+            
             elif name == "bestellung_hinzufuegen":
-                kennung = arguments.get("produkt_kennung", "")
+                artikel_nummer = arguments.get("artikel_nummer", "")
                 menge = arguments.get("menge", 1)
                 produktname = arguments.get("produktname", "")
                 
-                logger.info(f"Bestellung hinzufügen: {menge}x {produktname} (Artikel Nummer {kennung})")
+                logger.info(f"Bestellung hinzufügen: {menge}x {produktname} (Artikel-Nr: {artikel_nummer})")
                 
                 # Prüfen ob Produkt existiert
-                product = catalog.get_product_by_kennung(kennung)
+                product = catalog.get_product_by_artikel(artikel_nummer)
                 if not product:
-                    return f"Artikel Nummer {kennung} nicht im Katalog gefunden. Bitte prüfe die Nummer."
+                    return f"Artikel-Nummer '{artikel_nummer}' nicht im Katalog gefunden. Bitte prüfe die Nummer."
                 
-                # Zur Bestellung hinzufügen
-                order_manager.add_item(kennung=kennung, menge=menge, produktname=produktname)
+                # Zur Bestellung hinzufügen (mit kennung für Kompatibilität)
+                order_manager.add_item(kennung=artikel_nummer, menge=menge, produktname=produktname)
                 
-                return f"Bestellung notiert: {menge}x {produktname} (Artikel Nummer {kennung})"
+                return f"Bestellung notiert: {menge}x {produktname} (Artikel Nummer: {artikel_nummer})"
             
             elif name == "zeige_bestellung":
                 logger.info("Zeige aktuelle Bestellung")
@@ -539,6 +687,24 @@ class AIClient:
                 except Exception as e:
                     logger.error(f"[Expert] Fehler: {e}")
                     return "Entschuldigung, ich konnte meinen Kollegen gerade nicht erreichen."
+            
+            # Legacy-Support für alten Funktionsnamen
+            elif name == "lade_system_katalog":
+                system = arguments.get("system", "")
+                logger.info(f"[Legacy] lade_system_katalog aufgerufen mit: {system}")
+                
+                # Mapping auf neue Katalog-Keys
+                system_mapping = {
+                    "temponox": "viega_profipress",
+                    "sanpress": "viega_sanpress",
+                    "sanpress-inox": "viega_sanpress",
+                }
+                
+                key = system_mapping.get(system, system)
+                if not catalog.activate_catalog(key):
+                    return f"System '{system}' nicht gefunden."
+                
+                return catalog.get_catalog_for_ai(key)
             
             else:
                 logger.warning(f"Unbekannte Funktion: {name}")

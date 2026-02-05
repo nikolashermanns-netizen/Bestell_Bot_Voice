@@ -34,19 +34,36 @@ DEFAULT_MODEL = "o4-mini"
 DEFAULT_MIN_CONFIDENCE = 0.9
 
 # Default System-Prompt für Experten-Anfragen
-DEFAULT_EXPERT_INSTRUCTIONS = """Du bist ein erfahrener SHK-Fachexperte (Sanitaer, Heizung, Klima) mit tiefgehendem Wissen ueber Viega-Produkte und Installationstechnik.
+DEFAULT_EXPERT_INSTRUCTIONS = """Du bist ein erfahrener SHK-Fachexperte (Sanitaer, Heizung, Klima) bei Heinrich Schmidt, einem Fachgrosshandel.
+Du hast tiefgehendes Fachwissen ueber alle gaengigen Hersteller und Produkte im SHK-Bereich.
+
+DEIN ZUGRIFF:
+Du hast Zugriff auf den kompletten Katalog von Heinrich Schmidt mit ueber 86.000 Produkten von 63 Herstellern:
+
+SANITAER: Grohe, Hansgrohe, Geberit, Duravit, Villeroy & Boch, Ideal Standard, TECE, Keramag
+HEIZUNG: Viessmann, Buderus, Vaillant, Wolf, Junkers, Weishaupt, Broetje
+ROHRSYSTEME: Viega (Profipress, Sanpress, Megapress), Geberit (Mapress, Mepla), CU-Press, Edelstahl-Press
+PUMPEN & REGELUNG: Grundfos, Wilo, Oventrop, Danfoss, Honeywell, Heimeier, Caleffi
+WASSERAUFBEREITUNG: BWT, Gruenbeck, Judo, SYR, Kemper
+WERKZEUGE: Rothenberger, REMS, Ridgid, Knipex, Wera, Makita, Milwaukee
 
 DEINE AUFGABE:
 - Beantworte technische Fachfragen praezise und korrekt
-- Nutze den Produktkatalog wenn du konkrete Produktempfehlungen geben sollst
+- Nutze die Katalog-Funktionen wenn du konkrete Produktempfehlungen geben sollst
+- Lade erst den passenden Hersteller-Katalog bevor du Produkte suchst
 - Sei ehrlich wenn du dir unsicher bist
 
 WICHTIGE REGELN:
 1. Antworte NUR wenn du dir sehr sicher bist (>90% Konfidenz)
 2. Bei Unsicherheit: Sage klar "Das kann ich nicht sicher beantworten"
-3. Nenne bei Produktempfehlungen IMMER die Artikelnummer
+3. Nenne bei Produktempfehlungen IMMER die Heinrich Schmidt Artikel-Nummer
 4. Halte deine Antwort kurz und praegnant (max 2-3 Saetze fuer Sprachausgabe)
 5. Keine Vermutungen - nur gesichertes Fachwissen
+
+ARTIKELNUMMERN - WICHTIG:
+- "Artikel-Nummer" = Heinrich Schmidt Bestellnummer (z.B. "WT+VERL80")
+- "Hersteller-Nummer" = Werksnummer des Herstellers (z.B. "4A128L01")
+- Nenne IMMER die Heinrich Schmidt Artikel-Nummer!
 
 ANTWORT-FORMAT:
 Du MUSST immer in diesem JSON-Format antworten:
@@ -54,7 +71,7 @@ Du MUSST immer in diesem JSON-Format antworten:
     "antwort": "Deine Antwort fuer den Kunden (kurz, praegnant, fuer Sprachausgabe geeignet)",
     "konfidenz": 0.0-1.0,
     "begruendung": "Kurze Begruendung fuer deine Konfidenz-Einschaetzung",
-    "artikelnummern": ["Liste der genannten Artikelnummern falls vorhanden"]
+    "artikelnummern": ["Liste der Heinrich Schmidt Artikelnummern falls vorhanden"]
 }
 
 KONFIDENZ-SKALA:
@@ -64,37 +81,57 @@ KONFIDENZ-SKALA:
 - 0.7: Unsicher, sollte nicht weitergegeben werden
 - <0.7: Zu unsicher, verweigere die Antwort
 
-VERFUEGBARE VIEGA-SYSTEME:
-- Temponox: Edelstahl-Presssystem fuer Heizung
-- Sanpress: Kupfer/Rotguss-Presssystem fuer Trinkwasser
-- Sanpress Inox: Edelstahl-Presssystem fuer Trinkwasser
-
-PRODUKTTYPEN: Bogen 45°, Bogen 90°, Kappe, Muffe, Reduzierstueck, Rohr, T-Stueck, Uebergangsstueck, Verschraubung
-GROESSEN: 15mm, 18mm, 22mm, 28mm, 35mm, 42mm, 54mm
+PREISINFORMATIONEN:
+- EK-Preis = Einkaufspreis (Netto-Preis fuer den Kunden)
+- VK-Preis = Verkaufspreis (Brutto-Listenpreis)
 """
 
-# Tools für Katalog-Zugriff
+# Tools für Katalog-Zugriff (Multi-Hersteller)
 EXPERT_TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "zeige_hersteller",
+            "description": "Zeigt alle verfuegbaren Hersteller im Katalog mit Produktanzahl. Nutze diese Funktion um herauszufinden welche Hersteller verfuegbar sind.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "lade_hersteller_katalog",
+            "description": "Laedt den Katalog eines Herstellers. WICHTIG: Rufe diese Funktion auf bevor du Produkte suchst! Beispiele: 'grohe', 'viega_sanpress', 'buderus', 'villeroy_boch'",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "hersteller": {
+                        "type": "string",
+                        "description": "Name oder Key des Herstellers (z.B. 'Grohe', 'Viega Sanpress', 'Buderus')"
+                    }
+                },
+                "required": ["hersteller"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "suche_produkt",
-            "description": "Sucht Produkte im Viega-Katalog nach Name oder Typ",
+            "description": "Sucht nach Produkten in den geladenen Katalogen. Sucht nach Bezeichnung, Artikel-Nummer oder Hersteller-Nummer.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "suchbegriff": {
                         "type": "string",
-                        "description": "Suchbegriff (z.B. 'Bogen 90', 'T-Stueck', 'Muffe')"
+                        "description": "Wonach gesucht werden soll (Produktname, Artikelnummer)"
                     },
-                    "system": {
+                    "hersteller": {
                         "type": "string",
-                        "enum": ["temponox", "sanpress", "sanpress-inox"],
-                        "description": "Optional: System-Filter"
-                    },
-                    "groesse": {
-                        "type": "string",
-                        "description": "Optional: Groessen-Filter (z.B. '22mm')"
+                        "description": "Optional: Nur in diesem Hersteller-Katalog suchen"
                     }
                 },
                 "required": ["suchbegriff"]
@@ -104,35 +141,17 @@ EXPERT_TOOLS = [
     {
         "type": "function",
         "function": {
-            "name": "lade_system_katalog",
-            "description": "Laedt alle Produkte eines Systems",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "system": {
-                        "type": "string",
-                        "enum": ["temponox", "sanpress", "sanpress-inox"],
-                        "description": "Das System dessen Katalog geladen werden soll"
-                    }
-                },
-                "required": ["system"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
             "name": "produkt_details",
-            "description": "Holt Details zu einem Produkt anhand der Artikelnummer",
+            "description": "Zeigt alle Details zu einem Produkt inklusive Preise anhand der Heinrich Schmidt Artikel-Nummer.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "artikelnummer": {
+                    "artikel_nummer": {
                         "type": "string",
-                        "description": "Die Artikelnummer (Kennung) des Produkts"
+                        "description": "Heinrich Schmidt Artikel-Nummer (z.B. 'WT+VERL80')"
                     }
                 },
-                "required": ["artikelnummer"]
+                "required": ["artikel_nummer"]
             }
         }
     }
@@ -453,45 +472,68 @@ class ExpertClient:
             logger.info(f"[Expert Tool] {name}({args})")
             
             try:
-                if name == "suche_produkt":
-                    products = catalog.search_product(
-                        query=args.get("suchbegriff", ""),
-                        system=args.get("system"),
-                        size=args.get("groesse")
-                    )
-                    result = catalog.format_product_list(products, max_items=15)
-                
-                elif name == "lade_system_katalog":
-                    system = args.get("system", "")
-                    products = catalog.get_system_products(system)
+                if name == "zeige_hersteller":
+                    manufacturers = catalog.get_available_manufacturers()
                     
-                    if not products:
-                        result = f"System '{system}' nicht gefunden."
+                    if not manufacturers:
+                        result = "Fehler: Keine Hersteller verfuegbar."
                     else:
-                        # Nach Größe gruppieren
-                        by_size = {}
-                        for p in products:
-                            size = p.get("size", "?")
-                            if size not in by_size:
-                                by_size[size] = []
-                            by_size[size].append(p)
-                        
-                        lines = [f"=== {system.upper()} KATALOG ({len(products)} Produkte) ==="]
-                        for size in sorted(by_size.keys()):
-                            lines.append(f"\n--- {size} ---")
-                            for p in by_size[size]:
-                                lines.append(f"- {p['name']} | Artikel Nr: {p['kennung']}")
-                        
+                        lines = ["=== VERFUEGBARE HERSTELLER ===\n"]
+                        for m in manufacturers:
+                            lines.append(f"- {m['name']} ({m['produkte']} Produkte) [Key: {m['key']}]")
+                        lines.append(f"\nGesamt: {len(manufacturers)} Hersteller")
                         result = "\n".join(lines)
                 
+                elif name == "lade_hersteller_katalog":
+                    hersteller = args.get("hersteller", "")
+                    
+                    # Key ermitteln
+                    key = catalog.get_manufacturer_key(hersteller)
+                    if not key:
+                        result = f"Hersteller '{hersteller}' nicht gefunden. Nutze 'zeige_hersteller' fuer die Liste."
+                    else:
+                        # Katalog laden und aktivieren
+                        if catalog.activate_catalog(key):
+                            result = catalog.get_catalog_for_ai(key, max_products=300)
+                        else:
+                            result = f"Fehler beim Laden des Katalogs '{hersteller}'."
+                
+                elif name == "suche_produkt":
+                    suchbegriff = args.get("suchbegriff", "")
+                    hersteller = args.get("hersteller", "")
+                    
+                    # Hersteller-Key ermitteln falls angegeben
+                    hersteller_key = None
+                    if hersteller:
+                        hersteller_key = catalog.get_manufacturer_key(hersteller)
+                    
+                    # Suchen
+                    products = catalog.search_products(
+                        query=suchbegriff,
+                        hersteller_key=hersteller_key,
+                        nur_aktive=True,
+                        max_results=15
+                    )
+                    
+                    if not products:
+                        result = f"Keine Produkte gefunden fuer '{suchbegriff}'."
+                    else:
+                        result = catalog.format_search_results_for_ai(products, show_prices=True)
+                
                 elif name == "produkt_details":
-                    kennung = args.get("artikelnummer", "")
-                    product = catalog.get_product_by_kennung(kennung)
+                    artikel_nummer = args.get("artikel_nummer", "")
+                    
+                    # Produkt suchen
+                    product = catalog.get_product_by_artikel(artikel_nummer)
+                    
+                    if not product:
+                        # Vielleicht Hersteller-Nummer?
+                        product = catalog.get_product_by_hersteller_nr(artikel_nummer)
                     
                     if product:
-                        result = json.dumps(product, ensure_ascii=False, indent=2)
+                        result = catalog.format_product_for_ai(product, show_prices=True)
                     else:
-                        result = f"Produkt mit Artikelnummer {kennung} nicht gefunden."
+                        result = f"Produkt mit Nummer '{artikel_nummer}' nicht gefunden."
                 
                 else:
                     result = f"Unbekannte Funktion: {name}"
