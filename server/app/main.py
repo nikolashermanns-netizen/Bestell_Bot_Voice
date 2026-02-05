@@ -207,16 +207,18 @@ async def lifespan(app: FastAPI):
     
     logger.info(f"Expert Client initialisiert mit {len(EXPERT_MODELS)} Modellen")
     
-    # Gespeicherte Instructions, Model und Expert-Config laden
+    # Gespeicherte Model und Expert-Config laden (Instructions kommen immer aus Code)
     config_data = load_config()
+    
+    # WICHTIG: Instructions werden NICHT aus config geladen!
+    # Der Kontext kommt immer aus DEFAULT_INSTRUCTIONS im Code.
+    # Änderungen am Kontext erfolgen durch Code-Änderungen, nicht GUI.
+    logger.info("AI-Instructions: Verwende DEFAULT_INSTRUCTIONS aus Code")
     
     if config_data:
         logger.info(f"Konfiguration gefunden: {list(config_data.keys())}")
         
-        if "instructions" in config_data:
-            ai_client.set_instructions(config_data["instructions"])
-            logger.info("Gespeicherte AI-Instructions geladen")
-        
+        # Nur Model laden, NICHT Instructions
         if "model" in config_data:
             success = ai_client.set_model(config_data["model"])
             if success:
@@ -228,9 +230,10 @@ async def lifespan(app: FastAPI):
             expert_client.set_config(config_data["expert_config"])
             logger.info(f"Gespeicherte Expert-Konfiguration geladen: enabled_models={config_data['expert_config'].get('enabled_models', [])}")
         
-        if "expert_instructions" in config_data:
-            expert_client.set_instructions(config_data["expert_instructions"])
-            logger.info("Gespeicherte Expert-Instructions geladen")
+        # Expert-Instructions auch nicht persistent laden
+        # if "expert_instructions" in config_data:
+        #     expert_client.set_instructions(config_data["expert_instructions"])
+        logger.info("Expert-Instructions: Verwende DEFAULT_EXPERT_INSTRUCTIONS aus Code")
     else:
         logger.info("Keine gespeicherte Konfiguration gefunden, verwende Defaults")
     
@@ -636,16 +639,22 @@ async def get_instructions():
 
 @app.post("/instructions")
 async def set_instructions(data: dict):
-    """AI-Instruktionen setzen (werden beim nächsten Anruf aktiv)."""
+    """
+    AI-Instruktionen temporär setzen (nur für Debug/Test).
+    NICHT persistent - beim Neustart wird DEFAULT_INSTRUCTIONS aus Code verwendet.
+    Für permanente Änderungen: Code in ai_client.py anpassen.
+    """
     if ai_client:
         instructions = data.get("instructions", "")
         ai_client.set_instructions(instructions)
         
-        # Persistieren in Datei
-        if update_config(instructions=instructions):
-            return {"status": "ok", "length": len(instructions)}
-        else:
-            return {"status": "error", "message": "Konnte nicht persistent speichern"}
+        # NICHT persistent speichern - Kontext kommt immer aus Code
+        logger.info(f"Instructions temporär gesetzt ({len(instructions)} Zeichen) - nicht persistent!")
+        return {
+            "status": "ok", 
+            "length": len(instructions),
+            "note": "Temporaer gesetzt. Beim Neustart wird DEFAULT_INSTRUCTIONS aus Code verwendet."
+        }
     return {"status": "error"}
 
 
@@ -777,15 +786,21 @@ async def get_expert_instructions():
 
 @app.post("/expert/instructions")
 async def set_expert_instructions(data: dict):
-    """Experten-Instruktionen setzen."""
+    """
+    Experten-Instruktionen temporär setzen (nur für Debug/Test).
+    NICHT persistent - beim Neustart wird DEFAULT_EXPERT_INSTRUCTIONS aus Code verwendet.
+    Für permanente Änderungen: Code in expert_client.py anpassen.
+    """
     if expert_client:
         instructions = data.get("instructions", "")
         if expert_client.set_instructions(instructions):
-            # Persistieren - Expert-Instructions separat speichern
-            if update_config(expert_instructions=instructions):
-                return {"status": "ok", "length": len(instructions)}
-            else:
-                return {"status": "error", "message": "Instruktionen gesetzt aber nicht persistent gespeichert"}
+            # NICHT persistent speichern - Kontext kommt immer aus Code
+            logger.info(f"Expert-Instructions temporär gesetzt ({len(instructions)} Zeichen) - nicht persistent!")
+            return {
+                "status": "ok", 
+                "length": len(instructions),
+                "note": "Temporaer gesetzt. Beim Neustart wird DEFAULT_EXPERT_INSTRUCTIONS aus Code verwendet."
+            }
         return {"status": "error", "message": "Instruktionen zu kurz"}
     return {"status": "error"}
 
