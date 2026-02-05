@@ -5,9 +5,9 @@
 set -e  # Bei Fehler abbrechen
 
 # Konfiguration
-SERVER_USER="root"
-SERVER_HOST="10.200.200.1"
-SERVER_PATH="/root/bestell-bot"
+# WICHTIG: SSH-Alias "bot" verwenden - direkter Zugriff auf Port 22 ist blockiert!
+SSH_ALIAS="bot"
+SERVER_PATH="/home/nikolas/bestell-bot-voice"
 
 echo "=== Bestell Bot Voice - Server Update ==="
 echo ""
@@ -36,14 +36,17 @@ git push origin master || echo "Push fehlgeschlagen oder kein Remote - fahre for
 echo ""
 
 # 4. Auf Server deployen
-echo "[4/4] Deploy auf Server ($SERVER_HOST)..."
-ssh ${SERVER_USER}@${SERVER_HOST} << 'ENDSSH'
-    cd /root/bestell-bot/server
-    git pull
-    docker-compose down
-    docker-compose up -d --build
-    echo "Server neu gestartet!"
-ENDSSH
+echo "[4/4] Deploy auf Server (via SSH-Alias: $SSH_ALIAS)..."
+ssh $SSH_ALIAS "cd $SERVER_PATH && git pull origin master"
+
+echo ""
+echo "[5/5] Docker Container neu starten..."
+ssh $SSH_ALIAS "docker stop bestell-bot-voice; docker rm bestell-bot-voice; cd $SERVER_PATH/server && docker build -t server_bestell-bot . && docker run -d --name bestell-bot-voice --network host --env-file .env -v $SERVER_PATH/server/config:/app/config -v $SERVER_PATH/server/system_katalog:/app/system_katalog -v $SERVER_PATH/server/wissen:/app/wissen server_bestell-bot"
+
+echo ""
+echo "[6/6] Status prüfen..."
+sleep 3
+ssh $SSH_ALIAS "docker logs --tail 20 bestell-bot-voice"
 
 echo ""
 echo "=== Update abgeschlossen ==="
