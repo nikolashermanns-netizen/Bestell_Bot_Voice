@@ -597,7 +597,7 @@ def search_products(
 ) -> List[Dict]:
     """
     Sucht Produkte nach Bezeichnung oder Artikelnummer.
-    Sucht nach JEDEM WORT einzeln - Produkt muss alle Suchwoerter enthalten.
+    Gewichtet wichtige SHK-Begriffe hoeher als generische Woerter.
     
     Args:
         query: Suchbegriff (kann mehrere Woerter enthalten)
@@ -610,18 +610,45 @@ def search_products(
     """
     import re
     
+    # Stoppwoerter werden ignoriert (kein Gewicht)
+    STOPPWOERTER = {'mm', 'auf', 'mit', 'und', 'fuer', 'von', 'in', 'zu', 'der', 'die', 'das', 
+                    'zoll', 'grad', 'sc', 'ein', 'eine', 'einen'}
+    
+    # Wichtige SHK-Begriffe bekommen hohes Gewicht
+    WICHTIGE_BEGRIFFE = {
+        # Systeme
+        'temponox', 'sanpress', 'profipress', 'megapress', 'prestabo', 
+        'mapress', 'mepla', 'sanfix', 'sanha',
+        # Produkttypen
+        'bogen', 'muffe', 'verschraubung', 'uebergangsstueck', 'uebergangsmuffe',
+        'rohr', 'kappe', 'reduzierstueck', 'flansch', 'winkel', 'stueck',
+        # Gewinde (wichtig!)
+        'rp', 'rp1', 'rp2', 'r1', 'r2', 'r3',
+        # Sanitaer
+        'waschtisch', 'armatur', 'batterie', 'wc', 'urinal', 'dusche',
+    }
+    
     query_lower = query.lower().strip()
     
     # Zahlen von Text trennen (z.B. "28mm" -> "28", "mm")
-    # Erst nach Leerzeichen/Trennzeichen splitten, dann Zahlen von Buchstaben trennen
     raw_parts = re.split(r'[\s,\-\.]+', query_lower)
     search_words = []
+    wichtige_words = []
+    
     for part in raw_parts:
         # Trenne Zahlen von Buchstaben: "28mm" -> ["28", "mm"], "dn50" -> ["dn", "50"]
         sub_parts = re.split(r'(\d+)', part)
         for sp in sub_parts:
-            if len(sp) >= 2:  # Mindestens 2 Zeichen
+            if len(sp) >= 2 and sp not in STOPPWOERTER:
                 search_words.append(sp)
+                # Markiere wichtige Woerter
+                if sp in WICHTIGE_BEGRIFFE or len(sp) >= 4:
+                    wichtige_words.append(sp)
+    
+    # Auch einstellige Zahlen behalten (fuer Dimensionen wie "1" Zoll)
+    for part in raw_parts:
+        if part.isdigit() and len(part) == 1:
+            search_words.append(part)
     
     # Suchpool bestimmen
     if hersteller_key and hersteller_key in _loaded_catalogs:
@@ -629,7 +656,6 @@ def search_products(
     elif nur_aktive:
         search_pool = get_active_products()
     else:
-        # Alle geladenen Kataloge durchsuchen
         search_pool = []
         for products in _loaded_catalogs.values():
             search_pool.extend(products)
@@ -641,34 +667,54 @@ def search_products(
         artikel_lower = product["artikel"].lower()
         hnr_lower = (product["hersteller_nr"] or "").lower()
         
-        # Alle Suchfelder kombinieren
         search_text = f"{bez_lower} {artikel_lower} {hnr_lower}"
         
-        # Zaehle wieviele Suchwoerter gefunden werden
-        matches = sum(1 for word in search_words if word in search_text)
+        # Score berechnen
+        score = 0
+        matched_words = 0
+        matched_wichtig = 0
         
-        # Mindestens die Haelfte der wichtigen Woerter muessen matchen
-        # Oder bei nur 1-2 Woertern: alle muessen matchen
-        min_matches = len(search_words) if len(search_words) <= 2 else max(2, len(search_words) // 2)
+        for word in search_words:
+            if word in search_text:
+                matched_words += 1
+                # Wichtige Woerter geben mehr Punkte
+                if word in WICHTIGE_BEGRIFFE:
+                    score += 50
+                    matched_wichtig += 1
+                elif word.isdigit():
+                    score += 20  # Dimensionen sind wichtig
+                else:
+                    score += 10
         
-        if matches >= min_matches:
+        # Bonus wenn ALLE wichtigen Woerter matchen
+        if wichtige_words and matched_wichtig == len(wichtige_words):
+            score += 100
+        
+        # Exakter Match im Produktnamen gibt Bonus
+        if query_lower in bez_lower:
+            score += 200
+        
+        # Mindestens die Haelfte der Suchwoerter muessen matchen
+        min_matches = max(1, len(search_words) // 2)
+        
+        if matched_words >= min_matches and score > 0:
             results.append({
                 **product,
-                "_score": matches,
-                "_exact": query_lower in search_text
+                "_score": score,
+                "_matched": matched_words
             })
     
-    # Nach Relevanz sortieren (mehr Matches = besser, exakte zuerst)
+    # Nach Score sortieren (hoechster zuerst)
     results.sort(key=lambda x: (
-        -x.get("_exact", False),  # Exakte zuerst
-        -x.get("_score", 0),      # Mehr Matches = besser
-        x["bezeichnung"]           # Alphabetisch
+        -x.get("_score", 0),
+        -x.get("_matched", 0),
+        x["bezeichnung"]
     ))
     
     # Score-Felder entfernen
     for r in results:
         r.pop("_score", None)
-        r.pop("_exact", None)
+        r.pop("_matched", None)
     
     return results[:max_results]
 
