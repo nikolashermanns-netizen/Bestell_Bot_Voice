@@ -164,8 +164,9 @@ def build_instructions_for_domain(domain_key: str = None) -> str:
     return instructions
 
 
-# Default: Rohrsysteme (haeufigster Bereich)
-DEFAULT_INSTRUCTIONS = build_instructions_for_domain("rohrsysteme")
+# Default: Neutral starten (ohne bereichsspezifisches Fachwissen)
+# Fachwissen wird erst bei Bereichserkennung hinzugefuegt
+DEFAULT_INSTRUCTIONS = BASE_INSTRUCTIONS
 
 
 # Verfügbare OpenAI Realtime Modelle
@@ -333,8 +334,8 @@ class AIClient:
         self._receive_task: Optional[asyncio.Task] = None
         
         self.muted = False
-        self._current_domain = "rohrsysteme"  # Standard-Bereich
-        self.instructions = build_instructions_for_domain(self._current_domain)
+        self._current_domain = None  # Startet neutral, Bereich wird bei Erkennung gesetzt
+        self.instructions = DEFAULT_INSTRUCTIONS
         self._model = model if model in AVAILABLE_MODELS else DEFAULT_MODEL
         
         # Expert Client Referenz (wird von main.py gesetzt)
@@ -367,7 +368,7 @@ class AIClient:
             logger.warning(f"Unbekannter Produktbereich: {domain_key}")
             return False
         
-        old_domain = self._current_domain
+        old_domain = self._current_domain or "neutral"
         self._current_domain = domain_key
         self.instructions = build_instructions_for_domain(domain_key)
         
@@ -800,6 +801,11 @@ class AIClient:
                 # Pruefen ob Suche spezifisch genug ist
                 specificity = catalog.analyze_search_specificity(suchbegriff, results)
                 
+                # Debug: Immer anzeigen was die Analyse ergeben hat
+                logger.info(f"[KATALOG-SUCHE] Spezifitaet: is_specific={specificity['is_specific']}, results={specificity['result_count']}")
+                if self.on_transcript:
+                    await self.on_transcript("system", f"[Suche-Analyse] '{suchbegriff}': spezifisch={specificity['is_specific']}, {specificity['result_count']} Treffer", True)
+                
                 if not specificity["is_specific"]:
                     # Suche zu unspezifisch - Vorschlaege statt Produktliste zurueckgeben
                     suggestions = specificity["suggestions"]
@@ -940,7 +946,7 @@ class AIClient:
                     verfuegbar = ", ".join(product_domains.get_all_domain_names().keys())
                     return f"Unbekannter Produktbereich. Verfuegbar: {verfuegbar}"
                 
-                old_domain = self._current_domain
+                old_domain = self._current_domain or "neutral"
                 domain_info = product_domains.PRODUCT_DOMAINS[bereich]
                 
                 # Bereich wechseln
